@@ -2,26 +2,81 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>Inkhold</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Inkmate</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Permanent+Marker&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<canvas id="game" tabindex="0" aria-label="Inkhold game canvas"></canvas>
-<div id="touch">
-  <div class="grp">
-    <button data-k="left" aria-label="Walk left">◀</button>
-    <button data-k="right" aria-label="Walk right">▶</button>
-  </div>
-  <div class="grp">
-    <button data-k="night" aria-label="Call the night early">Night</button>
-    <button data-k="march" aria-label="March or fall back">March</button>
-    <button data-k="act" class="big" aria-label="Build or recruit">Build</button>
+<div id="app">
+  <header class="top">
+    <h1>Inkmate</h1>
+    <nav class="top-btns" aria-label="Game">
+      <button class="btn" id="btnUnits" type="button">Units &amp; cards</button>
+      <button class="btn" id="btnNew" type="button">New game</button>
+      <button class="btn ghost" id="btnMute" type="button" aria-pressed="true">Sound on</button>
+    </nav>
+  </header>
+  <main class="layout">
+    <section class="board-col" aria-label="Board">
+      <div class="bar" id="oppBar"></div>
+      <div class="board-wrap" id="boardWrap"><canvas id="board" aria-label="10 by 10 chess board"></canvas></div>
+      <div class="bar" id="meBar"></div>
+    </section>
+    <aside class="panel">
+      <p class="status" id="status" aria-live="polite"></p>
+      <div class="purse">
+        <button class="pack-btn" id="btnPack" type="button">
+          <canvas id="packMini" aria-hidden="true"></canvas>
+          <span class="pack-label"><b>Open a pack</b><span>5 coins · you have <b id="coins">5</b></span></span>
+        </button>
+        <p class="hint" id="packHint"></p>
+      </div>
+      <h2 id="handTitle">Your hand</h2>
+      <div class="hand" id="hand"></div>
+      <h2>What happened</h2>
+      <ol class="log" id="log"></ol>
+    </aside>
+  </main>
+</div>
+
+<div class="overlay" id="startOverlay" role="dialog" aria-modal="true" aria-labelledby="startTitle">
+  <div class="sheet start">
+    <h2 id="startTitle" class="big-title">Inkmate</h2>
+    <p class="lede">Chess on a bigger board, scribbled in a notebook. Win coins, rip open card packs, and drop dragons, tanks and the odd F-15 into the game.</p>
+    <ul class="rules">
+      <li>Normal chess rules on a 10×10 board, plus two Archers each.</li>
+      <li>Each turn, move a piece <i>or</i> play a card from your hand.</li>
+      <li>You get 1 coin a turn and more for captures. A pack costs 5 and doesn't use your turn.</li>
+      <li>Checkmate the enemy king to win.</li>
+    </ul>
+    <div class="start-btns">
+      <button class="btn primary" id="startAi" type="button">Play the computer</button>
+      <button class="btn" id="startPvp" type="button">Two players, one device</button>
+      <button class="btn ghost" id="startUnits" type="button">Meet the units</button>
+    </div>
   </div>
 </div>
+
+<div class="overlay" id="packOverlay" role="dialog" aria-modal="true" aria-label="Opening a pack" hidden>
+  <div class="pack-scene">
+    <div class="pack-stage" id="packStage"></div>
+    <p class="pack-msg" id="packMsg"></p>
+    <button class="btn primary" id="packDone" type="button" hidden>Keep them</button>
+  </div>
+</div>
+
+<div class="overlay" id="unitsOverlay" role="dialog" aria-modal="true" aria-labelledby="unitsTitle" hidden>
+  <div class="sheet units">
+    <div class="sheet-head"><h2 id="unitsTitle">Units &amp; cards</h2><button class="btn small" id="unitsClose" type="button">Close</button></div>
+    <p class="legend"><span class="lg-dot"></span> moves there <span class="lg-ring"></span> captures there <span class="lg-x">✕</span> shoots from where it stands</p>
+    <div id="unitsGrid"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
 <script src="game.js"></script>
 </body>
 </html>
