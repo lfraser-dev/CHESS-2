@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Inkhold</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Patrick+Hand&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game" tabindex="0" aria-label="Inkhold game canvas"></canvas>
+<div id="touch">
+  <div class="grp">
+    <button data-k="left" aria-label="Walk left">◀</button>
+    <button data-k="right" aria-label="Walk right">▶</button>
+  </div>
+  <div class="grp">
+    <button data-k="night" aria-label="Call the night early">Night</button>
+    <button data-k="march" aria-label="March or fall back">March</button>
+    <button data-k="act" class="big" aria-label="Build or recruit">Build</button>
+  </div>
+</div>
+<script src="game.js"></script>
+</body>
+</html>

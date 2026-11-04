@@ -1,0 +1,57 @@
+/* Inkhold — a notebook-margin siege game. Single deliberate look: ink on ruled paper. */
+:root {
+  --paper: #f3efe3;
+  --ink: #1d1c22;
+  --red-ink: #b8322a;
+  --gold: #d9a521;
+  --rule: rgba(84, 128, 196, 0.32);
+  --hand: 'Patrick Hand', 'Comic Sans MS', 'Chalkboard SE', cursive;
+  color-scheme: light;
+}
+html, body {
+  height: 100%;
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  overflow: hidden;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+#game {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+}
+#touch {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: none;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 10px;
+  padding-block: 10px calc(10px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  pointer-events: none;
+}
+body.touch #touch { display: flex; }
+#touch .grp { display: flex; gap: 10px; pointer-events: auto; flex-wrap: wrap; justify-content: flex-end; }
+#touch button {
+  font: 20px var(--hand);
+  color: var(--ink);
+  background: rgba(243, 239, 227, 0.88);
+  border: 2px solid var(--ink);
+  border-radius: 14px 9px 16px 10px / 10px 15px 9px 14px;
+  min-width: 58px;
+  height: 58px;
+  padding: 0 12px;
+  touch-action: none;
+}
+#touch button.big { min-width: 72px; }
+#touch button:active, #touch button.on { background: #e2d9c4; }
+#touch button:focus-visible { outline: 2px dashed var(--red-ink); outline-offset: 2px; }
