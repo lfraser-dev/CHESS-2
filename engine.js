@@ -46,7 +46,7 @@ const U = {
   serpent: { name: 'Ouroboros Serpent', val: 6, sl: [[ORTH, N]], wrapAll: 1, rules: 'Slides like a rook, and slithers off any edge to come back on the opposite side.' },
   egg: { name: 'Dragon Egg', val: 2, hatch: 3, rules: 'Can\'t move. Hatches into a Dragon after 3 of your turns.' },
   goose: { name: 'Golden Goose', val: 2, quiet: DIR8, noCap: 1, income: 3, rules: 'Waddles 1 square, can\'t capture. Lays 3 extra coins at the start of each of your turns.' },
-  pagoda: { name: 'Screaming Pagoda', val: 8, shoot: [DIR8, 3], scream: 1, rules: 'A furious red temple that never stops screaming. Never moves. Screams down the first enemy up to 3 squares away in any direction, and at the end of each of your turns it blasts every enemy next to it 1 square away. If they have nowhere to go, they\'re destroyed.' },
+  pagoda: { name: 'Malevolent Shrine', val: 8, shoot: [DIR8, 3], scream: 1, rules: 'A furious red temple that never stops screaming. Never moves. Screams down the first enemy up to 3 squares away in any direction, and at the end of each of your turns it blasts every enemy next to it 1 square away. If they have nowhere to go, they\'re destroyed.' },
   trolley: { name: 'Shopping Trolley', val: 4, sl: [[ORTH, 4]], rules: 'Rolls up to 4 squares in a straight line and runs over whatever it hits. One wheel squeaks.' },
   duck: { name: 'Rubber Duck', val: 1, sl: [[DIR8, 1]], noCap: 1, squeak: 1, rules: 'Bobs 1 square any way. Can\'t capture. Whatever captures it is stunned by the squeak and frozen for a turn.' },
   gnome: { name: 'Lawn Gnome', val: 2, gnome: 1, rules: 'Never moves. Just stares. Enemy pieces next to it are too unsettled to move (kings excepted).' },
@@ -82,12 +82,12 @@ const U = {
   sheriff: { name: 'Sheriff', val: 5, quiet: DIR8, shoot: [ROW, N], set: 'west', rules: 'Steps 1 square to empty squares. Quick-draws on the first enemy anywhere along its row.' },
   stranger: { name: 'The Stranger', val: 11, sl: [[DIR8, N]], shoot: [ORTH, N], set: 'west', rules: 'Moves like a queen, and can also shoot the first enemy along any row or column without moving.' },
   tentacle: { name: 'Swamp Tentacle', val: 2, shoot: [ORTH, 1], set: 'monster', rules: 'Rooted to the spot. Grabs any enemy that ends up right next to it (not diagonally).' },
-  moth: { name: 'Giant Moth', val: 5, sl: [[DIAG, 2]], fly: 1, dust: 1, set: 'monster', rules: 'Flutters up to 2 squares diagonally. Wherever it lands, enemies next to it are frozen for a turn.' },
-  lizard: { name: 'Lizard King', val: 11, leap: RING2, stomp: 1, set: 'monster', rules: 'Leaps to any square within 2. When it captures, it stomps every enemy next to where it lands (kings survive).' },
+  moth: { name: 'Mothra', val: 5, sl: [[DIAG, 2]], fly: 1, dust: 1, set: 'monster', rules: 'Flutters up to 2 squares diagonally. Wherever it lands, enemies next to it are frozen for a turn.' },
+  lizard: { name: 'Godzilla', val: 11, leap: RING2, stomp: 1, set: 'monster', rules: 'Leaps to any square within 2. When it captures, it stomps every enemy next to where it lands (kings survive).' },
   parrot: { name: 'Parrot', val: 1, sl: [[DIAG, 3]], fly: 1, noCap: 1, set: 'plunder', rules: 'Flies up to 3 squares diagonally. Can\'t capture, but it\'s great at getting in the way.' },
   cannon: { name: 'Ship\'s Cannon', val: 4, shoot: [ROW, 4], set: 'plunder', rules: 'Can\'t move. Blasts the first enemy up to 4 squares left or right.' },
   captain: { name: 'Pirate Captain', val: 6, sl: [[DIR8, 2]], plunder: 2, set: 'plunder', rules: 'Moves up to 2 squares any way. Every capture earns 2 extra coins.' },
-  kraken: { name: 'Kraken', val: 9, ring: RING2, set: 'plunder', rules: 'Can\'t move. Drags under any enemy within 2 squares, over anything in between. Kings only if they\'re right next to it.' },
+  kraken: { name: 'The Kraken', val: 9, ring: RING2, set: 'plunder', rules: 'Can\'t move. Drags under any enemy within 2 squares, over anything in between. Kings only if they\'re right next to it.' },
 };
 const VAL = t => U[t].val;
 
