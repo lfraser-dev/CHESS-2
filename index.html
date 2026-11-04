@@ -22,20 +22,26 @@
   <main class="layout">
     <section class="board-col" aria-label="Board">
       <div class="bar" id="oppBar"></div>
+      <div class="fields" id="fields" aria-live="polite" hidden></div>
       <div class="board-wrap" id="boardWrap"><canvas id="board" aria-label="10 by 10 chess board"></canvas></div>
       <div class="bar" id="meBar"></div>
     </section>
     <aside class="panel">
       <p class="status" id="status" aria-live="polite"></p>
-      <div class="purse">
-        <button class="pack-btn" id="btnPack" type="button">
-          <canvas id="packMini" aria-hidden="true"></canvas>
-          <span class="pack-label"><b>Open a pack</b><span>5 coins · you have <b id="coins">5</b></span></span>
-        </button>
-        <p class="hint" id="packHint"></p>
-      </div>
-      <h2 id="handTitle">Your hand</h2>
-      <div class="hand" id="hand"></div>
+      <section class="shop-wrap" aria-labelledby="shopTitle">
+        <div class="row-head"><h2 id="shopTitle">Pack shop</h2><span class="purse-count"><span class="coin-ico" aria-hidden="true"></span><b id="coins">5</b> coins</span></div>
+        <p class="hint">+1 coin a turn, more for captures. Buying a pack doesn't use your turn.</p>
+        <div class="shop" id="shop"></div>
+      </section>
+      <section aria-labelledby="handTitle">
+        <div class="row-head"><h2 id="handTitle">Your hand</h2><button class="btn small" id="btnRecycle" type="button" aria-pressed="false">Recycle cards</button></div>
+        <div class="recycle-bar" id="recycleBar" hidden>
+          <button class="btn small" id="rcScrap" type="button">Scrap for coins</button>
+          <button class="btn small" id="rcTrade" type="button">Trade 3 same rarity up</button>
+          <p class="hint">Scrap values: Common 1 · Uncommon 2 · Rare 3 · Epic 5 · Legendary 8. Recycling doesn't use your turn.</p>
+        </div>
+        <div class="hand" id="hand"></div>
+      </section>
       <h2>What happened</h2>
       <ol class="log" id="log"></ol>
     </aside>
@@ -45,11 +51,12 @@
 <div class="overlay" id="startOverlay" role="dialog" aria-modal="true" aria-labelledby="startTitle">
   <div class="sheet start">
     <h2 id="startTitle" class="big-title">Inkmate</h2>
-    <p class="lede">Chess on a bigger board, scribbled in a notebook. Win coins, rip open card packs, and drop dragons, tanks and the odd F-15 into the game.</p>
+    <p class="lede">Chess on a bigger board, scribbled in a notebook. Earn coins, rip open card packs, and bend the rules: landmines, curses, wrap-around edges, mind control, dragons, and the odd F-15.</p>
     <ul class="rules">
       <li>Normal chess rules on a 10×10 board, plus two Archers each.</li>
       <li>Each turn, move a piece <i>or</i> play a card from your hand.</li>
-      <li>You get 1 coin a turn and more for captures. A pack costs 5 and doesn't use your turn.</li>
+      <li>You get 1 coin a turn and more for captures. Packs cost 5–7, and buying one doesn't use your turn.</li>
+      <li>Four collab sets: Iron Crusade, Dust &amp; Daring, Monster Mayhem and Plunder. Recycle cards you don't want.</li>
       <li>Checkmate the enemy king to win.</li>
     </ul>
     <div class="start-btns">
@@ -77,6 +84,8 @@
 </div>
 
 <div class="toast" id="toast" role="status" hidden></div>
+<script src="engine.js"></script>
+<script src="art.js"></script>
 <script src="game.js"></script>
 </body>
 </html>
