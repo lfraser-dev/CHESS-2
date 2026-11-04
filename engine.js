@@ -3,7 +3,11 @@
 (() => {
 'use strict';
 const INK = window.INK = window.INK || {};
-const N = 10;
+const N = 50;
+// starting layout: a normal chess army in the middle of each side, far apart
+const BACK = { w: 33, b: 16 }, PAWN = { w: 32, b: 17 }, FILE0 = 20;
+const PROMO = { w: r => r <= BACK.b, b: r => r >= BACK.w };
+const CENTRE_COLS = [...Array(N).keys()].sort((a, b) => Math.abs(a - 24.5) - Math.abs(b - 24.5));
 const DIR8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 const ORTH = DIR8.slice(0, 4), DIAG = DIR8.slice(4), ROW = [[0, 1], [0, -1]];
 const KN = [[1, 2], [2, 1], [-1, 2], [-2, 1], [1, -2], [2, -1], [-1, -2], [-2, -1]];
@@ -18,11 +22,11 @@ const mod = v => ((v % N) + N) % N;
 // shoot: [dirs, max] first piece along the line, captured from range · lob: [dirs, [dists]] ranged, over pieces
 // strike: offsets, ranged · swap: trade places with adjacent piece · fly: ignores blockers when sliding
 const U = {
-  P: { name: 'Pawn', val: 1, pawn: 1, rules: 'Steps forward 1, or 2 from its starting row. Captures one square diagonally forward. Becomes a Queen on the far side.' },
+  P: { name: 'Pawn', val: 1, pawn: 1, rules: 'Steps forward 1, or 2 from its starting row. Captures one square diagonally forward. Becomes a Queen when it reaches the enemy\'s starting back row.' },
   N: { name: 'Knight', val: 3, leap: KN, rules: 'Jumps in an L: two squares one way, one to the side. Leaps over anything.' },
-  B: { name: 'Bishop', val: 3, sl: [[DIAG, 9]], rules: 'Slides any distance diagonally.' },
-  R: { name: 'Rook', val: 5, sl: [[ORTH, 9]], rules: 'Slides any distance in straight lines.' },
-  Q: { name: 'Queen', val: 9, sl: [[DIR8, 9]], rules: 'Slides any distance in any of the 8 directions.' },
+  B: { name: 'Bishop', val: 3, sl: [[DIAG, N]], rules: 'Slides any distance diagonally.' },
+  R: { name: 'Rook', val: 5, sl: [[ORTH, N]], rules: 'Slides any distance in straight lines.' },
+  Q: { name: 'Queen', val: 9, sl: [[DIR8, N]], rules: 'Slides any distance in any of the 8 directions.' },
   K: { name: 'King', val: 0, sl: [[DIR8, 1]], rules: 'Steps 1 square any way. If he is in check and can\'t escape, you lose.' },
   A: { name: 'Archer', val: 3, quiet: DIR8, shoot: [DIR8, 2], rules: 'Steps 1 square any way but can\'t capture by moving. Shoots the first enemy within 2 squares in any direction and stays put.' },
   W: { name: 'Stone Wall', val: 1, rules: 'Never moves, never captures. Just gets in the way.' },
@@ -30,7 +34,7 @@ const U = {
   T: { name: 'Tank', val: 5, sl: [[ORTH, 3]], pawnProof: 1, rules: 'Drives up to 3 squares in straight lines. Pawns can\'t capture it.' },
   Z: { name: 'Wizard', val: 4, leap: KN, sl: [[DIAG, 2]], rules: 'Jumps like a knight, or glides up to 2 squares diagonally.' },
   D: { name: 'Dragon', val: 7, sl: [[DIR8, 3]], fly: 1, rules: 'Flies up to 3 squares in any direction, right over other pieces. It can only attack a king along a clear line.' },
-  J: { name: 'F-15 Fighter Jet', val: 10, sl: [[DIR8, 9]], fly: 1, rules: 'Flies any distance in any of the 8 directions, straight over everything. It can only attack a king along a clear line.' },
+  J: { name: 'F-15 Fighter Jet', val: 10, sl: [[DIR8, N]], fly: 1, rules: 'Flies any distance in any of the 8 directions, straight over everything. It can only attack a king along a clear line.' },
   chicken: { name: 'Chicken', val: 0, sl: [[DIR8, 1]], noCap: 1, rules: 'Wanders 1 square any way. Can\'t capture. It\'s a chicken.' },
   keg: { name: 'Powder Keg', val: 2, boom: 1, rules: 'Doesn\'t move. When it\'s captured it explodes, wiping out everything next to it (kings survive).' },
   ghost: { name: 'Ghost', val: 2, sl: [[DIR8, 2]], fly: 1, noCap: 1, untouchable: 1, rules: 'Drifts up to 2 squares through anything. Can\'t capture, and only spells can hurt it.' },
@@ -39,7 +43,7 @@ const U = {
   golem: { name: 'Stone Golem', val: 4, sl: [[ORTH, 1]], armor: 2, rules: 'Plods 1 square straight. Starts with 2 armour: each hit cracks one off instead of capturing it.' },
   heli: { name: 'Helicopter', val: 5, sl: [[DIR8, 4]], fly: 1, capMax: 3, rules: 'Flies up to 4 squares over anything, but can only capture pieces worth 3 or less.' },
   phoenix: { name: 'Phoenix', val: 6, sl: [[DIAG, 3]], fly: 1, reborn: 1, rules: 'Flies up to 3 squares diagonally. The first time it\'s captured it rises again on your back row.' },
-  serpent: { name: 'Ouroboros Serpent', val: 6, sl: [[ORTH, 9]], wrapAll: 1, rules: 'Slides like a rook, and slithers off any edge to come back on the opposite side.' },
+  serpent: { name: 'Ouroboros Serpent', val: 6, sl: [[ORTH, N]], wrapAll: 1, rules: 'Slides like a rook, and slithers off any edge to come back on the opposite side.' },
   egg: { name: 'Dragon Egg', val: 2, hatch: 3, rules: 'Can\'t move. Hatches into a Dragon after 3 of your turns.' },
   goose: { name: 'Golden Goose', val: 2, quiet: DIR8, noCap: 1, income: 3, rules: 'Waddles 1 square, can\'t capture. Lays 3 extra coins at the start of each of your turns.' },
   pagoda: { name: 'Screaming Pagoda', val: 8, shoot: [DIR8, 3], scream: 1, rules: 'A furious red temple that never stops screaming. Never moves. Screams down the first enemy up to 3 squares away in any direction, and at the end of each of your turns it blasts every enemy next to it 1 square away. If they have nowhere to go, they\'re destroyed.' },
@@ -52,13 +56,31 @@ const U = {
   toaster: { name: 'Toaster', val: 3, lob: [DIAG, [2]], rules: 'Never moves. Pops red-hot toast at an enemy exactly 2 squares away diagonally, over anything.' },
   pogo: { name: 'Pogo Kid', val: 3, leap: DIR8.map(([a, b]) => [a * 2, b * 2]), rules: 'Boings exactly 2 squares in any straight line, over anything.' },
   blob: { name: 'Ink Blob', val: 3, sl: [[ORTH, 1]], split: 1, rules: 'Oozes 1 square straight. When it captures something, it splits and leaves a new Ink Blob where it was.' },
+  trooper: { name: 'Line Trooper', val: 2, quiet: DIR8, shoot: [DIR8, 2], rules: 'Rifleman. Steps 1 square to empty squares and shoots the first enemy within 2 squares in any direction without moving.' },
+  sniper: { name: 'Sniper', val: 5, quiet: DIR8, shoot: [ORTH, 8], rules: 'Creeps 1 square to empty squares. Shoots the first enemy up to 8 squares away in a straight line.' },
+  flamer: { name: 'Flame Trooper', val: 4, quiet: DIR8, shoot: [DIR8, 2], ignite: 1, rules: 'Steps 1 square to empty squares. Torches the first enemy within 2 squares and leaves that square burning.' },
+  mortar: { name: 'Mortar Team', val: 4, quiet: ORTH, lob: [DIR8, [3, 4, 5]], rules: 'Shuffles 1 square straight. Lobs shells over anything at an enemy exactly 3, 4 or 5 squares away in a straight line (a king only if the line is clear).' },
+  siegetank: { name: 'Siege Tank', val: 9, sl: [[ORTH, 2]], shoot: [ORTH, 7], armor: 1, pawnProof: 1, rules: 'Grinds 2 squares straight, shells the first enemy up to 7 squares away, wears 1 armour, and pawns can\'t touch it.' },
+  gunship: { name: 'Gunship', val: 9, sl: [[DIR8, 6]], fly: 1, shoot: [DIR8, 3], rules: 'Flies up to 6 squares over anything and strafes the first enemy within 3 squares. Only attacks a king along a clear line.' },
+  medic: { name: 'Field Medic', val: 2, quiet: DIR8, noCap: 1, medic: 1, rules: 'Steps 1 square. Can\'t capture. At the end of each of your turns, your pieces next to her are thawed and cured of curses.' },
+  mech: { name: 'Battle Mech', val: 7, sl: [[DIR8, 2]], shoot: [ORTH, 3], armor: 2, rules: 'Stomps up to 2 squares any way, fires up to 3 squares in straight lines, wears 2 armour.' },
+  ogre: { name: 'Ogre', val: 5, sl: [[DIR8, 1]], armor: 2, rules: 'Lumbers 1 square any way and flattens what it finds. Thick skin: 2 armour.' },
+  necro: { name: 'Necromancer', val: 5, quiet: DIR8, shoot: [DIAG, 2], raise: 1, rules: 'Steps 1 square to empty squares and hexes the first enemy within 2 squares diagonally. At the end of each of your turns, if you\'ve lost any pieces, a Skeleton claws its way up next to her.' },
+  skeleton: { name: 'Skeleton', val: 1, sl: [[DIR8, 1]], rules: 'Rattles 1 square any way.' },
+  vampire: { name: 'Vampire', val: 7, sl: [[DIAG, 3]], fly: 1, drain: 1, rules: 'Swoops up to 3 squares diagonally over anything. Every capture gives it 1 armour. Only attacks a king along a clear line.' },
+  werewolf: { name: 'Werewolf', val: 5, leap: KN, sl: [[DIR8, 1]], rules: 'Lunges like a knight, or pounces 1 square any way.' },
+  vacuum: { name: 'Robot Vacuum', val: 2, sl: [[ORTH, 3]], capMax: 1, rules: 'Zooms up to 3 squares straight. Only strong enough to suck up pieces worth 1 or less.' },
+  cow: { name: 'Cow', val: 0, sl: [[DIR8, 1]], noCap: 1, cow: 1, rules: 'Moos 1 square any way. Can\'t capture. Whoever captures it gets 4 extra coins.' },
+  bulldozer: { name: 'Bulldozer', val: 5, sl: [[ORTH, 3]], pawnProof: 1, armor: 1, rules: 'Shoves up to 3 squares straight. Pawns can\'t stop it, and it wears 1 armour.' },
+  samurai: { name: 'Samurai', val: 6, sl: [[DIR8, 2]], leap: KN, rules: 'Cuts up to 2 squares any way, or leaps like a knight.' },
+  ninja: { name: 'Ninja', val: 5, sl: [[DIR8, 3]], fly: 1, rules: 'Flips up to 3 squares any way, over anything. Only attacks a king along a clear line.' },
+  ufo: { name: 'UFO', val: 8, sl: [[DIR8, 5]], fly: 1, abduct: 1, rules: 'Hovers up to 5 squares over anything. Whatever it captures is beamed aboard, and a Cow is dropped off in its place. Only attacks a king along a clear line.' },
   voidknight: { name: 'Star Paladin', val: 6, sl: [[DIR8, 1], [ORTH, 2]], armor: 1, rules: 'Power-armoured knight from the stars. Stomps 1 square any way or 2 straight. Wears 1 armour.' },
-  plasma: { name: 'Plasma Trooper', val: 4, quiet: DIR8, shoot: [ORTH, 3], set: 'crusade', rules: 'Steps 1 square to empty squares. Fires down straight lines at the first enemy up to 3 squares away.' },
   titan: { name: 'Titan Walker', val: 12, sl: [[DIR8, 2]], armor: 2, shoot: [ORTH, 4], set: 'crusade', rules: 'Strides 2 squares any way, fires up to 4 squares in straight lines, and wears 2 armour.' },
   tumbleweed: { name: 'Tumbleweed', val: 1, sl: [[ROW, 3]], fly: 1, noCap: 1, set: 'west', rules: 'Blows up to 3 squares sideways, over anything. Can\'t capture. Gets in the way.' },
   bandit: { name: 'Bandit', val: 3, leap: KN, steal: 2, set: 'west', rules: 'Jumps like a knight. Every capture also steals 2 coins.' },
-  sheriff: { name: 'Sheriff', val: 5, quiet: DIR8, shoot: [ROW, 9], set: 'west', rules: 'Steps 1 square to empty squares. Quick-draws on the first enemy anywhere along its row.' },
-  stranger: { name: 'The Stranger', val: 11, sl: [[DIR8, 9]], shoot: [ORTH, 9], set: 'west', rules: 'Moves like a queen, and can also shoot the first enemy along any row or column without moving.' },
+  sheriff: { name: 'Sheriff', val: 5, quiet: DIR8, shoot: [ROW, N], set: 'west', rules: 'Steps 1 square to empty squares. Quick-draws on the first enemy anywhere along its row.' },
+  stranger: { name: 'The Stranger', val: 11, sl: [[DIR8, N]], shoot: [ORTH, N], set: 'west', rules: 'Moves like a queen, and can also shoot the first enemy along any row or column without moving.' },
   tentacle: { name: 'Swamp Tentacle', val: 2, shoot: [ORTH, 1], set: 'monster', rules: 'Rooted to the spot. Grabs any enemy that ends up right next to it (not diagonally).' },
   moth: { name: 'Giant Moth', val: 5, sl: [[DIAG, 2]], fly: 1, dust: 1, set: 'monster', rules: 'Flutters up to 2 squares diagonally. Wherever it lands, enemies next to it are frozen for a turn.' },
   lizard: { name: 'Lizard King', val: 11, leap: RING2, stomp: 1, set: 'monster', rules: 'Leaps to any square within 2. When it captures, it stomps every enemy next to where it lands (kings survive).' },
@@ -102,10 +124,10 @@ function genMoves(bd, side, out = []) {
     const addCap = (t, ranged) => { const q = bd[t]; if (q.ar > 0) out.push({ f: sq, t, cap: q, arm: true }); else out.push({ f: sq, t, cap: q, r: !!ranged }); };
     const addMove = (t, pr) => out.push({ f: sq, t, cap: null, pr });
     if (u.pawn) {
-      const d = side === 'w' ? -1 : 1, last = side === 'w' ? 0 : N - 1, start = side === 'w' ? N - 2 : 1;
+      const d = side === 'w' ? -1 : 1, start = PAWN[side], promo = PROMO[side];
       const t1 = to(r + d, c);
       if (t1 >= 0 && !bd[t1] && !blockedSq(t1)) {
-        addMove(t1, (r + d) === last ? 'Q' : undefined);
+        addMove(t1, promo(r + d) ? 'Q' : undefined);
         const t2 = to(r + 2 * d, c);
         if (r === start && t2 >= 0 && !bd[t2] && !blockedSq(t2)) addMove(t2);
       }
@@ -113,7 +135,7 @@ function genMoves(bd, side, out = []) {
         const t = to(r + d, c + dc);
         if (t >= 0 && canCap(p, u, bd[t], t)) {
           if (bd[t].ar > 0) out.push({ f: sq, t, cap: bd[t], arm: true });
-          else out.push({ f: sq, t, cap: bd[t], pr: (r + d) === last ? 'Q' : undefined });
+          else out.push({ f: sq, t, cap: bd[t], pr: promo(r + d) ? 'Q' : undefined });
         }
       }
       if (ENV.km) for (const [dr, dc] of KN) { const t = to(r + dr, c + dc); if (t < 0) continue; if (!bd[t]) { if (!blockedSq(t)) addMove(t); } else if (canCap(p, u, bd[t], t)) addCap(t); }
@@ -185,9 +207,10 @@ function newState(mode) {
   pid = 1;
   const bd = new Array(N * N).fill(null);
   const back = ['R', 'N', 'B', 'A', 'Q', 'K', 'A', 'B', 'N', 'R'];
-  for (let c = 0; c < N; c++) {
-    bd[c] = mkPiece(back[c], 'b'); bd[N + c] = mkPiece('P', 'b');
-    bd[8 * N + c] = mkPiece('P', 'w'); bd[9 * N + c] = mkPiece(back[c], 'w');
+  for (let k = 0; k < 10; k++) {
+    const c = FILE0 + k;
+    bd[BACK.b * N + c] = mkPiece(back[k], 'b'); bd[PAWN.b * N + c] = mkPiece('P', 'b');
+    bd[PAWN.w * N + c] = mkPiece('P', 'w'); bd[BACK.w * N + c] = mkPiece(back[k], 'w');
   }
   return {
     mode, board: bd, terr: new Array(N * N).fill(null), fields: { wrap: 0, truce: 0, km: 0, bp: 0 },
@@ -202,8 +225,8 @@ function cloneState(st) {
     snaps: st.snaps, extra: false, ply: st.ply, quiet: st.quiet,
   };
 }
-const homeRows = side => side === 'w' ? [9, 8, 7] : [0, 1, 2];
-const halfRows = side => side === 'w' ? [5, 6, 7, 8, 9] : [0, 1, 2, 3, 4];
+const homeRows = side => side === 'w' ? [BACK.w + 2, BACK.w + 1, BACK.w, PAWN.w, PAWN.w - 1, PAWN.w - 2] : [BACK.b - 2, BACK.b - 1, BACK.b, PAWN.b, PAWN.b + 1, PAWN.b + 2];
+const halfRows = side => side === 'w' ? [...Array(N / 2).keys()].map(r => r + N / 2) : [...Array(N / 2).keys()];
 
 // ===================================================================== cards
 const SETS = {
@@ -267,9 +290,9 @@ const CARDS = {
   shuffle: { name: 'Swap Spots', rarity: 'common', text: 'Two of your pieces swap places.',
     target: { t: 'pair', first: (st, s) => sqs(st, (p) => p.s === s && p.fz <= 0), second: (st, s, a) => sqs(st, (p, i) => p.s === s && i !== a && p.fz <= 0) },
     fx: (st, s, o, ev) => { const t = st.board[o.a]; st.board[o.a] = st.board[o.b]; st.board[o.b] = t; ev.push({ type: 'spell', sq: o.a, sq2: o.b }); } },
-  levy: { name: 'Call to Arms', rarity: 'uncommon', text: 'Two new pawns join your second row.',
-    target: { t: 'none', can: (st, s) => { const r = homeRows(s)[1]; for (let c = 0; c < N; c++) if (emptyOk(st, r * N + c)) return true; return false; } },
-    fx: (st, s, o, ev) => { const r = homeRows(s)[1]; [4, 5, 3, 6, 2, 7, 1, 8, 0, 9].filter(c => emptyOk(st, r * N + c)).slice(0, 2).forEach(c => { st.board[r * N + c] = mkPiece('P', s); ev.push({ type: 'summon', sq: r * N + c }); }); } },
+  levy: { name: 'Call to Arms', rarity: 'uncommon', text: 'Two new pawns join your pawn line.',
+    target: { t: 'none', can: (st, s) => { const r = PAWN[s]; for (let c = 0; c < N; c++) if (emptyOk(st, r * N + c)) return true; return false; } },
+    fx: (st, s, o, ev) => { const r = PAWN[s]; CENTRE_COLS.filter(c => emptyOk(st, r * N + c)).slice(0, 2).forEach(c => { st.board[r * N + c] = mkPiece('P', s); ev.push({ type: 'summon', sq: r * N + c }); }); } },
   knighted: { name: 'Knighted', rarity: 'uncommon', text: 'Turn one of your pawns into a knight.',
     target: { t: 'own', f: p => p.t === 'P' }, fx: (st, s, o, ev) => { st.board[o.a] = { ...st.board[o.a], t: 'N' }; ev.push({ type: 'spell', sq: o.a }); } },
   armor: { name: 'Plate Armour', rarity: 'uncommon', text: 'Give one of your pieces (not the king) 1 armour. The next hit cracks the armour instead.',
@@ -362,18 +385,43 @@ const CARDS = {
   party: { name: 'Party Time', rarity: 'rare', text: 'Every enemy chicken, duck, pigeon and gnome hears the music and joins your side.', ai: 20,
     target: { t: 'none', can: (st, s) => st.board.some(p => p && p.s !== s && ['chicken', 'duck', 'pigeon', 'gnome'].includes(p.t)) },
     fx: (st, s, o, ev) => { let n = 0; st.board.forEach((p, i) => { if (p && p.s !== s && ['chicken', 'duck', 'pigeon', 'gnome'].includes(p.t)) { st.board[i] = { ...p, s }; n++; ev.push({ type: 'spell', sq: i }); } }); ev.push({ type: 'msg', text: `${n} party animal${n === 1 ? '' : 's'} switched sides` }); } },
-  nuke: { name: 'NUKE', rarity: 'legendary', text: 'Drops a nuke. Everything in a 5×5 blast is wiped out, yours too (kings survive, singed). Leaves a crater and radioactive ground that curses anything that stops on it.',
-    target: { t: 'square', f: (st, i, s) => area(i, 2).some(j => st.board[j] && st.board[j].s !== s && notKing(st.board[j])) },
+  nuke: { name: 'NUKE', rarity: 'legendary', text: 'Drops a nuke. Everything in a 9×9 blast is wiped out, yours too (kings survive, singed). Leaves a crater and radioactive ground that curses anything that stops on it.',
+    target: { t: 'square', f: (st, i, s) => area(i, 4).some(j => st.board[j] && st.board[j].s !== s && notKing(st.board[j])) },
     fx: (st, s, o, ev) => {
       ev.push({ type: 'nuke', sq: o.a });
-      for (const j of area(o.a, 2)) { kill(st, j, ev); st.terr[j] = j === o.a ? { k: 'pit' } : { k: 'rad', n: 10 }; }
+      for (const j of area(o.a, 4)) { kill(st, j, ev); st.terr[j] = area(o.a, 1).includes(j) ? { k: 'pit' } : { k: 'rad', n: 10 }; }
     } },
+
+  // ---------- war, horror and oddities
+  trooperC: { name: 'Line Trooper', kind: 'unit', unit: 'trooper', rarity: 'common' },
+  vacuumC: { name: 'Robot Vacuum', kind: 'unit', unit: 'vacuum', rarity: 'common' },
+  cowC: { name: 'Cow', kind: 'unit', unit: 'cow', rarity: 'common' },
+  flamerC: { name: 'Flame Trooper', kind: 'unit', unit: 'flamer', rarity: 'uncommon' },
+  mortarC: { name: 'Mortar Team', kind: 'unit', unit: 'mortar', rarity: 'uncommon' },
+  medicC: { name: 'Field Medic', kind: 'unit', unit: 'medic', rarity: 'uncommon' },
+  ogreC: { name: 'Ogre', kind: 'unit', unit: 'ogre', rarity: 'uncommon' },
+  bulldozerC: { name: 'Bulldozer', kind: 'unit', unit: 'bulldozer', rarity: 'uncommon' },
+  sniperC: { name: 'Sniper', kind: 'unit', unit: 'sniper', rarity: 'rare' },
+  mechC: { name: 'Battle Mech', kind: 'unit', unit: 'mech', rarity: 'rare' },
+  necroC: { name: 'Necromancer', kind: 'unit', unit: 'necro', rarity: 'rare' },
+  werewolfC: { name: 'Werewolf', kind: 'unit', unit: 'werewolf', rarity: 'rare' },
+  samuraiC: { name: 'Samurai', kind: 'unit', unit: 'samurai', rarity: 'rare' },
+  ninjaC: { name: 'Ninja', kind: 'unit', unit: 'ninja', rarity: 'rare' },
+  siegetankC: { name: 'Siege Tank', kind: 'unit', unit: 'siegetank', rarity: 'epic' },
+  gunshipC: { name: 'Gunship', kind: 'unit', unit: 'gunship', rarity: 'epic' },
+  vampireC: { name: 'Vampire', kind: 'unit', unit: 'vampire', rarity: 'epic' },
+  ufoC: { name: 'UFO', kind: 'unit', unit: 'ufo', rarity: 'epic' },
+  dropship: { name: 'Dropship', rarity: 'epic', text: 'A dropship drops a 4×4 squad of 16 Line Troopers onto empty ground on your half of the board. Troopers move 1 and shoot 2.',
+    target: { t: 'square', f: (st, i, s) => { const [r, c] = rc(i); if (r > N - 4 || c > N - 4) return false; const half = halfRows(s); for (let a = 0; a < 4; a++) { if (!half.includes(r + a)) return false; for (let b = 0; b < 4; b++) if (!emptyOk(st, (r + a) * N + c + b)) return false; } return true; } },
+    fx: (st, s, o, ev) => { const [r, c] = rc(o.a); for (let a = 0; a < 4; a++) for (let b = 0; b < 4; b++) { const i = (r + a) * N + c + b; st.board[i] = mkPiece('trooper', s); ev.push({ type: 'summon', sq: i }); } ev.push({ type: 'field', key: 'drop' }); } },
+  barrage: { name: 'Artillery Barrage', rarity: 'rare', text: 'Shells rain down on 7 random squares within 3 of the spot you pick. Anything there (except kings) is destroyed, yours included.', random: 1,
+    target: { t: 'square', f: (st, i, s) => area(i, 3).some(j => st.board[j] && st.board[j].s !== s && notKing(st.board[j])) },
+    fx: (st, s, o, ev) => { const zone = area(o.a, 3); for (let k = 0; k < 7; k++) { const j = zone.splice(Math.floor(Math.random() * zone.length), 1)[0]; ev.push({ type: 'shell', sq: j }); kill(st, j, ev); } } },
 
   // ---------- Iron Crusade
   hymn: { set: 'crusade', name: 'Battle Hymn', rarity: 'common', text: 'All your pawns are shielded until your next turn.',
     target: { t: 'none', can: (st, s) => st.board.some(p => p && p.s === s && p.t === 'P') }, fx: (st, s, o, ev) => { st.board.forEach((p, i) => { if (p && p.s === s && p.t === 'P') st.board[i] = { ...p, sh: 1 }; }); ev.push({ type: 'field', key: 'hymn' }); } },
   crate: { set: 'crusade', name: 'Supply Drop', kind: 'coin', amount: 4, rarity: 'common', text: '+4 coins, straight away.' },
-  plasmaC: { set: 'crusade', name: 'Plasma Trooper', kind: 'unit', unit: 'plasma', rarity: 'uncommon' },
   repairs: { set: 'crusade', name: 'Field Repairs', rarity: 'uncommon', text: 'Bolt 2 armour onto one of your pieces (not the king).',
     target: { t: 'own', f: p => notKing(p) }, fx: (st, s, o, ev) => { st.board[o.a] = { ...st.board[o.a], ar: st.board[o.a].ar + 2 }; ev.push({ type: 'spell', sq: o.a }); } },
   voidC: { set: 'crusade', name: 'Star Paladin', kind: 'unit', unit: 'voidknight', rarity: 'rare' },
@@ -424,8 +472,8 @@ const CARDS = {
   bottle: { set: 'plunder', name: 'Message in a Bottle', rarity: 'common', text: 'Draw 1 random card. Could be anything.', ai: 25,
     target: { t: 'none' }, fx: (st, s, o, ev) => { const k = rollCard('all', 2); addToHand(st, s, k, ev); ev.push({ type: 'draw', keys: [k] }); } },
   cannonC: { set: 'plunder', name: 'Ship\'s Cannon', kind: 'unit', unit: 'cannon', rarity: 'uncommon' },
-  plank: { set: 'plunder', name: 'Walk the Plank', rarity: 'uncommon', text: 'Any enemy piece (not the king) standing on the left or right edge of the board walks the plank.',
-    target: { t: 'enemy', f: (p, i) => hittable(p) && (i % N === 0 || i % N === N - 1) }, fx: (st, s, o, ev) => { ev.push({ type: 'spell', sq: o.a }); kill(st, o.a, ev); } },
+  plank: { set: 'plunder', name: 'Walk the Plank', rarity: 'uncommon', text: 'An enemy piece (not the king) with none of its friends next to it is made to walk the plank.',
+    target: { t: 'enemy', f: (p, i, st) => hittable(p) && !area(i).some(j => j !== i && st.board[j] && st.board[j].s === p.s) }, fx: (st, s, o, ev) => { ev.push({ type: 'spell', sq: o.a }); kill(st, o.a, ev); } },
   captainC: { set: 'plunder', name: 'Pirate Captain', kind: 'unit', unit: 'captain', rarity: 'rare' },
   mutiny: { set: 'plunder', name: 'Mutiny', rarity: 'rare', text: 'An enemy pawn switches sides and joins your crew.',
     target: { t: 'enemy', f: p => p.t === 'P' && p.sh <= 0 }, fx: (st, s, o, ev) => { st.board[o.a] = { ...st.board[o.a], s, fz: 0 }; ev.push({ type: 'spell', sq: o.a }); } },
@@ -491,9 +539,14 @@ function applyCard(st, side, key, o, ev = []) {
   return ev;
 }
 function stateLegal(st, side) { setEnv(st); return !inCheck(st.board, side); }
+const RISKY = new Set(['shuffle', 'teleport', 'orbital', 'nuke', 'earthquake', 'lasso', 'mirror', 'knightmare', 'ouroboros', 'rewind', 'coinflip', 'barrage', 'swaphands', 'party', 'truce']);
 function legalCardOptions(st, side, key) {
   const saved = { ...ENV };
-  const out = cardOptions(st, side, key).filter(o => {
+  const all = cardOptions(st, side, key);
+  setEnv(st);
+  const checked = inCheck(st.board, side);
+  if (!checked && !RISKY.has(key)) { Object.assign(ENV, saved); return all; }
+  const out = all.filter(o => {
     const sim = cloneState(st);
     applyCard(sim, side, key, o);
     return CARDS[key].random || stateLegal(sim, side);
@@ -509,9 +562,9 @@ function evalB(bd, side) {
     const p = bd[i]; if (!p) continue;
     const r = i / N | 0, c = i % N, u = U[p.t];
     let v = u.val * 100 + p.ar * 45 + (p.reb ? 120 : 0) + (u.income ? u.income * 25 : 0) + (p.hatch ? 120 : 0) + (p.bomb ? 25 : 0);
-    const centre = 9 - (Math.abs(4.5 - r) + Math.abs(4.5 - c));
-    if (p.t === 'P') v += (p.s === 'w' ? (N - 2 - r) : (r - 1)) * 7 + (c > 2 && c < 7 ? 4 : 0);
-    else if (p.t === 'K') v += (p.s === 'w' ? (r - 7) : (2 - r)) * 6;
+    const centre = Math.max(0, 12 - (Math.abs(24.5 - r) + Math.abs(24.5 - c)) / 2);
+    if (p.t === 'P') v += Math.max(-10, p.s === 'w' ? (PAWN.w - r) : (r - PAWN.b)) * 7;
+    else if (p.t === 'K') v -= Math.abs(r - BACK[p.s]) * 6;
     else if (!u.noCap && u.val) v += centre * 2;
     if (p.fz > 0) v *= 0.85;
     if (p.curse) v *= 0.35;
@@ -582,6 +635,7 @@ function aiDecide(st, side) {
     if (!opts.length) continue;
     if (key === 'mine') { setEnv(st); const hot = new Set(genMoves(st.board, other(side)).map(m => m.t)); opts = opts.filter(o => hot.has(o.a)); if (!opts.length) continue; }
     const bonus = typeof card.ai === 'function' ? card.ai(st, side) : (card.ai || 0);
+    if (opts.length > 120) opts = opts.sort(() => Math.random() - .5).slice(0, 120);
     const quick = opts.map(o => { const sim = cloneState(st); applyCard(sim, side, key, o); setEnv(sim); return { o, sim, q: evalB(sim.board, side) }; }).sort((a, b) => b.q - a.q).slice(0, card.random ? 1 : 5);
     for (const { o, sim } of quick) {
       if (!stateLegal(sim, side)) continue;
@@ -596,7 +650,7 @@ function aiDecide(st, side) {
 
 Object.assign(INK, {
   N, DIR8, ORTH, DIAG, KN, U, VAL, ENV, setEnv, genMoves, makeMove, unmake, kingSq, inCheck, legalMoves, other, rc, inB,
-  mkPiece, newState, cloneState, homeRows, SETS, CARDS, RARITIES, RARITY_LABEL, SCRAP, PACKS, HAND_MAX, rollPack, rollCard, tradeUp,
+  BACK, PAWN, CENTRE_COLS, halfRows, mkPiece, newState, cloneState, homeRows, SETS, CARDS, RARITIES, RARITY_LABEL, SCRAP, PACKS, HAND_MAX, rollPack, rollCard, tradeUp,
   addToHand, coinValue, cardOptions, applyCard, legalCardOptions, stateLegal, aiDecide, area, kill, lastSnap,
 });
 })();

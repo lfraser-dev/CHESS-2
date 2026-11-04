@@ -1,10 +1,10 @@
 # Inkmate
 
-Chess on a 10×10 notebook page, scribbled in ink, with card packs.
+Chess on a 50×50 notebook battlefield, scribbled in ink, with card packs.
 
-Normal chess rules, a bigger board and two Archers each to start. Every turn you either **move a piece or play a card**.
+A normal chess army each (plus two Archers), far apart in the middle of a 50×50 board. Drag to look around, scroll or pinch to zoom, and use the minimap to jump. Every turn you either **move a piece or play a card**.
 You earn coins (1 a turn, more for captures) and spend 5 to open a pack. Opening packs doesn't use your turn.
-There is **one pack with all 108 cards** in it: units, rule-bending spells, coins, and the **NUKE**.
+There is **one pack with all 127 cards** in it: units, rule-bending spells, coins, and the **NUKE**.
 
 **Play:** open `index.html` in a browser. No build step, no dependencies. Play the computer (the Ink Baron) or two players on one device.
 
@@ -14,8 +14,9 @@ Scribble · Sketch · Inked · Masterpiece · Legendary
 
 ## Highlights
 
-- **Non-chess units:** Screaming Pagoda, Shopping Trolley, Rubber Duck, Lawn Gnome, Pigeon, Vending Machine, Grandma, Toaster, Pogo Kid, Ink Blob, Star Paladin, Titan Walker, Sheriff, The Stranger, Kraken, Lizard King, Dragon, F-15 Fighter Jet, Golden Goose and more
-- **NUKE (Legendary):** full-screen cutscene, then a 5×5 blast, a crater and radioactive ground that curses anything stopping on it
+- **Dropship:** drops a 4×4 squad of 16 Line Troopers (move 1, shoot 2)
+- **Non-chess units:** Siege Tank, Gunship, Battle Mech, Sniper, Flame Trooper, Mortar Team, Field Medic, Necromancer, Vampire, Werewolf, Samurai, Ninja, UFO, Ogre, Bulldozer, Robot Vacuum, Cow, Screaming Pagoda, Shopping Trolley, Rubber Duck, Lawn Gnome, Pigeon, Vending Machine, Grandma, Toaster, Pogo Kid, Ink Blob, Star Paladin, Titan Walker, Sheriff, The Stranger, Kraken, Lizard King, Dragon, F-15 Fighter Jet, Golden Goose and more
+- **NUKE (Legendary):** full cutscene (press **Test nuke cutscene** to watch it any time), then a 9×9 blast, a crater and radioactive ground that curses anything stopping on it
 - **Execute:** chop any enemy piece one of yours is already attacking
 - **Rule benders:** Ouroboros (left and right edges join up), White Flag, Knightmare, Backpedal, Rewind, Double Time, Swap Hands, Mind Control, Earthquake, Mirror Mirror, Banana Peel, Landmine, Coin Flip, Party Time, Tax Day and more
 - **Recycling:** scrap cards for coins (Scribble 1 · Sketch 2 · Inked 3 · Masterpiece 5 · Legendary 8), or trade 3 of the same tier for 1 card a tier up
@@ -24,7 +25,7 @@ Flying units can only attack a king along a clear line, so nothing gives unblock
 
 ## Nuke music
 
-Click **Nuke music** in the game to pick an audio file from your device (it's remembered in that browser), or put the file at `assets/nuke-theme.mp3`.
+The song in `assets/nuke-theme.mp3` plays during the cutscene. You can also click **Nuke music** to pick a different file. The captions beside the falling bomb are in `NUKE_LINES` near the top of the cutscene section in `game.js`; write your own there.
 
 Open **Units & cards** in the game for every card, a move diagram for every unit, and a button to watch the nuke.
 

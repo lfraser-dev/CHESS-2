@@ -293,6 +293,159 @@ const ART = {
     if (F === PAPER) { c.strokeStyle = PAPER; c.lineWidth = 1.4; ln(c, -8, -24, -3, -26, s, .3); c.strokeStyle = K; }
     c.fillStyle = K; ell(c, 13, -3, 2, 3); c.fill(); ell(c, -15, -2, 1.6, 2.2); c.fill();
   },
+  trooper(c, F, D, s) {
+    legs(c, s, 3.5); poly(c, [[-8, -10], [8, -10], [7, -27], [-7, -27]], s + 1, .4); fs(c, F);
+    det(c, D, () => { c.lineWidth = 1.4; ln(c, -7, -16, 7, -16, s + 2, .3); ln(c, 0, -26, 0, -17, s + 3, .2); });
+    head(c, F, s + 4, -31, 4.5);
+    c.lineWidth = 2.2; c.beginPath(); c.moveTo(-8, -32); c.quadraticCurveTo(0, -42, 8, -32); c.lineTo(10, -31); c.lineTo(-10, -31); c.closePath(); fs(c, F);
+    c.lineWidth = 3; ln(c, -2, -20, 18, -26, s + 5, .2); c.lineWidth = 2; ln(c, 4, -21, 6, -16, s + 6, .2);
+  },
+  sniper(c, F, D, s) {
+    c.lineWidth = 2.2; poly(c, [[-14, -2], [10, -2], [12, -9], [-12, -9]], s, .5); fs(c, F);
+    det(c, D, () => { c.lineWidth = 1.2; for (let x = -10; x < 10; x += 4) ln(c, x, -3, x + 2, -8, s + x, .4); });
+    head(c, F, s + 1, -12, 4.2);
+    c.lineWidth = 2; poly(c, [[-5, -13], [5, -13], [3, -17], [-4, -17]], s + 2, .4); fs(c, '#6f8f3a');
+    c.lineWidth = 2.6; ln(c, 2, -9, 30, -12, s + 3, .1); c.lineWidth = 1.8; poly(c, [[8, -13], [16, -13], [16, -16], [8, -16]], s + 4, .1); fs(c, F);
+    ln(c, 22, -11, 21, -5, s + 5, .1); ln(c, 22, -11, 24, -5, s + 6, .1);
+  },
+  flamer(c, F, D, s) {
+    legs(c, s, 3.5); poly(c, [[-8, -10], [8, -10], [7, -27], [-7, -27]], s + 1, .4); fs(c, F);
+    c.lineWidth = 2; poly(c, [[-14, -26], [-8, -26], [-8, -12], [-14, -12]], s + 2, .3); fs(c, RED);
+    head(c, F, s + 3, -31, 4.6); c.lineWidth = 1.6; ell(c, 2, -31, 3.4, 2.4); fs(c, '#9db3d6');
+    c.lineWidth = 3; ln(c, 0, -18, 16, -20, s + 4, .2);
+    det(c, RED, () => { c.lineWidth = 1.8; for (let k = 0; k < 4; k++) ln(c, 17, -20, 25 + k * 2, -24 + k * 2.5 + jt(s + k, 2), s + k, 1); });
+  },
+  mortar(c, F, D, s) {
+    c.lineWidth = 2.2; poly(c, [[-12, 0], [4, 0], [2, -4], [-10, -4]], s, .3); fs(c, F);
+    c.lineWidth = 6; ln(c, -4, -3, 6, -24, s + 1, .1); c.lineWidth = 3; c.strokeStyle = F === PAPER ? PAPER : K; ln(c, -3.5, -4, 5.5, -23, s + 1, .1); c.strokeStyle = K;
+    c.lineWidth = 2; ln(c, 0, -10, -8, -1, s + 2, .2);
+    legs(c, s + 3, 3); c.save(); c.translate(14, 0); poly(c, [[-6, -10], [6, -10], [5, -24], [-5, -24]], s + 4, .4); fs(c, F); head(c, F, s + 5, -28, 4); c.lineWidth = 2; c.beginPath(); c.arc(0, -29, 5, Math.PI, 0); fs(c, F); c.restore();
+    det(c, RED, () => { c.lineWidth = 1.4; ln(c, 7, -27, 10, -33, s + 6, .4); });
+  },
+  siegetank(c, F, D, s) {
+    c.lineWidth = 2.4;
+    c.beginPath(); c.moveTo(-21, 0); c.lineTo(19, 0); c.arc(19, -6, 6, Math.PI / 2, -Math.PI / 2, true); c.lineTo(-21, -12); c.arc(-21, -6, 6, -Math.PI / 2, Math.PI / 2, true); c.closePath(); fs(c, F);
+    det(c, D, () => { c.lineWidth = 1.4; for (let x = -20; x <= 18; x += 6.5) { circ(c, x, -6, 2.6, s + x, .2, 7); c.stroke(); } });
+    poly(c, [[-22, -12], [21, -12], [17, -24], [-18, -24]], s + 1, .4); fs(c, F);
+    poly(c, [[-10, -24], [10, -24], [8, -33], [-8, -33]], s + 2, .4); fs(c, F);
+    c.lineWidth = 5; ln(c, 8, -29, 34, -32, s + 3, .1); c.lineWidth = 2; poly(c, [[33, -35], [37, -35], [37, -29], [33, -29]], s + 4, .2); fs(c, F);
+    det(c, D, () => { c.lineWidth = 1.3; ln(c, -15, -18, 14, -18, s + 5, .3); });
+    c.fillStyle = RED; c.fillRect(-16, -22, 5, 3);
+  },
+  gunship(c, F, D, s) {
+    c.fillStyle = 'rgba(30,28,36,0.15)'; ell(c, 0, 0, 20, 3); c.fill();
+    c.save(); c.translate(0, -14);
+    c.lineWidth = 2.4; poly(c, [[-26, -6], [-10, -8], [14, -9], [24, -4], [24, 3], [14, 6], [-10, 4], [-26, 2]], s, .4); fs(c, F);
+    c.lineWidth = 2; poly(c, [[14, -8], [22, -5], [14, -3]], s + 1, .2); fs(c, '#9db3d6');
+    poly(c, [[-26, -6], [-32, -14], [-28, -14], [-20, -6]], s + 2, .3); fs(c, F);
+    c.lineWidth = 2.6; ln(c, -24, -16, 28, -16, s + 3, .5); ln(c, 2, -9, 2, -16, s + 4, .2);
+    c.lineWidth = 2; poly(c, [[-6, 4], [6, 4], [6, 9], [-6, 9]], s + 5, .2); fs(c, F); c.lineWidth = 1.4; for (const y of [6, 8]) ln(c, 6, y, 16, y, s + y, .1);
+    c.restore();
+  },
+  medic(c, F, D, s) {
+    legs(c, s); poly(c, [[-8, -10], [8, -10], [6, -27], [-6, -27]], s + 1, .4); fs(c, F);
+    c.fillStyle = RED; c.fillRect(-1.5, -23, 3, 9); c.fillRect(-4.5, -20, 9, 3);
+    head(c, F, s + 2, -31, 4.6); c.lineWidth = 2; c.beginPath(); c.arc(0, -32, 5.2, Math.PI, 0); fs(c, PAPER); c.fillStyle = RED; c.fillRect(-1, -36, 2, 3);
+    c.lineWidth = 2; poly(c, [[8, -16], [17, -16], [17, -8], [8, -8]], s + 3, .3); fs(c, PAPER); c.fillStyle = RED; c.fillRect(11.5, -14, 2, 5); c.fillRect(10, -12.5, 5, 2);
+  },
+  mech(c, F, D, s) {
+    c.lineWidth = 3; ln(c, -6, -14, -9, 0, s, .3); ln(c, 6, -14, 9, 0, s + 1, .3); ln(c, -13, 0, -5, 0, s + 2, .2); ln(c, 5, 0, 13, 0, s + 3, .2);
+    c.lineWidth = 2.4; poly(c, [[-12, -14], [12, -14], [14, -36], [-14, -36]], s + 4, .5); fs(c, F);
+    c.lineWidth = 2; poly(c, [[-5, -36], [5, -36], [5, -42], [-5, -42]], s + 5, .3); fs(c, F); c.fillStyle = RED; c.fillRect(-3, -40, 6, 2);
+    det(c, D, () => { c.lineWidth = 1.3; poly(c, [[-8, -30], [8, -30], [8, -20], [-8, -20]], s + 6, .3); c.stroke(); });
+    c.lineWidth = 2.2; poly(c, [[14, -34], [20, -34], [20, -24], [14, -24]], s + 7, .3); fs(c, F); c.lineWidth = 4; ln(c, 20, -29, 30, -29, s + 8, .1);
+    c.lineWidth = 2.2; poly(c, [[-14, -34], [-20, -34], [-20, -22], [-14, -22]], s + 9, .3); fs(c, F); c.lineWidth = 1.6; for (const k of [-2, 0, 2]) ln(c, -22 + k, -22, -23 + k * 1.5, -16, s + k, .2);
+  },
+  ogre(c, F, D, s) {
+    c.lineWidth = 3.2; ln(c, -6, -12, -7, 0, s, .4); ln(c, 6, -12, 7, 0, s + 1, .4);
+    c.lineWidth = 2.4; c.beginPath(); c.moveTo(-14, -12); c.quadraticCurveTo(-18, -34, 0, -38); c.quadraticCurveTo(18, -34, 14, -12); c.closePath(); fs(c, F === PAPER ? '#cfd8b0' : F);
+    det(c, D, () => { c.lineWidth = 1.4; c.beginPath(); c.arc(0, -16, 9, .3, 2.8); c.stroke(); });
+    circ(c, 2, -40, 6, s + 2, .5, 10); fs(c, F === PAPER ? '#cfd8b0' : F);
+    c.fillStyle = D; c.fillRect(0, -42, 2, 2); c.fillRect(4, -42, 2, 2);
+    c.fillStyle = PAPER; c.beginPath(); c.moveTo(1, -37); c.lineTo(3, -34); c.lineTo(4, -37); c.fill();
+    c.lineWidth = 4; ln(c, 12, -24, 24, -38, s + 3, .3); c.lineWidth = 2.2; circ(c, 25, -40, 5, s + 4, .8, 8); fs(c, '#8a6510');
+  },
+  necro(c, F, D, s) {
+    c.lineWidth = 2; ln(c, 14, 0, 14, -44, s, .3); c.lineWidth = 1.8; circ(c, 14, -47, 3.4, s + 1, .3, 8); fs(c, PAPER); c.fillStyle = K; c.fillRect(12.6, -48, 1.2, 1.2); c.fillRect(14.6, -48, 1.2, 1.2);
+    c.lineWidth = 2.4; poly(c, [[-13, 0], [13, 0], [5, -30], [-5, -30]], s + 2, .5); fs(c, F);
+    det(c, '#6f8f3a', () => { c.lineWidth = 1.4; ln(c, -8, -4, -4, -22, s + 3, .4); ln(c, 8, -4, 4, -22, s + 4, .4); });
+    c.lineWidth = 2.2; poly(c, [[-8, -28], [8, -28], [4, -44], [-3, -46]], s + 5, .5); fs(c, F);
+    c.fillStyle = '#6f8f3a'; c.fillRect(-2.5, -36, 2, 2); c.fillRect(1.5, -36, 2, 2);
+  },
+  skeleton(c, F, D, s) {
+    c.strokeStyle = F === PAPER ? K : K; c.lineWidth = 1.8;
+    ln(c, -3, -11, -4, 0, s, .3); ln(c, 3, -11, 4, 0, s + 1, .3); ln(c, 0, -11, 0, -26, s + 2, .2);
+    for (let y = -24; y <= -16; y += 3) ln(c, -5, y, 5, y, s + y, .3);
+    ln(c, 0, -23, -8, -15, s + 3, .3); ln(c, 0, -23, 8, -15, s + 4, .3);
+    c.lineWidth = 2; circ(c, 0, -30, 5, s + 5, .3, 10); fs(c, F === PAPER ? PAPER : '#3b3a42');
+    c.fillStyle = F === PAPER ? K : PAPER; ell(c, -2, -31, 1.5, 1.8); c.fill(); ell(c, 2, -31, 1.5, 1.8); c.fill(); c.fillRect(-2, -27, 4, 1);
+  },
+  vampire(c, F, D, s) {
+    legs(c, s, 3);
+    c.lineWidth = 2.2; poly(c, [[-4, -27], [-18, -6], [-12, -4], [-6, -10], [0, -4], [6, -10], [12, -4], [18, -6], [4, -27]], s + 1, .6); fs(c, F);
+    det(c, RED, () => { c.lineWidth = 1.6; ln(c, -12, -6, -4, -24, s + 2, .4); ln(c, 12, -6, 4, -24, s + 3, .4); });
+    c.lineWidth = 2.2; poly(c, [[-9, -26], [-12, -38], [-4, -30], [4, -30], [12, -38], [9, -26]], s + 4, .4); fs(c, F);
+    head(c, F, s + 5, -32, 4.6); c.fillStyle = RED; c.fillRect(-2.6, -34, 1.6, 1.6); c.fillRect(1.2, -34, 1.6, 1.6);
+    c.fillStyle = PAPER; c.beginPath(); c.moveTo(-1.5, -29.5); c.lineTo(-1, -27.5); c.lineTo(-.5, -29.5); c.moveTo(.5, -29.5); c.lineTo(1, -27.5); c.lineTo(1.5, -29.5); c.fill();
+  },
+  werewolf(c, F, D, s) {
+    c.lineWidth = 2.6; ln(c, -5, -12, -8, 0, s, .4); ln(c, 5, -12, 8, 0, s + 1, .4);
+    c.lineWidth = 2.4; c.beginPath(); c.moveTo(-10, -12); c.quadraticCurveTo(-14, -30, -2, -34); c.quadraticCurveTo(12, -32, 10, -12); c.closePath(); fs(c, F === PAPER ? '#d8cbb4' : F);
+    det(c, D, () => { c.lineWidth = 1.2; for (let k = 0; k < 5; k++) ln(c, -8 + k * 4, -14, -9 + k * 4, -20, s + k, .5); });
+    poly(c, [[-4, -32], [-6, -42], [-1, -38], [4, -40], [8, -36], [16, -36], [15, -32], [6, -30]], s + 2, .5); fs(c, F === PAPER ? '#d8cbb4' : F);
+    c.fillStyle = '#e8b21b'; c.fillRect(2, -37, 2, 2);
+    c.fillStyle = PAPER; c.beginPath(); c.moveTo(12, -32); c.lineTo(13, -29.5); c.lineTo(14, -32); c.fill();
+    c.lineWidth = 2; ln(c, 8, -22, 16, -16, s + 3, .3); ln(c, 16, -16, 18, -18, s + 4, .1); ln(c, 16, -16, 19, -15, s + 5, .1);
+  },
+  vacuum(c, F, D, s) {
+    c.lineWidth = 2.4; ell(c, 0, -5, 16, 5); fs(c, F); c.beginPath(); c.ellipse(0, -8, 16, 5, 0, Math.PI, 0); c.lineTo(16, -5); c.ellipse(0, -5, 16, 5, 0, 0, Math.PI); c.closePath(); fs(c, F);
+    ell(c, 0, -9, 15, 4.5); fs(c, F);
+    c.lineWidth = 1.6; circ(c, 0, -9, 3, s, .2, 8); fs(c, '#9db3d6');
+    c.fillStyle = '#6f8f3a'; c.fillRect(8, -10, 2.5, 2);
+    det(c, '#8a8478', () => { c.lineWidth = 1; for (let k = 0; k < 3; k++) ln(c, -24 - k * 3, -4 + k * 2, -18 - k * 3, -4 + k * 2, s + k, .3); });
+  },
+  cow(c, F, D, s) {
+    c.lineWidth = 2.2; for (const x of [-9, -4, 6, 11]) ln(c, x, -8, x, 0, s + x, .2);
+    c.lineWidth = 2.4; poly(c, [[-14, -8], [12, -8], [14, -22], [-14, -22]], s, .6); fs(c, F === PAPER ? PAPER : F);
+    c.fillStyle = F === PAPER ? K : PAPER; ell(c, -6, -15, 4, 3); c.fill(); ell(c, 4, -18, 3, 2.4); c.fill();
+    c.lineWidth = 2.2; poly(c, [[12, -20], [22, -22], [24, -14], [16, -12]], s + 1, .4); fs(c, F === PAPER ? PAPER : F);
+    c.lineWidth = 1.8; ell(c, 22, -14, 3.4, 2.4); fs(c, '#e9b8b0');
+    c.fillStyle = D; c.fillRect(17, -20, 1.8, 1.8);
+    c.lineWidth = 1.6; ln(c, 14, -22, 13, -26, s + 2, .2); ln(c, 18, -22, 19, -26, s + 3, .2);
+    ln(c, -14, -20, -18, -12, s + 4, .3);
+  },
+  bulldozer(c, F, D, s) {
+    c.lineWidth = 2.4;
+    c.beginPath(); c.moveTo(-14, 0); c.lineTo(8, 0); c.arc(8, -5, 5, Math.PI / 2, -Math.PI / 2, true); c.lineTo(-14, -10); c.arc(-14, -5, 5, -Math.PI / 2, Math.PI / 2, true); c.closePath(); fs(c, F);
+    poly(c, [[-16, -10], [10, -10], [10, -20], [-16, -20]], s, .4); fs(c, '#e8b21b');
+    poly(c, [[-12, -20], [2, -20], [2, -32], [-12, -32]], s + 1, .4); fs(c, F); c.lineWidth = 1.6; poly(c, [[-9, -29], [-1, -29], [-1, -23], [-9, -23]], s + 2, .2); fs(c, '#9db3d6');
+    c.lineWidth = 2.4; ln(c, 10, -14, 18, -10, s + 3, .2); poly(c, [[18, 0], [24, 0], [22, -20], [18, -18]], s + 4, .4); fs(c, F);
+    c.fillStyle = K; for (const x of [-12, -6, 0, 6]) { c.beginPath(); c.arc(x, -5, 2, 0, 7); c.fill(); }
+  },
+  samurai(c, F, D, s) {
+    legs(c, s, 4); poly(c, [[-11, -10], [11, -10], [7, -26], [-7, -26]], s + 1, .4); fs(c, F);
+    det(c, D, () => { c.lineWidth = 1.2; for (let y = -23; y < -12; y += 3.5) ln(c, -8, y, 8, y, s + y, .2); });
+    c.lineWidth = 2; poly(c, [[-13, -26], [-7, -26], [-7, -20], [-14, -21]], s + 2, .3); fs(c, RED); poly(c, [[13, -26], [7, -26], [7, -20], [14, -21]], s + 3, .3); fs(c, RED);
+    head(c, F, s + 4, -31, 4.6);
+    c.lineWidth = 2.2; c.beginPath(); c.moveTo(-8, -31); c.quadraticCurveTo(0, -42, 8, -31); c.closePath(); fs(c, F);
+    c.lineWidth = 1.8; poly(c, [[-4, -38], [-8, -46], [-1, -39]], s + 5, .2); fs(c, GOLD); poly(c, [[4, -38], [8, -46], [1, -39]], s + 6, .2); fs(c, GOLD);
+    c.lineWidth = 2; c.beginPath(); c.moveTo(6, -16); c.quadraticCurveTo(18, -26, 24, -42); c.stroke();
+  },
+  ninja(c, F, D, s) {
+    c.lineWidth = 2.4; ln(c, -4, -10, -9, -1, s, .3); ln(c, 4, -10, 7, 0, s + 1, .3);
+    poly(c, [[-7, -10], [7, -10], [6, -26], [-6, -26]], s + 2, .4); fs(c, K);
+    head(c, K, s + 3, -30, 4.8);
+    c.fillStyle = F === PAPER ? PAPER : '#d8d2c0'; c.fillRect(-3.5, -31.5, 7, 2.6); c.fillStyle = K; c.fillRect(-2, -31, 1.4, 1.4); c.fillRect(1, -31, 1.4, 1.4);
+    det(c, F === PAPER ? RED : PAPER, () => { c.lineWidth = 1.8; ln(c, -4, -33, -14, -36 + Math.sin(INK.boil) * 2, s + 4, .6); ln(c, -4, -33, -12, -31, s + 5, .6); });
+    c.lineWidth = 2; ln(c, -6, -26, 8, -40, s + 6, .1); c.lineWidth = 1.6; ln(c, 4, -36, 8, -34, s + 7, .1);
+  },
+  ufo(c, F, D, s) {
+    c.fillStyle = 'rgba(232,210,90,0.25)'; c.beginPath(); c.moveTo(-6, -16); c.lineTo(6, -16); c.lineTo(14, 0); c.lineTo(-14, 0); c.closePath(); c.fill();
+    c.lineWidth = 2.2; c.beginPath(); c.moveTo(-7, -22); c.quadraticCurveTo(0, -36, 7, -22); c.closePath(); fs(c, '#9db3d6');
+    c.lineWidth = 2.4; ell(c, 0, -20, 20, 5.5); fs(c, F);
+    c.fillStyle = GOLD; for (const x of [-12, -4, 4, 12]) { c.beginPath(); c.arc(x, -19, 1.6, 0, 7); c.fill(); }
+    c.fillStyle = '#6f8f3a'; c.beginPath(); c.arc(0, -28, 3, 0, 7); c.fill(); c.fillStyle = K; c.fillRect(-1.6, -29, 1.2, 1.2); c.fillRect(.6, -29, 1.2, 1.2);
+  },
   voidknight(c, F, D, s) {
     c.lineWidth = 3; ln(c, -5, -11, -6, 0, s, .4); ln(c, 5, -11, 6, 0, s + 1, .4); c.lineWidth = 2.4;
     c.lineWidth = 2; ln(c, 17, -20, 20, -52, s + 9, .3); ln(c, 14, -24, 21, -24, s + 10, .2); c.lineWidth = 2.4;
@@ -302,22 +455,27 @@ const ART = {
     det(c, D, () => { c.lineWidth = 1.6; ln(c, -3, -39, 5, -39, s + 5, .2); poly(c, [[0, -28], [4, -22], [0, -16], [-4, -22]], s + 6, .3); c.stroke(); });
     det(c, RED, () => { c.lineWidth = 1.4; ln(c, 2, -38, 5, -38, s + 7, .1); });
   },
-  plasma(c, F, D, s) {
-    legs(c, s); torso(c, F, s + 2, 8, 7);
-    c.beginPath(); c.moveTo(-6, -27); c.quadraticCurveTo(-6, -40, 1, -40); c.quadraticCurveTo(8, -40, 7, -27); c.closePath(); fs(c, F);
-    c.lineWidth = 1.8; poly(c, [[1, -34], [8, -34], [7, -30], [1, -30]], s + 3, .2); fs(c, GLASS);
-    c.lineWidth = 4.5; ln(c, -2, -19, 22, -21, s + 4, .3); c.lineWidth = 2.4;
-    det(c, BLUE, () => { c.lineWidth = 1.6; circ(c, 25, -21, 3, s + 5, .6, 7); c.stroke(); });
-  },
   titan(c, F, D, s) {
-    c.lineWidth = 3.4; ln(c, -7, -16, -12, 0, s, .4); ln(c, 7, -16, 12, 0, s + 1, .4); ln(c, -16, 0, -8, 0, s + 2, .3); ln(c, 8, 0, 16, 0, s + 3, .3);
-    c.lineWidth = 2.4; poly(c, [[-9, -14], [9, -14], [9, -21], [-9, -21]], s + 4, .4); fs(c, F);
-    poly(c, [[-15, -21], [15, -21], [17, -45], [-17, -45]], s + 5, .6); fs(c, F);
-    c.beginPath(); c.moveTo(-6, -45); c.quadraticCurveTo(0, -55, 6, -45); c.closePath(); fs(c, F);
-    det(c, D, () => { c.lineWidth = 1.4; for (let y = -40; y < -26; y += 5) ln(c, -11, y, -4, y, s + y, .2); });
-    det(c, RED, () => { c.lineWidth = 1.8; ln(c, -2, -48, 3, -48, s + 6, .1); });
-    c.lineWidth = 6; ln(c, 16, -36, 33, -36, s + 7, .2); c.lineWidth = 2.4; poly(c, [[-17, -40], [-25, -36], [-24, -24], [-17, -26]], s + 8, .4); fs(c, F);
+    // a towering two-legged war walker: armoured legs, hunched hull, cockpit, two arm weapons
+    c.save(); c.scale(1.15, 1.15);
+    const leg = (x, k) => { c.lineWidth = 2.2; poly(c, [[x - 4, -24], [x + 4, -24], [x + 5, -15], [x - 3, -15]], s + k, .3); fs(c, F); poly(c, [[x - 3, -15], [x + 5, -15], [x + 4, -4], [x - 2, -4]], s + k + 1, .3); fs(c, F); circ(c, x + 1, -15, 2.6, s + k + 2, .2, 8); fs(c, F); poly(c, [[x - 6, -4], [x + 8, -4], [x + 9, 0], [x - 7, 0]], s + k + 3, .3); fs(c, F); };
+    leg(-8, 1); leg(6, 5);
+    c.lineWidth = 2.4; poly(c, [[-12, -24], [12, -24], [10, -29], [-10, -29]], s + 9, .3); fs(c, F);
+    poly(c, [[-15, -29], [15, -29], [17, -44], [9, -50], [-9, -50], [-17, -44]], s + 10, .5); fs(c, F);
+    det(c, D, () => { c.lineWidth = 1.3; ln(c, -12, -34, 12, -34, s + 11, .3); ln(c, -12, -39, 12, -39, s + 12, .3); for (const x of [-8, -3, 3, 8]) ln(c, x, -31, x, -33, s + x, .1); });
+    c.lineWidth = 2.2; c.beginPath(); c.moveTo(-6, -50); c.quadraticCurveTo(0, -58, 6, -50); c.closePath(); fs(c, F);
+    c.fillStyle = RED; c.fillRect(-3.5, -53.5, 7, 2);
+    ln(c, 9, -51, 11, -58, s + 13, .2); c.lineWidth = 1.4; ell(c, 11, -60, 2, 1.2); c.stroke();
+    // right arm: long cannon
+    c.lineWidth = 2.2; poly(c, [[15, -44], [22, -44], [22, -36], [15, -36]], s + 14, .3); fs(c, F);
+    c.lineWidth = 5.5; ln(c, 22, -40, 36, -40, s + 15, .1); c.lineWidth = 2; c.strokeStyle = F === PAPER ? PAPER : K; ln(c, 23, -40, 35, -40, s + 16, .1); c.strokeStyle = K;
+    c.lineWidth = 1.8; poly(c, [[34, -43], [38, -43], [38, -37], [34, -37]], s + 17, .2); fs(c, F);
+    // left arm: rotary gun
+    c.lineWidth = 2.2; poly(c, [[-15, -44], [-22, -44], [-22, -34], [-15, -34]], s + 18, .3); fs(c, F);
+    c.lineWidth = 1.6; for (const y of [-41, -39, -37]) ln(c, -22, y, -33, y, s + y, .1); poly(c, [[-33, -43], [-30, -43], [-30, -35], [-33, -35]], s + 19, .2); fs(c, F);
+    c.restore();
   },
+
   tumbleweed(c, F, D, s) {
     c.lineWidth = 1.6;
     for (let k = 0; k < 7; k++) { c.beginPath(); c.ellipse(jt(s + k, 3), -13 + jt(s + k + 9, 3), 12 - k % 3, 10 + k % 2, k * .7 + INK.boil * .2, 0, Math.PI * 1.7); c.stroke(); }
@@ -552,6 +710,8 @@ const SPELL_ART = {
   execute: (c, w, h) => { const x = w / 2, y = h / 2; c.lineWidth = 2.6; ln(c, x - 20, y + 36, x - 20, y - 36, 1, .3); ln(c, x + 20, y + 36, x + 20, y - 36, 2, .3); ln(c, x - 26, y - 36, x + 26, y - 36, 3, .3); c.lineWidth = 2.2; poly(c, [[x - 18, y - 24], [x + 18, y - 32], [x + 18, y - 18], [x - 18, y - 12]], 4, .4); fs(c, '#cfd4da'); ln(c, x, y - 36, x, y - 30, 5, .1); c.lineWidth = 2.4; poly(c, [[x - 22, y + 18], [x + 22, y + 18], [x + 22, y + 28], [x - 22, y + 28]], 6, .4); fs(c, PAPER); c.beginPath(); c.arc(x, y + 18, 7, Math.PI, 0); c.stroke(); P(c, 'R', x + 40, y + 12, 34, 'b'); },
   party: (c, w, h) => { P(c, 'chicken', w / 2 - 20, h / 2 + 4, 44); P(c, 'duck', w / 2 + 22, h / 2 + 6, 40); c.lineWidth = 2; poly(c, [[w / 2 - 28, h / 2 - 18], [w / 2 - 14, h / 2 - 18], [w / 2 - 21, h / 2 - 38]], 1, .3); fs(c, RED); const cols = [RED, BLUE, GOLD, '#6f8f3a']; for (let i = 0; i < 14; i++) { c.fillStyle = cols[i % 4]; c.save(); c.translate(hash(i) * w, hash(i + 9) * h * .5); c.rotate(i); c.fillRect(-2, -1, 4, 2.5); c.restore(); } },
   nuke: (c, w, h) => { drawNukeBomb(c, w / 2, h / 2, w * .62, -.5, K, '#3b3a42', 3); c.strokeStyle = 'rgba(30,28,36,.35)'; c.lineWidth = 1.2; for (let k = 0; k < 4; k++) ln(c, w / 2 - 50 - k * 4, h / 2 - 10 + k * 8, w / 2 - 34 - k * 4, h / 2 - 18 + k * 8, k, .3); c.strokeStyle = K; },
+  dropship: (c, w, h) => { const x = w / 2, y = h / 2 - 12; c.lineWidth = 2.4; poly(c, [[x - 34, y], [x + 24, y - 4], [x + 38, y + 4], [x + 24, y + 12], [x - 30, y + 12]], 1, .6); fs(c, '#d8d2c0'); poly(c, [[x - 30, y], [x - 40, y - 10], [x - 32, y - 10], [x - 20, y]], 2, .4); fs(c, '#d8d2c0'); c.lineWidth = 1.6; poly(c, [[x + 22, y], [x + 32, y + 3], [x + 22, y + 6]], 3, .2); fs(c, '#9db3d6'); for (let a = 0; a < 4; a++) for (let b = 0; b < 2; b++) P(c, 'trooper', x - 24 + a * 13, y + 34 + b * 8 - (a % 2) * 2, 22, 'w', a + b * 5); c.setLineDash([3, 3]); c.lineWidth = 1.2; ln(c, x - 20, y + 13, x - 24, y + 24, 7, .2); ln(c, x + 10, y + 13, x + 14, y + 24, 8, .2); c.setLineDash([]); },
+  barrage: (c, w, h) => { c.lineWidth = 1.4; for (let i = 0; i < 4; i++) { const x = 20 + i * 26, y = 18 + (i % 2) * 14; ln(c, x - 8, y - 14, x, y, i, .3); c.lineWidth = 2; ell(c, x, y + 2, 3, 5, -.5); fs(c, K); c.lineWidth = 1.4; } c.strokeStyle = RED; c.lineWidth = 2; for (const [x, y] of [[30, 66], [70, 70], [96, 62]]) for (let k = 0; k < 8; k++) { const a = k / 8 * Math.PI * 2; ln(c, x + Math.cos(a) * 4, y + Math.sin(a) * 3, x + Math.cos(a) * 11, y + Math.sin(a) * 7, k + x, .5); } c.strokeStyle = K; },
   hymn: (c, w, h) => { P(c, 'P', w / 2 - 22, h / 2 + 4, 44); P(c, 'P', w / 2 + 4, h / 2 + 4, 44); c.lineWidth = 2; for (const [x, y] of [[w / 2 + 28, h / 2 - 18], [w / 2 + 42, h / 2 - 24]]) { ell(c, x, y + 12, 4, 3); fs(c, K); ln(c, x + 4, y + 12, x + 4, y - 6, x, .2); } ln(c, w / 2 + 32, h / 2 - 24, w / 2 + 46, h / 2 - 30, 7, .2); },
   crate: (c, w, h) => { const x = w / 2, y = h / 2 + 4; c.lineWidth = 2.4; poly(c, [[x - 22, y - 20], [x + 22, y - 20], [x + 22, y + 22], [x - 22, y + 22]], 1, .6); fs(c, '#d8c9a0'); c.lineWidth = 1.6; ln(c, x - 22, y - 20, x + 22, y + 22, 2, .4); ln(c, x + 22, y - 20, x - 22, y + 22, 3, .4); c.lineWidth = 1.4; ln(c, x, y - 20, x - 10, y - 38, 4, .3); ln(c, x, y - 20, x + 10, y - 38, 5, .3); c.beginPath(); c.arc(x, y - 38, 14, Math.PI, 0); fs(c, PAPER); },
   repairs: (c, w, h) => { SPELL_ART.armor(c, w - 20, h); const x = w / 2 + 24, y = h / 2; c.lineWidth = 4; ln(c, x - 8, y + 18, x + 8, y - 10, 1, .2); c.lineWidth = 2.2; c.beginPath(); c.arc(x + 10, y - 14, 6, 0.6, 5.2); c.stroke(); },
@@ -643,16 +803,16 @@ function drawMoveDiagram(cv, t) {
   const S = 98, cell = S / 7, c = hiDPI(cv, S, S), N = INK.N;
   const saved = INK.boil; INK.boil = 0;
   const savedEnv = { ...INK.ENV }; INK.ENV.terr = new Array(N * N).fill(null); INK.ENV.wrap = INK.ENV.truce = INK.ENV.km = INK.ENV.bp = false;
-  const centre = 5 * N + 4, [cr, cc] = INK.rc(centre);
+  const centre = 25 * N + 25, [cr, cc] = INK.rc(centre);
   const me = INK.mkPiece(t, 'w');
   const empty = new Array(N * N).fill(null); empty[centre] = me;
-  const full = new Array(N * N).fill(null).map((_, i) => i === centre ? me : { ...INK.mkPiece('P', 'b'), ar: 0 });
+  const full = new Array(N * N).fill(null); for (let dr = -3; dr <= 3; dr++) for (let dc = -3; dc <= 3; dc++) full[centre + dr * N + dc] = (dr || dc) ? INK.mkPiece('P', 'b') : me;
   const sparse = new Array(N * N).fill(null); sparse[centre] = me;
   const moves = new Set(INK.genMoves(empty, 'w').filter(m => !m.cap).map(m => m.t));
   const caps = INK.genMoves(full, 'w').filter(m => m.cap);
   // ranged reach: put lone enemies on each square one at a time is costly; use rings of enemies at distance d with gaps
   const ranged = new Set();
-  for (let i = 0; i < N * N; i++) { if (i === centre) continue; sparse[i] = INK.mkPiece('P', 'b'); for (const m of INK.genMoves(sparse, 'w')) if (m.t === i && m.r) ranged.add(i); sparse[i] = null; }
+  for (let dr = -3; dr <= 3; dr++) for (let dc = -3; dc <= 3; dc++) { const i = centre + dr * N + dc; if (i === centre) continue; sparse[i] = INK.mkPiece('P', 'b'); for (const m of INK.genMoves(sparse, 'w')) if (m.t === i && m.r) ranged.add(i); sparse[i] = null; }
   for (let r = 0; r < 7; r++) for (let cl = 0; cl < 7; cl++) if ((r + cl) % 2) { c.fillStyle = 'rgba(30,28,36,0.07)'; c.fillRect(cl * cell, r * cell, cell, cell); }
   c.strokeStyle = 'rgba(30,28,36,0.35)'; c.lineWidth = 1; c.strokeRect(.5, .5, S - 1, S - 1);
   const pos = sq => { const [r, cl] = INK.rc(sq); return [r - cr + 3, cl - cc + 3]; };

@@ -259,3 +259,8 @@ button.card:disabled { cursor: default; }
 .cutscene { position: fixed; inset: 0; z-index: 60; cursor: pointer; background: transparent; }
 .cutscene canvas { display: block; width: 100%; height: 100%; }
 .cutscene #cutSkip { position: absolute; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); opacity: .85; }
+
+.board-frame { position: relative; }
+#board { touch-action: none; cursor: grab; }
+.zoom { position: absolute; left: 8px; bottom: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+.zoom .btn { background: rgba(242,238,226,.92); }
