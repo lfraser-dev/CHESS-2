@@ -42,7 +42,17 @@ const U = {
   serpent: { name: 'Ouroboros Serpent', val: 6, sl: [[ORTH, 9]], wrapAll: 1, rules: 'Slides like a rook, and slithers off any edge to come back on the opposite side.' },
   egg: { name: 'Dragon Egg', val: 2, hatch: 3, rules: 'Can\'t move. Hatches into a Dragon after 3 of your turns.' },
   goose: { name: 'Golden Goose', val: 2, quiet: DIR8, noCap: 1, income: 3, rules: 'Waddles 1 square, can\'t capture. Lays 3 extra coins at the start of each of your turns.' },
-  voidknight: { name: 'Void Knight', val: 6, sl: [[DIR8, 1], [ORTH, 2]], armor: 1, set: 'crusade', rules: 'Stomps 1 square any way or 2 straight. Wears 1 armour.' },
+  pagoda: { name: 'Screaming Pagoda', val: 8, shoot: [DIR8, 3], scream: 1, rules: 'A furious red temple that never stops screaming. Never moves. Screams down the first enemy up to 3 squares away in any direction, and at the end of each of your turns it blasts every enemy next to it 1 square away. If they have nowhere to go, they\'re destroyed.' },
+  trolley: { name: 'Shopping Trolley', val: 4, sl: [[ORTH, 4]], rules: 'Rolls up to 4 squares in a straight line and runs over whatever it hits. One wheel squeaks.' },
+  duck: { name: 'Rubber Duck', val: 1, sl: [[DIR8, 1]], noCap: 1, squeak: 1, rules: 'Bobs 1 square any way. Can\'t capture. Whatever captures it is stunned by the squeak and frozen for a turn.' },
+  gnome: { name: 'Lawn Gnome', val: 2, gnome: 1, rules: 'Never moves. Just stares. Enemy pieces next to it are too unsettled to move (kings excepted).' },
+  pigeon: { name: 'Pigeon', val: 1, sl: [[DIR8, 4]], fly: 1, noCap: 1, pigeon: 1, rules: 'Flaps up to 4 squares over anything. Can\'t capture. If it lands next to an enemy piece, it nicks 1 of their coins.' },
+  vending: { name: 'Vending Machine', val: 2, income: 2, rules: 'Never moves. Pays you 2 coins at the start of each of your turns.' },
+  grandma: { name: 'Grandma', val: 4, sl: [[DIR8, 1]], armor: 3, rules: 'Shuffles 1 square any way and wallops things with her handbag. Starts with 3 armour. She\'s seen worse.' },
+  toaster: { name: 'Toaster', val: 3, lob: [DIAG, [2]], rules: 'Never moves. Pops red-hot toast at an enemy exactly 2 squares away diagonally, over anything.' },
+  pogo: { name: 'Pogo Kid', val: 3, leap: DIR8.map(([a, b]) => [a * 2, b * 2]), rules: 'Boings exactly 2 squares in any straight line, over anything.' },
+  blob: { name: 'Ink Blob', val: 3, sl: [[ORTH, 1]], split: 1, rules: 'Oozes 1 square straight. When it captures something, it splits and leaves a new Ink Blob where it was.' },
+  voidknight: { name: 'Star Paladin', val: 6, sl: [[DIR8, 1], [ORTH, 2]], armor: 1, rules: 'Power-armoured knight from the stars. Stomps 1 square any way or 2 straight. Wears 1 armour.' },
   plasma: { name: 'Plasma Trooper', val: 4, quiet: DIR8, shoot: [ORTH, 3], set: 'crusade', rules: 'Steps 1 square to empty squares. Fires down straight lines at the first enemy up to 3 squares away.' },
   titan: { name: 'Titan Walker', val: 12, sl: [[DIR8, 2]], armor: 2, shoot: [ORTH, 4], set: 'crusade', rules: 'Strides 2 squares any way, fires up to 4 squares in straight lines, and wears 2 armour.' },
   tumbleweed: { name: 'Tumbleweed', val: 1, sl: [[ROW, 3]], fly: 1, noCap: 1, set: 'west', rules: 'Blows up to 3 squares sideways, over anything. Can\'t capture. Gets in the way.' },
@@ -78,9 +88,12 @@ function canCap(p, u, q, qsq) {
 }
 
 function genMoves(bd, side, out = []) {
+  let pinned = null;
+  for (let i = 0; i < N * N; i++) { const g = bd[i]; if (g && g.t === 'gnome' && g.s !== side) { pinned = pinned || new Set(); const r = i / N | 0, c = i % N; for (const [dr, dc] of DIR8) if (inB(r + dr, c + dc)) pinned.add((r + dr) * N + c + dc); } }
   for (let sq = 0; sq < N * N; sq++) {
     const p = bd[sq];
     if (!p || p.s !== side || p.fz > 0) continue;
+    if (pinned && pinned.has(sq) && p.t !== 'K') continue;
     const u = U[p.t]; const r = sq / N | 0, c = sq % N;
     const to = (rr, cc) => {
       if (u.wrapAll) { rr = mod(rr); cc = mod(cc); } else if (ENV.wrap) cc = mod(cc);
@@ -270,7 +283,7 @@ const CARDS = {
   firewall: { name: 'Wall of Fire', rarity: 'uncommon', text: 'Set a row of 3 empty squares alight for 3 turns each. Nothing can enter, and only fliers can cross.',
     target: { t: 'empty', f: (st, i) => !st.terr[i] }, fx: (st, s, o, ev) => { const [r, c] = rc(o.a); for (const dc of [-1, 0, 1]) { const i = r * N + c + dc; if (inB(r, c + dc) && emptyOk(st, i) && !st.terr[i]) st.terr[i] = { k: 'fire', n: 6 }; } ev.push({ type: 'spell', sq: o.a }); } },
   sketch: { name: 'Quick Sketch', rarity: 'uncommon', text: 'Draw 2 random cards.', ai: 45,
-    target: { t: 'none' }, fx: (st, s, o, ev) => { const got = [rollCard('classic', 0), rollCard('classic', 0)]; for (const k of got) addToHand(st, s, k, ev); ev.push({ type: 'draw', keys: got }); } },
+    target: { t: 'none' }, fx: (st, s, o, ev) => { const got = [rollCard('all', 0), rollCard('all', 0)]; for (const k of got) addToHand(st, s, k, ev); ev.push({ type: 'draw', keys: got }); } },
   spill: { name: 'Spilled Ink', rarity: 'uncommon', text: 'Your opponent loses a random card from their hand.', ai: 32,
     target: { t: 'none', can: (st, s) => st.hand[other(s)].length > 0 }, fx: (st, s, o, ev) => { const h = st.hand[other(s)]; const i = Math.floor(Math.random() * h.length); const k = h.splice(i, 1)[0]; ev.push({ type: 'msg', text: `ruined their ${CARDS[k].name}` }); } },
   backpedal: { name: 'Backpedal', rarity: 'uncommon', text: 'For 4 turns each, every pawn can also step 1 square backwards.', ai: 4,
@@ -324,6 +337,38 @@ const CARDS = {
   purse: { name: 'Fat Purse', kind: 'coin', amount: 5, rarity: 'uncommon', text: '+5 coins, straight away.' },
   chest: { name: 'Treasure Chest', kind: 'coin', amount: 8, rarity: 'rare', text: '+8 coins, straight away.' },
 
+  // ---------- random stuff
+  pagodaC: { name: 'Screaming Pagoda', kind: 'unit', unit: 'pagoda', rarity: 'epic' },
+  trolleyC: { name: 'Shopping Trolley', kind: 'unit', unit: 'trolley', rarity: 'common' },
+  duckC: { name: 'Rubber Duck', kind: 'unit', unit: 'duck', rarity: 'common' },
+  pigeonC: { name: 'Pigeon', kind: 'unit', unit: 'pigeon', rarity: 'common' },
+  pogoC: { name: 'Pogo Kid', kind: 'unit', unit: 'pogo', rarity: 'common' },
+  gnomeC: { name: 'Lawn Gnome', kind: 'unit', unit: 'gnome', rarity: 'uncommon' },
+  vendingC: { name: 'Vending Machine', kind: 'unit', unit: 'vending', rarity: 'uncommon' },
+  toasterC: { name: 'Toaster', kind: 'unit', unit: 'toaster', rarity: 'uncommon' },
+  grandmaC: { name: 'Grandma', kind: 'unit', unit: 'grandma', rarity: 'rare' },
+  blobC: { name: 'Ink Blob', kind: 'unit', unit: 'blob', rarity: 'rare' },
+  banana: { name: 'Banana Peel', rarity: 'common', text: 'Drop a banana peel on an empty square. The next piece to stop there slips and is frozen for a turn (kings just wobble).', ai: 8,
+    target: { t: 'empty', f: (st, i) => !st.terr[i] }, fx: (st, s, o, ev) => { st.terr[o.a] = { k: 'banana' }; ev.push({ type: 'spell', sq: o.a }); } },
+  tax: { name: 'Tax Day', rarity: 'uncommon', text: 'Your opponent pays you 1 coin for every 3 pieces they have on the board.', ai: 25,
+    target: { t: 'none', can: (st, s) => st.coins[other(s)] > 0 }, fx: (st, s, o, ev) => { const n = Math.min(st.coins[other(s)], Math.max(1, Math.floor(st.board.filter(p => p && p.s !== s).length / 3))); st.coins[other(s)] -= n; st.coins[s] += n; ev.push({ type: 'msg', text: `collected ${n} coins in tax` }); } },
+  coinflip: { name: 'Coin Flip', rarity: 'uncommon', text: 'Pick an enemy piece worth 5 or less. Heads: it\'s destroyed. Tails: one of YOUR pieces is destroyed instead.', random: 1, ai: -40,
+    target: { t: 'enemy', f: p => hittable(p) && VAL(p.t) <= 5 }, fx: (st, s, o, ev) => {
+      if (Math.random() < .5) { ev.push({ type: 'msg', text: 'flipped HEADS' }); ev.push({ type: 'spell', sq: o.a }); kill(st, o.a, ev); }
+      else { const mine = sqs(st, p => p.s === s && notKing(p)); ev.push({ type: 'msg', text: 'flipped TAILS' }); if (mine.length) kill(st, randOf(mine), ev); } } },
+  execute: { name: 'Execute', rarity: 'rare', text: 'Execute an enemy piece (not the king) that one of your pieces is already attacking. No trial.',
+    target: { t: 'enemy', f: (p, i, st) => { if (!hittable(p)) return false; const sv = { ...ENV }; setEnv(st); const hit = genMoves(st.board, other(p.s)).some(m => m.t === i && m.cap); Object.assign(ENV, sv); return hit; } },
+    fx: (st, s, o, ev) => { ev.push({ type: 'spell', sq: o.a }); kill(st, o.a, ev); } },
+  party: { name: 'Party Time', rarity: 'rare', text: 'Every enemy chicken, duck, pigeon and gnome hears the music and joins your side.', ai: 20,
+    target: { t: 'none', can: (st, s) => st.board.some(p => p && p.s !== s && ['chicken', 'duck', 'pigeon', 'gnome'].includes(p.t)) },
+    fx: (st, s, o, ev) => { let n = 0; st.board.forEach((p, i) => { if (p && p.s !== s && ['chicken', 'duck', 'pigeon', 'gnome'].includes(p.t)) { st.board[i] = { ...p, s }; n++; ev.push({ type: 'spell', sq: i }); } }); ev.push({ type: 'msg', text: `${n} party animal${n === 1 ? '' : 's'} switched sides` }); } },
+  nuke: { name: 'NUKE', rarity: 'legendary', text: 'Drops a nuke. Everything in a 5×5 blast is wiped out, yours too (kings survive, singed). Leaves a crater and radioactive ground that curses anything that stops on it.',
+    target: { t: 'square', f: (st, i, s) => area(i, 2).some(j => st.board[j] && st.board[j].s !== s && notKing(st.board[j])) },
+    fx: (st, s, o, ev) => {
+      ev.push({ type: 'nuke', sq: o.a });
+      for (const j of area(o.a, 2)) { kill(st, j, ev); st.terr[j] = j === o.a ? { k: 'pit' } : { k: 'rad', n: 10 }; }
+    } },
+
   // ---------- Iron Crusade
   hymn: { set: 'crusade', name: 'Battle Hymn', rarity: 'common', text: 'All your pawns are shielded until your next turn.',
     target: { t: 'none', can: (st, s) => st.board.some(p => p && p.s === s && p.t === 'P') }, fx: (st, s, o, ev) => { st.board.forEach((p, i) => { if (p && p.s === s && p.t === 'P') st.board[i] = { ...p, sh: 1 }; }); ev.push({ type: 'field', key: 'hymn' }); } },
@@ -331,8 +376,8 @@ const CARDS = {
   plasmaC: { set: 'crusade', name: 'Plasma Trooper', kind: 'unit', unit: 'plasma', rarity: 'uncommon' },
   repairs: { set: 'crusade', name: 'Field Repairs', rarity: 'uncommon', text: 'Bolt 2 armour onto one of your pieces (not the king).',
     target: { t: 'own', f: p => notKing(p) }, fx: (st, s, o, ev) => { st.board[o.a] = { ...st.board[o.a], ar: st.board[o.a].ar + 2 }; ev.push({ type: 'spell', sq: o.a }); } },
-  voidC: { set: 'crusade', name: 'Void Knight', kind: 'unit', unit: 'voidknight', rarity: 'rare' },
-  droppod: { set: 'crusade', name: 'Drop Pod', rarity: 'epic', text: 'Slam a Void Knight down onto ANY empty square on the board.',
+  voidC: { set: 'crusade', name: 'Star Paladin', kind: 'unit', unit: 'voidknight', rarity: 'rare' },
+  droppod: { set: 'crusade', name: 'Drop Pod', rarity: 'epic', text: 'Slam a Star Paladin down onto ANY empty square on the board.',
     target: { t: 'empty' }, fx: (st, s, o, ev) => { st.board[o.a] = mkPiece('voidknight', s); ev.push({ type: 'summon', sq: o.a, big: true }); } },
   orbital: { set: 'crusade', name: 'Orbital Strike', rarity: 'epic', text: 'Blast a square and the 4 squares touching its sides. Everything there is destroyed, yours too (kings survive).',
     target: { t: 'square', f: (st, i, s) => plus(i).some(j => st.board[j] && st.board[j].s !== s && notKing(st.board[j])) },
@@ -377,7 +422,7 @@ const CARDS = {
   // ---------- Plunder (pirates)
   parrotC: { set: 'plunder', name: 'Parrot', kind: 'unit', unit: 'parrot', rarity: 'common' },
   bottle: { set: 'plunder', name: 'Message in a Bottle', rarity: 'common', text: 'Draw 1 random card. Could be anything.', ai: 25,
-    target: { t: 'none' }, fx: (st, s, o, ev) => { const k = rollCard(Math.random() < .5 ? 'plunder' : 'classic', 2); addToHand(st, s, k, ev); ev.push({ type: 'draw', keys: [k] }); } },
+    target: { t: 'none' }, fx: (st, s, o, ev) => { const k = rollCard('all', 2); addToHand(st, s, k, ev); ev.push({ type: 'draw', keys: [k] }); } },
   cannonC: { set: 'plunder', name: 'Ship\'s Cannon', kind: 'unit', unit: 'cannon', rarity: 'uncommon' },
   plank: { set: 'plunder', name: 'Walk the Plank', rarity: 'uncommon', text: 'Any enemy piece (not the king) standing on the left or right edge of the board walks the plank.',
     target: { t: 'enemy', f: (p, i) => hittable(p) && (i % N === 0 || i % N === N - 1) }, fx: (st, s, o, ev) => { ev.push({ type: 'spell', sq: o.a }); kill(st, o.a, ev); } },
@@ -392,17 +437,13 @@ for (const [k, c] of Object.entries(CARDS)) {
   if (c.kind === 'unit') { c.text = (c.unit === 'P' ? '' : '') + U[c.unit].rules; c.target = c.target || { t: 'home' }; }
 }
 const RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
-const RARITY_LABEL = { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' };
+const RARITY_LABEL = { common: 'Scribble', uncommon: 'Sketch', rare: 'Inked', epic: 'Masterpiece', legendary: 'Legendary' };
 const SCRAP = { common: 1, uncommon: 2, rare: 3, epic: 5, legendary: 8 };
 const PACKS = {
-  classic: { name: 'Inkmate Classic', set: 'classic', cost: 5, badge: 'J', blurb: 'Units, spells and coins. The core set.' },
-  crusade: { name: 'Iron Crusade', set: 'crusade', cost: 7, badge: 'titan', band: '#b3322b', blurb: 'Grimdark space knights. Armour, drop pods, orbital strikes.' },
-  west: { name: 'Dust & Daring', set: 'west', cost: 6, badge: 'stranger', band: '#c99a1c', blurb: 'Wild West. Sheriffs, bandits, bounties and heists.' },
-  monster: { name: 'Monster Mayhem', set: 'monster', cost: 7, badge: 'lizard', band: '#4a6fb0', blurb: 'B-movie monsters. Eggs, tentacles, toxic goo.' },
-  plunder: { name: 'Plunder', set: 'plunder', cost: 6, badge: 'kraken', band: '#1e1c24', blurb: 'Pirates. Cannons, mutiny, buried treasure.' },
+  main: { name: 'Inkmate Pack', cost: 5, badge: 'pagoda', blurb: 'Everything is in here. Every unit, every spell, every coin card, and the NUKE.' },
 };
 
-function pool(set, rarity) { return Object.values(CARDS).filter(c => c.set === set && c.rarity === rarity).map(c => c.key); }
+function pool(set, rarity) { return Object.values(CARDS).filter(c => (set === 'all' || c.set === set) && c.rarity === rarity).map(c => c.key); }
 function rollRarity(boost) {
   const w = boost === 2 ? [0, 58, 27, 10, 5] : boost === 1 ? [40, 32, 18, 7, 3] : [52, 28, 13, 5, 2];
   let x = Math.random() * w.reduce((a, b) => a + b, 0);
@@ -412,13 +453,9 @@ function rollRarity(boost) {
 function rollCard(set, boost) {
   let ri = RARITIES.indexOf(rollRarity(boost));
   for (; ri >= 0; ri--) { const p = pool(set, RARITIES[ri]); if (p.length) return randOf(p); }
-  return randOf(pool('classic', 'common'));
+  return randOf(pool('all', 'common'));
 }
-function rollPack(packKey) {
-  const pk = PACKS[packKey];
-  if (pk.set === 'classic') return [rollCard('classic', 0), rollCard('classic', 0), rollCard('classic', 2)];
-  return [rollCard(pk.set, 1), rollCard(pk.set, 1), rollCard(Math.random() < .5 ? pk.set : 'classic', 2)];
-}
+function rollPack() { return [rollCard('all', 0), rollCard('all', 0), rollCard('all', 2)]; }
 function tradeUp(rarity) {
   const next = RARITIES[Math.min(4, RARITIES.indexOf(rarity) + 1)];
   return randOf(Object.values(CARDS).filter(c => c.rarity === next).map(c => c.key));
@@ -471,7 +508,7 @@ function evalB(bd, side) {
   for (let i = 0; i < N * N; i++) {
     const p = bd[i]; if (!p) continue;
     const r = i / N | 0, c = i % N, u = U[p.t];
-    let v = u.val * 100 + p.ar * 45 + (p.reb ? 120 : 0) + (u.income ? 70 : 0) + (p.hatch ? 120 : 0) + (p.bomb ? 25 : 0);
+    let v = u.val * 100 + p.ar * 45 + (p.reb ? 120 : 0) + (u.income ? u.income * 25 : 0) + (p.hatch ? 120 : 0) + (p.bomb ? 25 : 0);
     const centre = 9 - (Math.abs(4.5 - r) + Math.abs(4.5 - c));
     if (p.t === 'P') v += (p.s === 'w' ? (N - 2 - r) : (r - 1)) * 7 + (c > 2 && c < 7 ? 4 : 0);
     else if (p.t === 'K') v += (p.s === 'w' ? (r - 7) : (2 - r)) * 6;

@@ -198,6 +198,101 @@ const ART = {
     c.lineWidth = 1.8; poly(c, [[-12, -15], [2, -18], [-2, -11]], s + 3, .4); fs(c, GOLD);
     c.lineWidth = 1.6; ell(c, 18, -3, 4, 5); fs(c, GOLD);
   },
+  pagoda(c, F, D, s) {
+    const roof = (y, w, h, k) => { c.lineWidth = 2.2; c.beginPath(); c.moveTo(-w, y - h + jt(s + k, .6)); c.quadraticCurveTo(-w * .7, y + 1, -w * .45, y); c.lineTo(w * .45, y); c.quadraticCurveTo(w * .7, y + 1, w, y - h + jt(s + k + 1, .6)); c.lineTo(w * .42, y - h * 1.7); c.lineTo(-w * .42, y - h * 1.7); c.closePath(); fs(c, RED); };
+    det(c, RED, () => { c.lineWidth = 1.6; for (let i = 0; i < 6; i++) { const a = -2.7 + i * .45, r1 = 26 + (INK.boil % 2) * 2; ln(c, Math.cos(a) * r1, -24 + Math.sin(a) * r1 * .9, Math.cos(a) * (r1 + 7), -24 + Math.sin(a) * (r1 + 7) * .9, s + i, .6); } });
+    c.lineWidth = 2.2; poly(c, [[-19, 0], [19, 0], [17, -5], [-17, -5]], s, .4); fs(c, F);
+    poly(c, [[-13, -5], [13, -5], [12, -20], [-12, -20]], s + 1, .4); fs(c, F);
+    c.lineWidth = 1.8; ell(c, 0, -11.5, 6.5, 5.5); fs(c, '#5a1410');
+    c.fillStyle = PAPER; for (const x of [-4, -1.3, 1.3, 4]) { c.beginPath(); c.moveTo(x - 1.2, -16.6); c.lineTo(x + 1.2, -16.6); c.lineTo(x, -14); c.fill(); c.beginPath(); c.moveTo(x - 1.2, -6.4); c.lineTo(x + 1.2, -6.4); c.lineTo(x, -9); c.fill(); }
+    roof(-20, 25, 6, 2);
+    c.lineWidth = 2.2; poly(c, [[-9, -27], [9, -27], [8, -37], [-8, -37]], s + 3, .4); fs(c, F);
+    c.fillStyle = PAPER; ell(c, -4, -32, 2.6, 2); c.fill(); c.stroke(); ell(c, 4, -32, 2.6, 2); c.fill(); c.stroke();
+    c.fillStyle = RED; c.fillRect(-4.6, -32.8, 1.6, 1.6); c.fillRect(3.4, -32.8, 1.6, 1.6);
+    c.lineWidth = 1.8; ln(c, -7, -36, -2, -34, s + 4, .2); ln(c, 7, -36, 2, -34, s + 5, .2);
+    roof(-37, 19, 5, 6);
+    c.lineWidth = 2; poly(c, [[-4.5, -45], [4.5, -45], [4, -50], [-4, -50]], s + 7, .3); fs(c, F);
+    roof(-50, 11, 3.5, 8);
+    c.lineWidth = 1.8; ln(c, 0, -56, 0, -63, s + 9, .2); for (const y of [-58, -60.5]) { ell(c, 0, y, 2.2, .9); c.stroke(); }
+  },
+  trolley(c, F, D, s) {
+    c.lineWidth = 2.2; poly(c, [[-18, -28], [14, -28], [10, -10], [-14, -10]], s, .5); fs(c, F);
+    det(c, D, () => { c.lineWidth = 1; for (let x = -12; x <= 8; x += 5) ln(c, x, -27, x + 1, -11, s + x, .2); for (let y = -23; y <= -14; y += 4.5) ln(c, -16, y, 12, y, s + y, .2); });
+    c.lineWidth = 2; ln(c, 14, -28, 21, -34, s + 1, .3); ln(c, 19, -36, 24, -32, s + 2, .2);
+    ln(c, -12, -10, -10, -5, s + 3, .2); ln(c, 8, -10, 7, -5, s + 4, .2); ln(c, -14, -5, 10, -5, s + 5, .3);
+    for (const x of [-10, 7]) { circ(c, x, -2.5, 2.6, s + x, .2, 7); fs(c, K); }
+  },
+  duck(c, F, D, s) {
+    c.lineWidth = 2.2; c.beginPath(); c.moveTo(-14, -12); c.quadraticCurveTo(-16, -1, -2, -1); c.quadraticCurveTo(14, -1, 13, -12); c.quadraticCurveTo(6, -15, 2, -14); c.quadraticCurveTo(-8, -16, -14, -12); c.closePath(); fs(c, F === PAPER ? '#f3d55b' : F);
+    circ(c, 5, -21, 6.5, s, .3, 10); fs(c, F === PAPER ? '#f3d55b' : F);
+    c.lineWidth = 1.8; c.beginPath(); c.moveTo(10, -21); c.quadraticCurveTo(17, -22, 17, -18); c.quadraticCurveTo(13, -16, 10, -18); c.closePath(); fs(c, ORANGE);
+    c.fillStyle = D === K ? K : PAPER; c.fillRect(6, -23.5, 2, 2);
+    det(c, D, () => { c.lineWidth = 1.4; c.beginPath(); c.arc(-3, -9, 5, .2, 2.4); c.stroke(); });
+    c.lineWidth = 1.2; c.strokeStyle = BLUE; c.beginPath(); for (let x = -20; x <= 20; x += 4) c.lineTo(x, 1 + Math.sin(x * .6 + INK.boil) * 1); c.stroke(); c.strokeStyle = K;
+  },
+  gnome(c, F, D, s) {
+    c.lineWidth = 2.2; poly(c, [[-9, 0], [9, 0], [8, -14], [-8, -14]], s, .4); fs(c, F);
+    poly(c, [[-6, -16], [6, -16], [4, -2], [0, 2], [-4, -2]], s + 1, .4); fs(c, PAPER);
+    det(c, '#8a8478', () => { c.lineWidth = 1; for (let k = -3; k <= 3; k += 2) ln(c, k, -14, k * .6, -3, s + k, .3); });
+    circ(c, 0, -18, 4.5, s + 2, .3, 9); fs(c, '#f0c8a8');
+    c.fillStyle = K; c.fillRect(-2.6, -19.5, 1.6, 1.6); c.fillRect(1.2, -19.5, 1.6, 1.6);
+    c.lineWidth = 2.2; poly(c, [[-8, -20], [8, -20], [3, -32], [-2, -42]], s + 3, .5); fs(c, RED);
+    c.lineWidth = 1.8; ln(c, 9, 0, 12, -18, s + 4, .2); poly(c, [[10, -18], [14, -18], [13, -24], [11, -24]], s + 5, .2); fs(c, '#cfc8b4');
+  },
+  pigeon(c, F, D, s) {
+    c.lineWidth = 2; ln(c, -2, -6, -3, 0, s, .3); ln(c, 3, -6, 4, 0, s + 1, .3);
+    c.lineWidth = 2.2; c.beginPath(); c.moveTo(-16, -14); c.quadraticCurveTo(-8, -2, 4, -6); c.quadraticCurveTo(12, -10, 10, -20); c.quadraticCurveTo(0, -22, -16, -14); c.closePath(); fs(c, F === PAPER ? '#d9d6d0' : F);
+    det(c, BLUE, () => { c.lineWidth = 2; ln(c, 7, -18, 10, -12, s + 2, .3); });
+    det(c, '#6f8f3a', () => { c.lineWidth = 1.6; ln(c, 6, -20, 9, -14, s + 3, .3); });
+    circ(c, 10, -23, 4.6, s + 4, .3, 9); fs(c, F === PAPER ? '#d9d6d0' : F);
+    c.lineWidth = 1.6; poly(c, [[14, -23], [18, -22], [14, -21]], s + 5, .1); fs(c, K);
+    c.fillStyle = ORANGE; c.fillRect(10.5, -25, 2, 2);
+    det(c, D, () => { c.lineWidth = 1.3; ln(c, -10, -13, 0, -10, s + 6, .3); ln(c, -8, -10, 2, -8, s + 7, .3); });
+  },
+  vending(c, F, D, s) {
+    c.lineWidth = 2.4; poly(c, [[-13, 0], [13, 0], [13, -44], [-13, -44]], s, .4); fs(c, F);
+    c.lineWidth = 1.8; poly(c, [[-10, -40], [5, -40], [5, -14], [-10, -14]], s + 1, .3); fs(c, '#dfe6ee');
+    const cols = [RED, BLUE, GOLD, '#6f8f3a'];
+    for (let r = 0; r < 4; r++) for (let k = 0; k < 3; k++) { c.fillStyle = cols[(r + k) % 4]; c.fillRect(-8.5 + k * 4.6, -38 + r * 6, 3, 4.5); }
+    det(c, D, () => { c.lineWidth = 1.4; ln(c, 8, -36, 11, -36, s + 2, .1); ln(c, 9.5, -30, 9.5, -26, s + 3, .1); poly(c, [[-9, -10], [5, -10], [5, -5], [-9, -5]], s + 4, .2); c.stroke(); });
+    c.fillStyle = GOLD; c.fillRect(8, -21, 3, 3);
+  },
+  grandma(c, F, D, s) {
+    legs(c, s, 3.5, -8);
+    c.lineWidth = 2.4; poly(c, [[-11, -8], [11, -8], [7, -26], [-6, -27]], s + 2, .5); fs(c, F);
+    det(c, D, () => { c.lineWidth = 1.2; for (let y = -22; y < -10; y += 4) ln(c, -7, y, 7, y, s + y, .5); });
+    c.lineWidth = 2.2; circ(c, 3, -31, 5, s + 3, .3, 10); fs(c, '#f0c8a8');
+    c.lineWidth = 1.8; circ(c, -1, -36, 3.6, s + 4, .4, 9); fs(c, '#d8d2c0'); circ(c, 4, -36.5, 4.6, s + 5, .4, 9); fs(c, '#d8d2c0');
+    c.lineWidth = 1.2; circ(c, 5, -31, 1.8, s + 6, .1, 7); c.stroke(); circ(c, 1.5, -31, 1.8, s + 7, .1, 7); c.stroke();
+    c.lineWidth = 2; ln(c, 6, -20, 13, -15 + Math.sin(INK.boil) * 1.5, s + 8, .2);
+    poly(c, [[10, -16], [20, -16], [19, -6], [11, -6]], s + 9, .4); fs(c, RED); c.lineWidth = 1.4; c.beginPath(); c.arc(15, -16, 3.5, Math.PI, 0); c.stroke();
+    c.lineWidth = 1.8; ln(c, -9, -14, -14, 0, s + 10, .2);
+  },
+  toaster(c, F, D, s) {
+    c.lineWidth = 2; for (const x of [-5, 5]) { poly(c, [[x - 4, -22], [x + 4, -22], [x + 4, -36 - (INK.boil % 2)], [x - 4, -36 - (INK.boil % 2)]], s + x, .4); fs(c, '#e2c27a'); }
+    c.lineWidth = 2.4; c.beginPath(); c.moveTo(-15, 0); c.lineTo(15, 0); c.quadraticCurveTo(17, -12, 13, -24); c.lineTo(-13, -24); c.quadraticCurveTo(-17, -12, -15, 0); c.closePath(); fs(c, F === PAPER ? '#dfe1e4' : F);
+    det(c, D, () => { c.lineWidth = 1.4; ln(c, -9, -24, -1, -24, s + 1, .1); ln(c, 1, -24, 9, -24, s + 2, .1); ln(c, 15, -14, 19, -14, s + 3, .2); });
+    det(c, RED, () => { c.lineWidth = 1.4; for (let k = -1; k <= 1; k++) ln(c, k * 5, -40, k * 5 + 2, -46, s + k, .6); });
+  },
+  pogo(c, F, D, s) {
+    c.lineWidth = 2; ln(c, 0, 0, 0, -6, s, .1);
+    c.lineWidth = 1.6; c.beginPath(); for (let i = 0; i <= 6; i++) c.lineTo(i % 2 ? 3 : -3, -6 - i * 1.6); c.stroke();
+    c.lineWidth = 2.2; ln(c, 0, -16, 0, -40, s + 1, .2); ln(c, -6, -18, 6, -18, s + 2, .2); ln(c, -6, -36, 6, -36, s + 3, .2);
+    ln(c, -4, -18, -5, -26, s + 4, .3); ln(c, 4, -18, 5, -26, s + 5, .3);
+    poly(c, [[-5, -26], [5, -26], [4, -36], [-4, -36]], s + 6, .4); fs(c, F);
+    circ(c, 0, -41, 4.5, s + 7, .3, 9); fs(c, F);
+    c.lineWidth = 1.8; poly(c, [[-5, -43], [5, -43], [3, -47], [-4, -47]], s + 8, .3); fs(c, RED); ln(c, 5, -43, 10, -43, s + 9, .1);
+    c.lineWidth = 1.2; ln(c, -10, -4, -14, -2, s + 10, .4); ln(c, 10, -4, 14, -2, s + 11, .4);
+  },
+  blob(c, F, D, s) {
+    c.lineWidth = 2.4; c.beginPath();
+    for (let i = 0; i <= 14; i++) { const a = i / 14 * Math.PI * 2, r = 13 + Math.sin(a * 3 + INK.boil) * 2 + hash(s + i) * 2; const x = Math.cos(a) * r * 1.1, y = -13 + Math.sin(a) * r * .9; i ? c.lineTo(x, Math.min(y, 0)) : c.moveTo(x, Math.min(y, 0)); }
+    c.closePath(); fs(c, K);
+    c.fillStyle = PAPER; ell(c, -4, -16, 3.5, 4.5); c.fill(); ell(c, 5, -16, 3.5, 4.5); c.fill();
+    c.fillStyle = F === PAPER ? BLUE : RED; c.fillRect(-4, -15, 2, 2.4); c.fillRect(5, -15, 2, 2.4);
+    if (F === PAPER) { c.strokeStyle = PAPER; c.lineWidth = 1.4; ln(c, -8, -24, -3, -26, s, .3); c.strokeStyle = K; }
+    c.fillStyle = K; ell(c, 13, -3, 2, 3); c.fill(); ell(c, -15, -2, 1.6, 2.2); c.fill();
+  },
   voidknight(c, F, D, s) {
     c.lineWidth = 3; ln(c, -5, -11, -6, 0, s, .4); ln(c, 5, -11, 6, 0, s + 1, .4); c.lineWidth = 2.4;
     c.lineWidth = 2; ln(c, 17, -20, 20, -52, s + 9, .3); ln(c, 14, -24, 21, -24, s + 10, .2); c.lineWidth = 2.4;
@@ -363,6 +458,14 @@ function drawTerrain(c, t, x, y, cell, sq, showMine) {
   } else if (t.k === 'holy') {
     c.strokeStyle = GOLD; c.lineWidth = 1.6; c.setLineDash([3, 4]); c.beginPath(); c.arc(x, y, h * .82, 0, 7); c.stroke(); c.setLineDash([]);
     for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; ln(c, x + Math.cos(a) * h * .85, y + Math.sin(a) * h * .85, x + Math.cos(a) * h * .97, y + Math.sin(a) * h * .97, sq + i, .2); }
+  } else if (t.k === 'banana') {
+    c.save(); c.translate(x, y + h * .35); c.rotate(-.3); c.strokeStyle = K; c.lineWidth = 1.4;
+    for (const a of [-1.2, -.4, .5]) { c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(Math.cos(a) * h * .5, Math.sin(a) * h * .25 - h * .2, Math.cos(a) * h * .55, Math.sin(a) * h * .3); c.lineTo(0, 0); c.fillStyle = '#f3d55b'; c.fill(); c.stroke(); }
+    c.restore();
+  } else if (t.k === 'rad') {
+    c.fillStyle = 'rgba(111,143,58,0.18)'; c.fillRect(x - h + 2, y - h + 2, cell - 4, cell - 4);
+    c.strokeStyle = 'rgba(111,143,58,0.6)'; c.lineWidth = 1; for (let k = -h; k < h; k += 6) ln(c, x + k, y + h - 3, x + k + h * .5, y - h + 3, sq + k, .6);
+    trefoil(c, x - h * .55, y - h * .55, h * .22, '#6f8f3a');
   } else if (t.k === 'mine' && showMine) {
     c.strokeStyle = K; c.lineWidth = 1.4; const r = h * .22, my = y + h * .5;
     for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; ln(c, x + Math.cos(a) * r, my + Math.sin(a) * r * .5, x + Math.cos(a) * r * 1.5, my + Math.sin(a) * r * .75, sq + i, .2); }
@@ -371,6 +474,27 @@ function drawTerrain(c, t, x, y, cell, sq, showMine) {
   }
 }
 INK.drawTerrain = drawTerrain;
+function trefoil(c, x, y, r, col) {
+  c.save(); c.fillStyle = col;
+  for (let k = 0; k < 3; k++) { const a = -Math.PI / 2 + k * Math.PI * 2 / 3; c.beginPath(); c.moveTo(x + Math.cos(a - .5) * r * .35, y + Math.sin(a - .5) * r * .35); c.arc(x, y, r, a - .5, a + .5); c.lineTo(x + Math.cos(a + .5) * r * .35, y + Math.sin(a + .5) * r * .35); c.closePath(); c.fill(); }
+  c.beginPath(); c.arc(x, y, r * .22, 0, 7); c.fill(); c.restore();
+}
+INK.trefoil = trefoil;
+// the bomb itself: centred at x,y, pointing along `rot`, `len` long. colours chosen by caller.
+function drawNukeBomb(c, x, y, len, rot, line = K, body = '#3b3a42', seed = 1) {
+  c.save(); c.translate(x, y); c.rotate(rot); const L = len, R = len * .2;
+  c.strokeStyle = line; c.lineJoin = 'round'; c.lineCap = 'round'; c.lineWidth = Math.max(2, len / 40);
+  // fins
+  for (const sgn of [-1, 1]) { poly(c, [[-L * .38, sgn * R * .5], [-L * .58, sgn * R * 1.5], [-L * .5, sgn * R * 1.6], [-L * .22, sgn * R * .7]], seed + sgn, len / 120); fs(c, body); }
+  poly(c, [[-L * .52, -R * .2], [-L * .6, -R * .2], [-L * .6, R * .2], [-L * .52, R * .2]], seed + 4, len / 160); fs(c, body);
+  // body
+  c.beginPath(); c.moveTo(-L * .45, -R * .7); c.lineTo(L * .2, -R); c.quadraticCurveTo(L * .52, -R * .9, L * .5, 0); c.quadraticCurveTo(L * .52, R * .9, L * .2, R); c.lineTo(-L * .45, R * .7); c.closePath(); fs(c, body);
+  c.fillStyle = GOLD; c.fillRect(-L * .06, -R * .97, L * .1, R * 1.94); c.strokeRect(-L * .06, -R * .97, L * .1, R * 1.94);
+  trefoil(c, L * .26, 0, R * .55, GOLD);
+  c.lineWidth = Math.max(1, len / 90); ln(c, -L * .3, -R * .55, L * .1, -R * .8, seed + 9, len / 200);
+  c.restore();
+}
+INK.drawNukeBomb = drawNukeBomb;
 
 // ===================================================================== card illustrations (120 x 84 box)
 function coinStack(c, x, y, n, s) {
@@ -422,6 +546,12 @@ const SPELL_ART = {
   ouroboros: (c, w, h) => { c.save(); c.translate(w / 2, h / 2 + 22); c.scale(1.5, 1.5); ART.serpent(c, PAPER, K, 4); c.restore(); },
   swaphands: (c, w, h) => { miniCard(c, w / 2 - 26, h / 2, -.2, 1); miniCard(c, w / 2 + 26, h / 2, .2, 2); arrow(c, w / 2 - 10, h / 2 - 16, w / 2 + 10, h / 2 - 16, 3); arrow(c, w / 2 + 10, h / 2 + 16, w / 2 - 10, h / 2 + 16, 4); },
   meteor: (c, w, h) => { const x = w / 2 + 10, y = h / 2 - 2; c.lineWidth = 1.6; for (let i = 0; i < 5; i++) ln(c, x - 12 - i * 3, y - 12 + i * 5, x - 50 - i * 2, y - 36 + i * 4, i, 1); c.strokeStyle = RED; for (let i = 0; i < 3; i++) ln(c, x - 14, y - 6 + i * 5, x - 30, y - 16 + i * 6, i + 9, 1); c.strokeStyle = K; c.lineWidth = 2.4; circ(c, x, y, 15, 4, 2, 11); fs(c, K); c.lineWidth = 1.6; ln(c, x - 40, y + 30, x + 34, y + 30, 6, .5); },
+  banana: (c, w, h) => { drawTerrain(c, { k: 'banana' }, w / 2, h / 2 - 8, 90, 3); c.lineWidth = 1.2; c.strokeStyle = 'rgba(30,28,36,.4)'; ln(c, w / 2 - 40, h / 2 + 30, w / 2 + 40, h / 2 + 30, 4, .4); c.strokeStyle = K; P(c, 'P', w / 2 + 34, h / 2, 34); c.lineWidth = 1.4; ln(c, w / 2 + 22, h / 2 - 22, w / 2 + 16, h / 2 - 28, 5, .3); ln(c, w / 2 + 46, h / 2 - 22, w / 2 + 52, h / 2 - 28, 6, .3); },
+  tax: (c, w, h) => { const x = w / 2 - 14, y = h / 2; c.lineWidth = 2.2; poly(c, [[x - 20, y - 30], [x + 20, y - 30], [x + 20, y + 30], [x - 20, y + 30]], 1, .6); fs(c, PAPER); c.lineWidth = 1.2; for (let k = 0; k < 5; k++) ln(c, x - 14, y - 20 + k * 8, x + 12 - (k % 2) * 8, y - 20 + k * 8, k, .3); c.save(); c.translate(x + 6, y + 14); c.rotate(-.3); c.strokeStyle = RED; c.lineWidth = 2; c.strokeRect(-14, -8, 28, 14); c.fillStyle = RED; c.font = "bold 11px 'Permanent Marker', sans-serif"; c.textAlign = 'center'; c.fillText('TAX', 0, 4); c.restore(); coinStack(c, w / 2 + 30, h / 2 + 26, 3, 7); },
+  coinflip: (c, w, h) => { const x = w / 2, y = h / 2 - 4; c.lineWidth = 2.4; ell(c, x, y, 20, 13, -.2); fs(c, GOLD); c.fillStyle = K; c.font = "bold 18px 'Permanent Marker', sans-serif"; c.textAlign = 'center'; c.fillText('?', x, y + 6); c.lineWidth = 1.6; c.beginPath(); c.arc(x, y + 6, 32, 2.2, 3.4); c.stroke(); c.beginPath(); c.arc(x, y + 6, 32, -.3, .9); c.stroke(); for (const sx of [-1, 1]) ln(c, x + sx * 30, y + 30, x + sx * 30, y + 36, sx, .2); },
+  execute: (c, w, h) => { const x = w / 2, y = h / 2; c.lineWidth = 2.6; ln(c, x - 20, y + 36, x - 20, y - 36, 1, .3); ln(c, x + 20, y + 36, x + 20, y - 36, 2, .3); ln(c, x - 26, y - 36, x + 26, y - 36, 3, .3); c.lineWidth = 2.2; poly(c, [[x - 18, y - 24], [x + 18, y - 32], [x + 18, y - 18], [x - 18, y - 12]], 4, .4); fs(c, '#cfd4da'); ln(c, x, y - 36, x, y - 30, 5, .1); c.lineWidth = 2.4; poly(c, [[x - 22, y + 18], [x + 22, y + 18], [x + 22, y + 28], [x - 22, y + 28]], 6, .4); fs(c, PAPER); c.beginPath(); c.arc(x, y + 18, 7, Math.PI, 0); c.stroke(); P(c, 'R', x + 40, y + 12, 34, 'b'); },
+  party: (c, w, h) => { P(c, 'chicken', w / 2 - 20, h / 2 + 4, 44); P(c, 'duck', w / 2 + 22, h / 2 + 6, 40); c.lineWidth = 2; poly(c, [[w / 2 - 28, h / 2 - 18], [w / 2 - 14, h / 2 - 18], [w / 2 - 21, h / 2 - 38]], 1, .3); fs(c, RED); const cols = [RED, BLUE, GOLD, '#6f8f3a']; for (let i = 0; i < 14; i++) { c.fillStyle = cols[i % 4]; c.save(); c.translate(hash(i) * w, hash(i + 9) * h * .5); c.rotate(i); c.fillRect(-2, -1, 4, 2.5); c.restore(); } },
+  nuke: (c, w, h) => { drawNukeBomb(c, w / 2, h / 2, w * .62, -.5, K, '#3b3a42', 3); c.strokeStyle = 'rgba(30,28,36,.35)'; c.lineWidth = 1.2; for (let k = 0; k < 4; k++) ln(c, w / 2 - 50 - k * 4, h / 2 - 10 + k * 8, w / 2 - 34 - k * 4, h / 2 - 18 + k * 8, k, .3); c.strokeStyle = K; },
   hymn: (c, w, h) => { P(c, 'P', w / 2 - 22, h / 2 + 4, 44); P(c, 'P', w / 2 + 4, h / 2 + 4, 44); c.lineWidth = 2; for (const [x, y] of [[w / 2 + 28, h / 2 - 18], [w / 2 + 42, h / 2 - 24]]) { ell(c, x, y + 12, 4, 3); fs(c, K); ln(c, x + 4, y + 12, x + 4, y - 6, x, .2); } ln(c, w / 2 + 32, h / 2 - 24, w / 2 + 46, h / 2 - 30, 7, .2); },
   crate: (c, w, h) => { const x = w / 2, y = h / 2 + 4; c.lineWidth = 2.4; poly(c, [[x - 22, y - 20], [x + 22, y - 20], [x + 22, y + 22], [x - 22, y + 22]], 1, .6); fs(c, '#d8c9a0'); c.lineWidth = 1.6; ln(c, x - 22, y - 20, x + 22, y + 22, 2, .4); ln(c, x + 22, y - 20, x - 22, y + 22, 3, .4); c.lineWidth = 1.4; ln(c, x, y - 20, x - 10, y - 38, 4, .3); ln(c, x, y - 20, x + 10, y - 38, 5, .3); c.beginPath(); c.arc(x, y - 38, 14, Math.PI, 0); fs(c, PAPER); },
   repairs: (c, w, h) => { SPELL_ART.armor(c, w - 20, h); const x = w / 2 + 24, y = h / 2; c.lineWidth = 4; ln(c, x - 8, y + 18, x + 8, y - 10, 1, .2); c.lineWidth = 2.2; c.beginPath(); c.arc(x + 10, y - 14, 6, 0.6, 5.2); c.stroke(); },
@@ -484,9 +614,9 @@ function drawPackArt(cv, w, h, packKey = 'classic') {
   c.fillStyle = PAPER; ell(c, w / 2, h * .47, w * .34, h * .25); c.fill(); c.stroke();
   drawPiece(c, pk.badge, 'w', w / 2, h * .44, w * .45, 3);
   c.fillStyle = K; c.textAlign = 'center';
-  const title = pk.set === 'classic' ? 'INKMATE' : pk.name.toUpperCase();
+  const title = 'INKMATE';
   c.font = `${Math.round(w * (title.length > 9 ? .095 : .13))}px 'Permanent Marker', 'Patrick Hand', cursive`; c.fillText(title, w / 2, m * 2.6 + w * .14);
-  if (w > 80) { c.font = `${Math.round(w * .075)}px 'Patrick Hand', cursive`; c.fillText(pk.set === 'classic' ? '3 cards · could be anything' : 'Inkmate collab · 3 cards', w / 2, h - m * 2.6 - w * .05); }
+  if (w > 80) { c.font = `${Math.round(w * .075)}px 'Patrick Hand', cursive`; c.fillText('3 cards · could be a NUKE', w / 2, h - m * 2.6 - w * .05); }
   INK.boil = saved;
 }
 INK.drawPackArt = drawPackArt;

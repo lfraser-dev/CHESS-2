@@ -16,6 +16,8 @@
     <nav class="top-btns" aria-label="Game">
       <button class="btn" id="btnUnits" type="button">Units &amp; cards</button>
       <button class="btn" id="btnNew" type="button">New game</button>
+      <button class="btn" id="btnMusic" type="button" title="Pick the song that plays during the NUKE">Nuke music</button>
+      <input type="file" id="musicFile" accept="audio/*" hidden>
       <button class="btn ghost" id="btnMute" type="button" aria-pressed="true">Sound on</button>
     </nav>
   </header>
@@ -29,8 +31,8 @@
     <aside class="panel">
       <p class="status" id="status" aria-live="polite"></p>
       <section class="shop-wrap" aria-labelledby="shopTitle">
-        <div class="row-head"><h2 id="shopTitle">Pack shop</h2><span class="purse-count"><span class="coin-ico" aria-hidden="true"></span><b id="coins">5</b> coins</span></div>
-        <p class="hint">+1 coin a turn, more for captures. Buying a pack doesn't use your turn.</p>
+        <div class="row-head"><h2 id="shopTitle">Packs</h2><span class="purse-count"><span class="coin-ico" aria-hidden="true"></span><b id="coins">5</b> coins</span></div>
+        <p class="hint">+1 coin a turn, more for captures. Opening a pack doesn't use your turn.</p>
         <div class="shop" id="shop"></div>
       </section>
       <section aria-labelledby="handTitle">
@@ -55,8 +57,8 @@
     <ul class="rules">
       <li>Normal chess rules on a 10×10 board, plus two Archers each.</li>
       <li>Each turn, move a piece <i>or</i> play a card from your hand.</li>
-      <li>You get 1 coin a turn and more for captures. Packs cost 5–7, and buying one doesn't use your turn.</li>
-      <li>Four collab sets: Iron Crusade, Dust &amp; Daring, Monster Mayhem and Plunder. Recycle cards you don't want.</li>
+      <li>You get 1 coin a turn and more for captures. A pack costs 5 and opening one doesn't use your turn.</li>
+      <li>108 cards in one pack: pagodas, grandmas, pigeons, curses, landmines… and the NUKE. Recycle the ones you don't want.</li>
       <li>Checkmate the enemy king to win.</li>
     </ul>
     <div class="start-btns">
@@ -78,11 +80,13 @@
 <div class="overlay" id="unitsOverlay" role="dialog" aria-modal="true" aria-labelledby="unitsTitle" hidden>
   <div class="sheet units">
     <div class="sheet-head"><h2 id="unitsTitle">Units &amp; cards</h2><button class="btn small" id="unitsClose" type="button">Close</button></div>
+    <p class="hint" id="musicName">Nuke music: not set</p>
     <p class="legend"><span class="lg-dot"></span> moves there <span class="lg-ring"></span> captures there <span class="lg-x">✕</span> shoots from where it stands</p>
     <div id="unitsGrid"></div>
   </div>
 </div>
 
+<div class="cutscene" id="cutscene" hidden><canvas aria-label="Nuke cutscene"></canvas><button class="btn small" id="cutSkip" type="button">Skip</button></div>
 <div class="toast" id="toast" role="status" hidden></div>
 <script src="engine.js"></script>
 <script src="art.js"></script>

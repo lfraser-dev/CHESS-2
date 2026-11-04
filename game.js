@@ -39,6 +39,7 @@ function evToFx(ev, cardKey) {
     if (e.type === 'destroy') { addFx({ kind: 'cross', p: e.p, sq: e.sq, delay: 300, dur: 750 }); addFx({ kind: 'splat', sq: e.sq, delay: 300, dur: 9000, s: e.sq * 7 }); }
     else if (e.type === 'summon') addFx({ kind: 'summon', sq: e.sq, dur: e.big ? 900 : 700, big: e.big });
     else if (e.type === 'spell') { if (!(e.hidden && G.mode === 'ai' && G.turn === 'b')) addFx({ kind: 'spell', key: cardKey, sq: e.sq, sq2: e.sq2, dur: 900 }); }
+    else if (e.type === 'nuke') { addFx({ kind: 'boom', sq: e.sq, dur: 1400, big: true }); addFx({ kind: 'mushroom', sq: e.sq, dur: 3200 }); }
     else if (e.type === 'field') { addFx({ kind: 'field', key: e.key, dur: 1100 }); if (e.key === 'quake' || e.key === 'mirror') shakeT = performance.now() + 600; }
     else if (e.type === 'msg') lines.push(e.text);
     else if (e.type === 'coins') lines.push(`+${e.n} coins`);
@@ -118,6 +119,8 @@ async function playMove(side, m) {
       const crushed = []; for (const j of I.area(m.t)) { const p = G.board[j]; if (j !== m.t && p && p.s !== side && p.t !== 'K' && p.sh <= 0) { killReal(j, 350); crushed.push(U[p.t].name); } }
       if (crushed.length) { line += `, and stomps ${crushed.join(', ')}`; shakeT = performance.now() + 700; }
     }
+    if (cap.t === 'duck' || U[cap.t].squeak) { const at = m.r ? m.f : m.t; const mv = G.board[at]; if (mv && mv.t !== 'K') { G.board[at] = { ...mv, fz: 2 }; line += '. SQUEAK! The attacker is stunned'; addFx({ kind: 'text', sq: at, str: 'SQUEAK!', col: RED, delay: 300, dur: 1100 }); } }
+    if (mu.split && !m.r && !G.board[m.f]) { G.board[m.f] = I.mkPiece('blob', side); addFx({ kind: 'summon', sq: m.f, delay: 200, dur: 700 }); line += ', and splits in two'; }
   } else if (!m.arm && !m.sw) G.quiet++;
   if (m.pr) { line += ', promoted to Queen'; addFx({ kind: 'text', sq: m.t, str: 'Queen!', col: RED, delay: 250, dur: 1200 }); }
   // landing effects
@@ -128,6 +131,18 @@ async function playMove(side, m) {
       addFx({ kind: 'boom', sq: m.t, delay: 260, dur: 800 }); setTimeout(() => snd('boom'), 260); shakeT = performance.now() + 700;
       if (G.board[m.t].t === 'K') line += '. A landmine goes off under the king, who just gets singed';
       else { killReal(m.t, 300); line += `. LANDMINE! The ${name} is blown up`; }
+    }
+    const t2 = G.terr[m.t], lp = G.board[m.t];
+    if (lp && t2 && t2.k === 'banana') {
+      G.terr[m.t] = null;
+      if (lp.t !== 'K') { G.board[m.t] = { ...lp, fz: 2 }; line += `. It slips on a banana peel and is stuck for a turn`; }
+      else line += '. The king wobbles on a banana peel';
+      addFx({ kind: 'text', sq: m.t, str: 'whoops!', col: '#8a6510', delay: 250, dur: 1100 });
+    }
+    if (lp && t2 && t2.k === 'rad' && lp.t !== 'K' && !lp.curse && G.board[m.t]) { G.board[m.t] = { ...G.board[m.t], curse: 2 }; line += '. It glows a bit. Cursed by radiation'; }
+    if (lp && lp.t === 'pigeon') {
+      const near = I.area(m.t).some(j => j !== m.t && G.board[j] && G.board[j].s !== side);
+      if (near && G.coins[other(side)] > 0) { G.coins[other(side)]--; G.coins[side]++; line += ', and nicks a coin'; addFx({ kind: 'text', sq: m.t, str: '+1', col: GOLD, delay: 250, dur: 1000 }); }
     }
     if (G.board[m.t] && G.board[m.t].t === 'moth') {
       let n = 0; for (const j of I.area(m.t)) { const p = G.board[j]; if (p && p.s !== side && p.t !== 'K' && p.sh <= 0) { G.board[j] = { ...p, fz: Math.max(p.fz, 1) }; n++; } }
@@ -152,6 +167,7 @@ async function playCard(side, idx, o) {
     if (!card.random || I.stateLegal(s2, side)) { sim = s2; ev = e2; break; }
   }
   I.setEnv(G);
+  if (sim && key === 'nuke') { refresh(); await nukeCutscene(); shakeT = performance.now() + 1400; }
   if (!sim) addLog(`${who(side)} played ${card.name}, but nothing happened.`, 'played');
   else {
     Object.assign(G, { board: sim.board, terr: sim.terr, fields: sim.fields, coins: sim.coins, hand: sim.hand, grave: sim.grave, extra: sim.extra });
@@ -184,7 +200,23 @@ function endOfTurnEffects(side) {
     } else if (p.sh > 0) p = { ...p, sh: p.sh - 1 };
     G.board[i] = p;
   }
-  for (let i = 0; i < N * N; i++) { const t = G.terr[i]; if (t && t.k === 'fire') { const n = t.n - 1; G.terr[i] = n > 0 ? { ...t, n } : null; } }
+  for (let i = 0; i < N * N; i++) {
+    const pg = G.board[i]; if (!pg || pg.s !== side || !U[pg.t].scream) continue;
+    const [r, c] = rc(i); let hits = 0;
+    for (const [dr, dc] of I.DIR8) {
+      const r1 = r + dr, c1 = c + dc; if (!inB(r1, c1)) continue;
+      const j = r1 * N + c1, q = G.board[j];
+      if (!q || q.s === side || q.t === 'K' || U[q.t].untouchable || q.sh > 0) continue;
+      hits++;
+      const r2 = r1 + dr, c2 = c1 + dc, k = r2 * N + c2;
+      const tk = inB(r2, c2) ? G.terr[k] : null;
+      if (inB(r2, c2) && !G.board[k] && !(tk && (tk.k === 'pit' || tk.k === 'fire'))) { G.board[k] = q; G.board[j] = null; addAnim({ kind: 'move', p: q, f: j, t: k, dur: 300 }); }
+      else killReal(j, 200);
+    }
+    addFx({ kind: 'scream', sq: i, dur: 900 });
+    if (hits) { notes.push(`The Screaming Pagoda SCREAMS at ${hits} enem${hits === 1 ? 'y' : 'ies'}`); shakeT = performance.now() + 500; snd('scream'); }
+  }
+  for (let i = 0; i < N * N; i++) { const t = G.terr[i]; if (t && (t.k === 'fire' || t.k === 'rad')) { const n = t.n - 1; G.terr[i] = n > 0 ? { ...t, n } : null; } }
   for (const k in G.fields) if (G.fields[k] > 0) { G.fields[k]--; if (!G.fields[k] && FIELD_INFO[k]) notes.push(`${FIELD_INFO[k][0]} wears off`); }
   for (const n of notes) addLog(n + '.', 'warn');
 }
@@ -200,8 +232,8 @@ function finishTurn(side) {
   else {
     G.turn = other(side);
     G.coins[G.turn] += 1;
-    const geese = G.board.filter(p => p && p.s === G.turn && U[p.t].income).length;
-    if (geese) { G.coins[G.turn] += 3 * geese; addLog(`The Golden Goose lays ${3 * geese} coins for ${who(G.turn)}.`, 'played'); }
+    const income = G.board.reduce((n, p) => n + (p && p.s === G.turn && U[p.t].income ? U[p.t].income : 0), 0);
+    if (income) { G.coins[G.turn] += income; addLog(`Geese and vending machines pay ${who(G.turn)} ${income} coins.`, 'played'); }
   }
   snap();
   I.setEnv(G);
@@ -234,8 +266,8 @@ async function aiTurn() {
       G.coins.b -= PACKS[pk].cost;
       let cash = 0;
       for (const k of I.rollPack(pk)) if (I.addToHand(G, 'b', k) !== 'kept') cash++;
-      addLog(`The Ink Baron opened a ${PACKS[pk].name} pack${cash ? ' and pocketed some coins' : ''}.`, 'played');
-      toast(`The Ink Baron opened a ${PACKS[pk].name} pack`); snd('rip'); refresh();
+      addLog(`The Ink Baron opened an ${PACKS[pk].name}${cash ? ' and pocketed some coins' : ''}.`, 'played');
+      toast(`The Ink Baron opened an ${PACKS[pk].name}`); snd('rip'); refresh();
       await sleep(650);
     }
   }
@@ -419,8 +451,18 @@ function drawBoard(now) {
       const [x, y] = sqXY(f.sq); c.strokeStyle = f.big ? RED : K; c.globalAlpha = 1 - k; c.lineWidth = 1.6; const R = f.big ? 1.6 : 1;
       for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2; I.ln(c, x + Math.cos(a) * CELL * (.25 + k * .3) * R, y + Math.sin(a) * CELL * (.25 + k * .3) * R, x + Math.cos(a) * CELL * (.38 + k * .35) * R, y + Math.sin(a) * CELL * (.38 + k * .35) * R, i, .5); }
       c.globalAlpha = 1;
+    } else if (f.kind === 'scream') {
+      const [x, y] = sqXY(f.sq); c.strokeStyle = RED; c.globalAlpha = 1 - k; c.lineWidth = 2.2;
+      for (let r = 1; r <= 3; r++) { c.beginPath(); c.arc(x, y - CELL * .1, CELL * (.3 + k * .9) * r * .6, 0, Math.PI * 2); c.stroke(); }
+      c.globalAlpha = 1;
+    } else if (f.kind === 'mushroom') {
+      const [x, y] = sqXY(f.sq), g = Math.min(1, k * 2.5), a = k < .7 ? 1 : 1 - (k - .7) / .3;
+      c.globalAlpha = a * .9; c.strokeStyle = K; c.lineWidth = 2;
+      c.fillStyle = 'rgba(232,137,43,0.55)'; c.beginPath(); c.moveTo(x - CELL * .25, y); c.lineTo(x - CELL * .18, y - CELL * 1.6 * g); c.lineTo(x + CELL * .18, y - CELL * 1.6 * g); c.lineTo(x + CELL * .25, y); c.closePath(); c.fill(); c.stroke();
+      for (let i = 0; i < 7; i++) { const ang = i / 7 * Math.PI * 2; I.circ(c, x + Math.cos(ang) * CELL * .7 * g, y - CELL * 1.9 * g + Math.sin(ang) * CELL * .35 * g, CELL * .45 * g, i, 1, 10); I.fs(c, i % 2 ? '#e8892b' : PAPER); }
+      c.globalAlpha = 1;
     } else if (f.kind === 'boom') {
-      const [x, y] = sqXY(f.sq); const R = CELL * 1.5 * (0.3 + k);
+      const [x, y] = sqXY(f.sq); const R = CELL * (f.big ? 3 : 1.5) * (0.3 + k);
       c.globalAlpha = 1 - k; c.fillStyle = 'rgba(232,137,43,0.35)'; c.beginPath(); c.arc(x, y, R * .8, 0, 7); c.fill();
       c.strokeStyle = RED; c.lineWidth = 2.4; for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2; I.ln(c, x + Math.cos(a) * R * .4, y + Math.sin(a) * R * .4, x + Math.cos(a) * R, y + Math.sin(a) * R, i + 3, 2); }
       c.globalAlpha = 1;
@@ -447,6 +489,12 @@ function drawSpellFx(c, f, k) {
   const key = f.key;
   const burst = (col, R, n = 12) => { c.strokeStyle = col; c.lineWidth = 2.2; for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; I.ln(c, x + Math.cos(a) * R * .4, y + Math.sin(a) * R * .4, x + Math.cos(a) * R, y + Math.sin(a) * R, i + k * 3, 2); } };
   if (key === 'freeze') I.snowflake(c, x, y, CELL * (.25 + k * .35), 3);
+  else if (key === 'execute') {
+    const drop = Math.min(1, k * 3); c.strokeStyle = K; c.lineWidth = 2.4;
+    I.ln(c, x - CELL * .45, y + CELL * .4, x - CELL * .45, y - CELL * 1.2, 1, .3); I.ln(c, x + CELL * .45, y + CELL * .4, x + CELL * .45, y - CELL * 1.2, 2, .3);
+    const by = y - CELL * 1.1 + drop * CELL * 1.1; I.poly(c, [[x - CELL * .42, by], [x + CELL * .42, by - CELL * .2], [x + CELL * .42, by - CELL * .5], [x - CELL * .42, by - CELL * .35]], 3, .4); I.fs(c, '#cfd4da');
+    if (drop >= 1 && k < .5) { c.strokeStyle = RED; I.ln(c, x - CELL * .5, y, x + CELL * .5, y, 4, .5); }
+  }
   else if (['fireball', 'meteor', 'orbital', 'stomp', 'plank'].includes(key)) {
     burst(RED, CELL * (key === 'meteor' ? 1.5 : key === 'orbital' ? 1.1 : .55) * (0.3 + k));
     if (key === 'orbital' && k < .5) { c.fillStyle = 'rgba(179,50,43,0.25)'; c.fillRect(x - CELL * .3, 0, CELL * .6, y); }
@@ -499,8 +547,7 @@ function cardEl(key, opts = {}) {
   const card = CARDS[key];
   const el = document.createElement(opts.tag || 'div');
   el.className = `card ${card.rarity}` + (opts.cls ? ' ' + opts.cls : '');
-  const setName = card.set !== 'classic' ? `<div class="card-set set-${card.set}">${SETS[card.set].name} collab</div>` : '';
-  el.innerHTML = `${setName}<div class="card-name">${card.name}</div><canvas class="card-art" aria-hidden="true"></canvas><div class="card-text">${card.text}</div><div class="card-foot"><span>${card.kind === 'unit' ? 'Unit' : card.kind === 'coin' ? 'Coins' : 'Spell'}</span><span class="rar">${RARITY_LABEL[card.rarity]}</span></div>`;
+  el.innerHTML = `<div class="card-name">${card.name}</div><canvas class="card-art" aria-hidden="true"></canvas><div class="card-text">${card.text}</div><div class="card-foot"><span>${card.kind === 'unit' ? 'Unit' : card.kind === 'coin' ? 'Coins' : 'Spell'}</span><span class="rar">${RARITY_LABEL[card.rarity]}</span></div>`;
   I.drawCardArt(el.querySelector('canvas'), key);
   return el;
 }
@@ -551,10 +598,10 @@ function renderShop() {
   if (!shop.dataset.built) {
     shop.dataset.built = '1';
     for (const [k, pk] of Object.entries(PACKS)) {
-      const b = document.createElement('button'); b.type = 'button'; b.className = 'pack-btn' + (pk.set !== 'classic' ? ' collab' : ''); b.dataset.pack = k;
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'pack-btn single'; b.dataset.pack = k;
       b.title = pk.blurb; b.setAttribute('aria-label', `Buy ${pk.name} pack for ${pk.cost} coins. ${pk.blurb}`);
-      b.innerHTML = `<canvas aria-hidden="true"></canvas><span class="pack-label"><b>${pk.name}</b><span class="price"><span class="coin-ico" aria-hidden="true"></span>${pk.cost}</span></span>`;
-      I.drawPackArt(b.querySelector('canvas'), 40, 56, k);
+      b.innerHTML = `<canvas aria-hidden="true"></canvas><span class="pack-label"><b>${pk.name}</b><span class="blurb">${pk.blurb}</span></span><span class="price"><span class="coin-ico" aria-hidden="true"></span>${pk.cost}</span>`;
+      I.drawPackArt(b.querySelector('canvas'), 46, 64, k);
       b.addEventListener('click', () => { unlockAudio(); openPackUI(k); });
       shop.appendChild(b);
     }
@@ -695,12 +742,9 @@ function closeOverlays() { $('#packOverlay').hidden = true; $('#unitsOverlay').h
 function buildGuide() {
   const grid = $('#unitsGrid'); if (grid.dataset.built) return; grid.dataset.built = '1';
   const START = ['K', 'Q', 'R', 'B', 'N', 'A', 'P'];
-  const groups = [['On the board from the start', START]];
-  for (const s of Object.keys(SETS)) {
-    const list = Object.values(CARDS).filter(c => c.kind === 'unit' && c.set === s && !START.includes(c.unit)).map(c => c.unit);
-    if (list.length) groups.push([s === 'classic' ? 'New units from Classic packs' : `${SETS[s].name} collab units`, [...new Set(list)]]);
-  }
-  for (const [title, list] of groups) {
+  const nukeBtn = document.createElement('button'); nukeBtn.type = 'button'; nukeBtn.className = 'btn'; nukeBtn.textContent = 'Watch the NUKE cutscene';
+  nukeBtn.onclick = () => { unlockAudio(); nukeCutscene(); }; grid.appendChild(nukeBtn);
+  const unitBlock = (title, list) => {
     const h = document.createElement('h3'); h.textContent = title; grid.appendChild(h);
     const wrap = document.createElement('div'); wrap.className = 'unit-list'; grid.appendChild(wrap);
     for (const t of list) {
@@ -710,15 +754,151 @@ function buildGuide() {
       I.drawUnitArt(el.querySelector('.u-art'), t, 84); I.drawMoveDiagram(el.querySelector('.u-diag'), t);
       wrap.appendChild(el);
     }
+  };
+  unitBlock('On the board from the start', START);
+  for (const r of I.RARITIES) {
+    const list = [...new Set(Object.values(CARDS).filter(c => c.kind === 'unit' && c.rarity === r && !START.includes(c.unit)).map(c => c.unit))];
+    if (list.length) unitBlock(`${RARITY_LABEL[r]} units`, list);
   }
-  for (const s of Object.keys(SETS)) {
-    const list = Object.values(CARDS).filter(c => c.kind !== 'unit' && c.set === s);
-    const h = document.createElement('h3'); h.textContent = s === 'classic' ? 'Classic spells and coins' : `${SETS[s].name} spells and coins`; grid.appendChild(h);
+  for (const r of I.RARITIES) {
+    const list = Object.values(CARDS).filter(c => c.kind !== 'unit' && c.rarity === r);
+    if (!list.length) continue;
+    const h = document.createElement('h3'); h.textContent = `${RARITY_LABEL[r]} spells and coins`; grid.appendChild(h);
     const sp = document.createElement('div'); sp.className = 'spell-list'; grid.appendChild(sp);
     for (const c of list) sp.appendChild(cardEl(c.key, { cls: 'mini' }));
   }
 }
 function openStart() { $('#startOverlay').hidden = false; $('#startAi').focus(); }
+
+// ===================================================================== NUKE cutscene
+// Music: a file the player picked (kept in this browser), else assets/nuke-theme.mp3 next to the page, else a synth drone.
+const MUSIC_DB = 'inkmate', MUSIC_KEY = 'nukeMusic';
+function idb() { return new Promise((res, rej) => { try { const r = indexedDB.open(MUSIC_DB, 1); r.onupgradeneeded = () => r.result.createObjectStore('files'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); } catch (e) { rej(e); } }); }
+async function idbGet(k) { try { const db = await idb(); return await new Promise(res => { const t = db.transaction('files').objectStore('files').get(k); t.onsuccess = () => res(t.result || null); t.onerror = () => res(null); }); } catch (e) { return null; } }
+async function idbSet(k, v) { try { const db = await idb(); await new Promise(res => { const t = db.transaction('files', 'readwrite'); t.objectStore('files').put(v, k); t.oncomplete = res; t.onerror = res; }); return true; } catch (e) { return false; } }
+let musicURL = null;
+idbGet(MUSIC_KEY).then(b => { if (b) { musicURL = URL.createObjectURL(b); updateMusicLabel(b.name); } });
+function updateMusicLabel(name) { const el = $('#musicName'); if (el) el.textContent = name ? `Nuke music: ${name}` : 'Nuke music: not set'; }
+function startNukeMusic() {
+  let audio = null, synth = null, stopped = false;
+  const fallback = () => {
+    if (stopped || !AC || muted) return;
+    const now = AC.currentTime, g = AC.createGain(); g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(.08, now + 1.5); g.connect(AC.destination);
+    const oscs = [55, 82.5, 110].map(f => { const o = AC.createOscillator(); o.type = 'triangle'; o.frequency.value = f; o.connect(g); o.start(); return o; });
+    synth = { g, oscs };
+  };
+  if (!muted) {
+    audio = new Audio(musicURL || 'assets/nuke-theme.mp3');
+    audio.volume = .9;
+    audio.addEventListener('error', fallback, { once: true });
+    const pr = audio.play(); if (pr && pr.catch) pr.catch(() => fallback());
+  }
+  return {
+    stop() {
+      stopped = true;
+      if (audio) { const a = audio, v0 = a.volume; let i = 0; const iv = setInterval(() => { i++; a.volume = Math.max(0, v0 * (1 - i / 15)); if (i >= 15) { clearInterval(iv); a.pause(); } }, 60); }
+      if (synth && AC) { const now = AC.currentTime; synth.g.gain.setTargetAtTime(0.0001, now, .3); setTimeout(() => synth.oscs.forEach(o => o.stop()), 1500); }
+    },
+  };
+}
+function nukeCutscene() {
+  return new Promise(resolve => {
+    const ov = $('#cutscene'), cv = ov.querySelector('canvas');
+    ov.hidden = false;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2), W = window.innerWidth, H = window.innerHeight;
+    cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px';
+    const c = cv.getContext('2d');
+    const music = startNukeMusic();
+    const T = 10.5, IMPACT = 5.6;
+    let done = false, boomed = false;
+    const finish = () => { if (done) return; done = true; music.stop(); ov.hidden = true; ov.onclick = null; resolve(); };
+    ov.onclick = finish; $('#cutSkip').onclick = e => { e.stopPropagation(); finish(); };
+    const t0 = performance.now();
+    const frame = now => {
+      if (done) return;
+      const t = (now - t0) / 1000;
+      if (t > T) { finish(); return; }
+      if (t > IMPACT && !boomed) { boomed = true; snd('nukeboom'); }
+      drawNukeFrame(c, W, H, dpr, t, IMPACT, T);
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  });
+}
+function drawNukeFrame(c, W, H, dpr, t, IMPACT, T) {
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const S = Math.min(W, H), groundY = H * .78;
+  I.boil = Math.floor(t * 7) % 4;
+  let sx = 0, sy = 0;
+  if (t > IMPACT && t < IMPACT + 1.6) { const k = 1 - (t - IMPACT) / 1.6; sx = (Math.random() - .5) * 30 * k; sy = (Math.random() - .5) * 24 * k; }
+  if (t < IMPACT) {
+    c.clearRect(0, 0, W, H);
+    c.fillStyle = `rgba(12,11,16,${Math.min(1, t / .8)})`; c.fillRect(0, 0, W, H);
+    if (t < .8) return;
+    // stars
+    c.fillStyle = 'rgba(242,238,226,0.7)';
+    for (let i = 0; i < 60; i++) { const x = I.hash(i) * W, y = (I.hash(i + 50) * H + t * 40 * (1 + I.hash(i + 9))) % (groundY - 10); c.fillRect(x, y, 1.6, 1.6); }
+    // horizon with tiny pieces
+    c.strokeStyle = 'rgba(242,238,226,0.85)'; c.lineWidth = 2; I.ln(c, 0, groundY, W, groundY, 3, 2);
+    for (let i = 0; i < 9; i++) { const x = W * (.1 + i * .1); c.save(); c.globalAlpha = .9; c.strokeStyle = PAPER; I.drawPiece(c, ['P', 'R', 'N', 'P', 'K', 'Q', 'P', 'B', 'P'][i], 'b', x, groundY - S * .02, S * .05, i); c.restore(); }
+    // falling, spinning bomb
+    const fall = t < IMPACT - .6 ? (t - .8) / (IMPACT - 1.4) * .55 : .55 + Math.pow((t - (IMPACT - .6)) / .6, 2) * .45;
+    const by = -S * .2 + fall * (groundY + S * .2 - S * .05), bx = W / 2 + Math.sin(t * 1.3) * W * .04 * (1 - fall);
+    const rot = Math.PI / 2 + Math.sin(t * 2.2) * .35 + (t > IMPACT - .6 ? 0 : Math.sin(t * .7) * .2);
+    const len = S * (.42 - fall * .12);
+    c.strokeStyle = 'rgba(242,238,226,0.35)'; c.lineWidth = 2;
+    for (let i = 0; i < 9; i++) { const x = bx + (I.hash(i + Math.floor(t * 8)) - .5) * len * .5; I.ln(c, x, by - len * .5 - I.hash(i) * S * .3, x, by - len * .6 - S * .15 - I.hash(i + 3) * S * .2, i, 1); }
+    // spin: the gold band slides around the body as it turns
+    I.drawNukeBomb(c, bx, by, len, rot, PAPER, '#2b2a33', 2);
+    c.save(); c.translate(bx, by); c.rotate(rot); c.strokeStyle = 'rgba(242,238,226,.6)'; c.lineWidth = 2;
+    const band = Math.sin(t * 6) * len * .18; c.beginPath(); c.moveTo(band - len * .1, -len * .19); c.quadraticCurveTo(band, 0, band - len * .1, len * .19); c.stroke(); c.restore();
+    // caption
+    const txt = 'INCOMING', n = Math.min(txt.length, Math.floor((t - 1.2) * 5));
+    if (n > 0) { c.fillStyle = PAPER; c.font = `${Math.round(S * .085)}px 'Permanent Marker', 'Patrick Hand', cursive`; c.textAlign = 'center'; c.fillText(txt.slice(0, n), W / 2, H * .93); }
+    return;
+  }
+  // after impact
+  const k = t - IMPACT;
+  c.setTransform(dpr, 0, 0, dpr, sx * dpr, sy * dpr);
+  const bgA = Math.min(1, k / .25);
+  c.fillStyle = PAPER; c.fillRect(-40, -40, W + 80, H + 80);
+  const flash = Math.max(0, 1 - k / .5); c.fillStyle = `rgba(255,255,255,${flash})`; c.fillRect(-40, -40, W + 80, H + 80);
+  c.fillStyle = `rgba(232,137,43,${.25 * bgA * Math.max(0, 1 - k / 4)})`; c.fillRect(-40, -40, W + 80, H + 80);
+  // ruled paper lines return
+  c.strokeStyle = 'rgba(84,128,196,0.25)'; c.lineWidth = 1; for (let y = 28; y < H; y += 28) { c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); }
+  const g = Math.min(1, k / 2.2), ease = 1 - Math.pow(1 - g, 3);
+  const cx = W / 2;
+  // shockwave rings along the ground
+  c.strokeStyle = K; c.lineWidth = 2.4;
+  for (let r = 0; r < 3; r++) { const rk = Math.max(0, k - r * .35); if (rk <= 0) continue; c.globalAlpha = Math.max(0, 1 - rk / 2.6); c.beginPath(); c.ellipse(cx, groundY, S * .2 + rk * W * .45, S * .03 + rk * S * .05, 0, 0, Math.PI * 2); c.stroke(); }
+  c.globalAlpha = 1;
+  // stem
+  const stemTop = groundY - S * .55 * ease;
+  c.lineWidth = 3; c.strokeStyle = K;
+  c.beginPath(); c.moveTo(cx - S * .09, groundY); c.quadraticCurveTo(cx - S * .03, (groundY + stemTop) / 2, cx - S * .05, stemTop); c.lineTo(cx + S * .05, stemTop); c.quadraticCurveTo(cx + S * .03, (groundY + stemTop) / 2, cx + S * .09, groundY); c.closePath();
+  c.fillStyle = '#e8892b'; c.fill(); c.stroke();
+  c.lineWidth = 1.4; for (let i = 0; i < 6; i++) { const y = groundY - (groundY - stemTop) * (i + .5) / 6; I.ln(c, cx - S * .04, y, cx + S * .04, y - 6, i, 2); }
+  // base cloud
+  for (let i = 0; i < 9; i++) { const a = i / 9; const x = cx + (a - .5) * S * .8 * ease; c.lineWidth = 2.4; I.circ(c, x, groundY - S * .02, S * (.05 + I.hash(i) * .05) * (0.4 + ease), i + 20, 2, 12); I.fs(c, i % 2 ? PAPER : '#d9d1bf'); }
+  // cap
+  const capY = stemTop - S * .08 * ease, capW = S * .32 * ease, capH = S * .16 * ease;
+  for (let i = 0; i < 11; i++) { const a = i / 11 * Math.PI * 2; c.lineWidth = 2.6; I.circ(c, cx + Math.cos(a) * capW * .75, capY + Math.sin(a) * capH * .55, S * (.06 + I.hash(i + 4) * .04) * (0.3 + ease), i + 40, 2.5, 12); I.fs(c, [PAPER, '#e8892b', '#b3322b', '#f3d55b'][i % 4]); }
+  c.lineWidth = 2.6; I.circ(c, cx, capY, S * .1 * (0.3 + ease), 60, 2.5, 14); I.fs(c, '#f3d55b');
+  c.strokeStyle = RED; c.lineWidth = 2; for (let i = 0; i < 18; i++) { const a = i / 18 * Math.PI * 2, r1 = capW * 1.1, r2 = capW * (1.25 + .25 * Math.sin(k * 6 + i)); I.ln(c, cx + Math.cos(a) * r1, capY + Math.sin(a) * r1 * .6, cx + Math.cos(a) * r2, capY + Math.sin(a) * r2 * .6, i, 2); }
+  // flying chess pieces
+  for (let i = 0; i < 8; i++) { const dir = I.hash(i) > .5 ? 1 : -1, sp = .5 + I.hash(i + 3); const x = cx + dir * k * W * .18 * sp, y = groundY - S * .3 * Math.sin(Math.min(Math.PI, k * 1.3 * sp)) - 10; c.save(); c.translate(x, y); c.rotate(k * 5 * dir); I.drawPiece(c, ['P', 'N', 'B', 'R', 'P', 'Q', 'P', 'chicken'][i], i % 2 ? 'w' : 'b', 0, 0, S * .06, i); c.restore(); }
+  // ground line
+  c.strokeStyle = K; c.lineWidth = 3; I.ln(c, -20, groundY + 2, W + 20, groundY + 2, 1, 3);
+  // KA-BOOM
+  if (k > .3) {
+    const pop = Math.min(1, (k - .3) / .3), sc = pop < 1 ? .4 + pop * .8 : 1.2 - Math.min(.2, (k - .6) * .2);
+    c.save(); c.translate(W / 2, H * .16); c.rotate(-.08); c.scale(sc, sc);
+    c.font = `${Math.round(S * .14)}px 'Permanent Marker', 'Patrick Hand', cursive`; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.lineWidth = 10; c.strokeStyle = K; c.strokeText('KA-BOOM', 0, 0); c.fillStyle = '#f3d55b'; c.fillText('KA-BOOM', 0, 0); c.restore();
+  }
+  // fade out to the board
+  if (t > T - 1) { c.setTransform(dpr, 0, 0, dpr, 0, 0); c.fillStyle = `rgba(242,238,226,${Math.min(1, (t - (T - 1)) / 1)})`; c.fillRect(0, 0, W, H); }
+}
 
 // ===================================================================== audio
 let AC = null, muted = false, noiseBuf = null;
@@ -748,6 +928,8 @@ function snd(type) {
     case 'epic': tone('triangle', 523, 523, .2, .05); tone('triangle', 784, 784, .3, .05, .12); break;
     case 'legend': [523, 659, 784, 1046].forEach((f, i) => tone('triangle', f, f, .35, .06, i * .1)); noise(.6, .08, 5000, .3, 'highpass'); break;
     case 'check': tone('square', 330, 330, .1, .03); tone('square', 330, 330, .1, .03, .15); break;
+    case 'scream': tone('sawtooth', 900, 1500, .5, .05); tone('square', 600, 1300, .5, .03); noise(.5, .15, 3000, 0, 'bandpass'); break;
+    case 'nukeboom': noise(1.8, .7, 220); tone('sine', 70, 25, 1.8, .2); break;
     case 'win': [392, 523, 659, 784].forEach((f, i) => tone('triangle', f, f, .4, .06, i * .14)); break;
   }
 }
@@ -764,6 +946,15 @@ $('#startAi').addEventListener('click', () => { unlockAudio(); $('#startOverlay'
 $('#startPvp').addEventListener('click', () => { unlockAudio(); $('#startOverlay').hidden = true; newGame('pvp'); });
 $('#btnRecycle').addEventListener('click', () => { if (!humanTurn() || G.lock) return; G.recycle = G.recycle ? null : { picked: new Set() }; G.pend = null; G.sel = -1; refresh(); });
 $('#rcScrap').addEventListener('click', scrapPicked);
+$('#btnMusic').addEventListener('click', () => $('#musicFile').click());
+$('#musicFile').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0]; if (!f) return;
+  if (musicURL) URL.revokeObjectURL(musicURL);
+  musicURL = URL.createObjectURL(f); updateMusicLabel(f.name);
+  const saved = await idbSet(MUSIC_KEY, f);
+  toast(saved ? 'Nuke music saved on this device' : 'Nuke music set for this session');
+  e.target.value = '';
+});
 $('#rcTrade').addEventListener('click', tradePicked);
 for (const ov of ['#packOverlay', '#unitsOverlay']) $(ov).addEventListener('pointerdown', e => { if (e.target === $(ov) && (ov === '#unitsOverlay' || !$('#packDone').hidden)) closeOverlays(); });
 
@@ -771,7 +962,7 @@ window.__inkmate = { get G() { return G; }, playMove, playCard, newGame, refresh
 window.addEventListener('resize', sizeBoard);
 sizeBoard();
 newGame('ai');
-if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { buildLayer(); $('#hand').dataset.sig = ''; document.querySelectorAll('#shop .pack-btn').forEach(b => I.drawPackArt(b.querySelector('canvas'), 40, 56, b.dataset.pack)); refresh(); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { buildLayer(); $('#hand').dataset.sig = ''; document.querySelectorAll('#shop .pack-btn').forEach(b => I.drawPackArt(b.querySelector('canvas'), 46, 64, b.dataset.pack)); refresh(); });
 let lastBoil = 0;
 function loop(now) { if (now - lastBoil > 150) { I.boil = (I.boil + 1) % 4; lastBoil = now; } drawBoard(now); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
