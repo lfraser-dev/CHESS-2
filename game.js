@@ -953,12 +953,12 @@ function cutsceneCast() {
 let castCache = null;
 const NUKE_T = 22;
 function nukeCutscene() {
-  const ov = $('#cutscene'), cv = ov.querySelector('canvas');
+  const ov = $('#cutscene'), cv = $('#cutscene2D');
   ov.hidden = false;
   castCache = castCache || cutsceneCast();
   const music = startNukeMusic();
   let skip = null;
-  const p = I.runNukeCinematic(cv, { music, sfx: snd, lines: NUKE_LINES, cast: castCache, onSkip: fn => { skip = fn; } });
+  const p = I.runNukeCinematic(cv, { glCanvas: $('#cutsceneGL'), music, sfx: snd, lines: NUKE_LINES, cast: castCache, onSkip: fn => { skip = fn; } });
   const finish = () => { if (skip) skip(); };
   ov.onclick = finish; $('#cutSkip').onclick = e => { e.stopPropagation(); finish(); };
   return p.then(() => { music.stop(); ov.hidden = true; ov.onclick = null; });

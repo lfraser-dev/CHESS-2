@@ -416,8 +416,37 @@ function shotBlast(c, W, H, S, t, cast) {
 }
 
 // ------------------------------------------------------------------ the whole thing
+function captions(c, W, H, S, t, lines) {
+  const cs = Math.round(S * .034), len = S * .35;
+  c.font = `600 ${cs}px 'Cinzel', 'Times New Roman', serif`; c.textBaseline = 'middle';
+  try { c.letterSpacing = `${Math.round(cs * .22)}px`; } catch (e) {}
+  lines.forEach((line, i) => {
+    const st = 5.0 + i * 1.75, a = ease(seg(t, st, st + .9)) * (1 - ease(seg(t, st + 2.4, st + 3.1)));
+    if (a <= 0) return;
+    const left = i % 2 === 0, drift = (t - st) * S * .006;
+    const x = left ? W * .5 - len - drift * -1 : W * .5 + len - drift;
+    const y = H * (.34 + (i % 2) * .28) + (i > 1 ? S * .05 : 0);
+    c.textAlign = left ? 'right' : 'left';
+    c.save(); c.shadowColor = 'rgba(0,0,0,.65)'; c.shadowBlur = cs * .7;
+    c.globalAlpha = a; c.fillStyle = '#fbf3e6';
+    const words = line.split(' '), rows = []; let cur = '';
+    for (const w of words) { const test = cur ? cur + ' ' + w : w; if (c.measureText(test).width > W * .28 && cur) { rows.push(cur); cur = w; } else cur = test; }
+    rows.push(cur); rows.forEach((r, j) => c.fillText(r, x, y + j * cs * 1.4));
+    c.restore();
+  });
+  try { c.letterSpacing = '0px'; } catch (e) {}
+}
 function render(c, W, H, t, opts) {
   const S = Math.min(W, H), cast = opts.cast;
+  if (opts.gl && t >= 4.4 && t < 22.2) {
+    c.clearRect(0, 0, W, H);
+    if (t < 4.9) { c.fillStyle = `rgba(0,0,0,${1 - seg(t, 4.4, 4.9)})`; c.fillRect(0, 0, W, H); }
+    if (t < 12.2) captions(c, W, H, S, t, opts.lines);
+    if (t > 11.95 && t < 12.2) { c.fillStyle = `rgba(0,0,0,${seg(t, 11.95, 12.1)})`; c.fillRect(0, 0, W, H); }
+    if (t >= 12.2 && t < 12.35) { c.fillStyle = `rgba(0,0,0,${1 - seg(t, 12.2, 12.35)})`; c.fillRect(0, 0, W, H); }
+    overlays(c, W, H, S, t, true);
+    return;
+  }
   c.save();
   // camera shake: a thud at the flash, building as the wave approaches
   let shake = 0;
@@ -436,7 +465,9 @@ function render(c, W, H, t, opts) {
   else if (t < 22.2) shotBlast(c, W, H, S, t, cast);
   else { c.fillStyle = '#000'; c.fillRect(-20, -20, W + 40, H + 40); }
   c.restore();
-
+  overlays(c, W, H, S, t, false);
+}
+function overlays(c, W, H, S, t, gl) {
   // flash, bloom and the anamorphic streak
   if (t >= 17 && t < 19) {
     const k = t - 17;
@@ -462,7 +493,7 @@ function render(c, W, H, t, opts) {
   }
   // finishing: vignette, grain, letterbox
   if (t > .3 && t < 28.8) {
-    vignette(c, W, H, t > 22.2 ? .2 : .55);
+    if (!gl || t >= 22.2) vignette(c, W, H, t > 22.2 ? .2 : .55);
     grain(c, W, H, t, t > 22.2 ? .12 : .09);
     letterbox(c, W, H, ease(seg(t, .2, 1.3)) * (1 - seg(t, 28.4, 28.8)));
   }
@@ -470,6 +501,10 @@ function render(c, W, H, t, opts) {
 
 I.runNukeCinematic = function (canvas, opts) {
   assets();
+  let gl = null;
+  if (opts.glCanvas && I.NukeGL) { gl = I.NukeGL.create(opts.glCanvas); opts.glCanvas.hidden = !gl; }
+  opts.gl = !!gl;
+  let avg = 30;
   const cues = [
     [.2, () => opts.sfx('rumble')],
     [14.6, () => opts.sfx('whistle')],
@@ -489,10 +524,16 @@ I.runNukeCinematic = function (canvas, opts) {
     let done = false;
     const saved = I.boil;
     const t0 = performance.now();
-    const stop = () => { if (done) return; done = true; I.boil = saved; resolve(); };
+    const stop = () => { if (done) return; done = true; I.boil = saved; if (opts.glCanvas) opts.glCanvas.hidden = true; resolve(); };
     const frame = now => {
       if (done) return;
       const t = (now - t0) / 1000 + (opts.startAt || 0);
+      if (gl) {
+        const dt = frame.last ? now - frame.last : 30; frame.last = now;
+        avg = avg * .9 + dt * .1;
+        if (frame.n = (frame.n || 0) + 1, frame.n % 20 === 0) { if (avg > 42) gl.scale *= .85; else if (avg < 24) gl.scale *= 1.07; }
+        if (t >= 4.4 && t < 22.2) gl.draw(t, W, H);
+      }
       while (cues.length && t >= cues[0][0]) cues.shift()[1]();
       if (t >= DUR) { stop(); return; }
       I.boil = Math.floor(t * 6) % 4;

@@ -36,7 +36,8 @@ Open **Units & cards** in the game for every card, a move diagram for every unit
 - `engine.js` – rules, units, terrain and effects, every card, the pack, and the computer opponent
 - `art.js` – all the hand-drawn art, drawn live on canvas
 - `game.js` – board, turns, shop, recycling, pack opening
-- `cinema.js` – the NUKE cinematic (letterbox, grain, camera moves, mushroom cloud, shockwave)
+- `cinema3d.js` – the NUKE cinematic's real-time 3D: raymarched chess set, metal bomb, volumetric clouds, fireball, mushroom cloud and shockwave (WebGL)
+- `cinema.js` – the cinematic's timeline, titles, captions, letterbox, grain and flashes (plus a 2D fallback if WebGL isn't available)
 - `assets/` – drop `nuke-theme.mp3` here
 
 Earlier prototypes (Inkhold, the side-scrolling siege game) are in the git history.
