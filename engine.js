@@ -3,11 +3,12 @@
 (() => {
 'use strict';
 const INK = window.INK = window.INK || {};
-const N = 50;
+const N = 15;
 // starting layout: a normal chess army in the middle of each side, far apart
-const BACK = { w: 33, b: 16 }, PAWN = { w: 32, b: 17 }, FILE0 = 20;
+const BACK = { w: 14, b: 0 }, PAWN = { w: 13, b: 1 }, FILE0 = 2;
 const PROMO = { w: r => r <= BACK.b, b: r => r >= BACK.w };
-const CENTRE_COLS = [...Array(N).keys()].sort((a, b) => Math.abs(a - 24.5) - Math.abs(b - 24.5));
+const MID = (N - 1) / 2;
+const CENTRE_COLS = [...Array(N).keys()].sort((a, b) => Math.abs(a - MID) - Math.abs(b - MID));
 const DIR8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
 const ORTH = DIR8.slice(0, 4), DIAG = DIR8.slice(4), ROW = [[0, 1], [0, -1]];
 const KN = [[1, 2], [2, 1], [-1, 2], [-2, 1], [1, -2], [2, -1], [-1, -2], [-2, -1]];
@@ -57,7 +58,7 @@ const U = {
   pogo: { name: 'Pogo Kid', val: 3, leap: DIR8.map(([a, b]) => [a * 2, b * 2]), rules: 'Boings exactly 2 squares in any straight line, over anything.' },
   blob: { name: 'Ink Blob', val: 3, sl: [[ORTH, 1]], split: 1, rules: 'Oozes 1 square straight. When it captures something, it splits and leaves a new Ink Blob where it was.' },
   trooper: { name: 'Line Trooper', val: 2, quiet: DIR8, shoot: [DIR8, 2], rules: 'Rifleman. Steps 1 square to empty squares and shoots the first enemy within 2 squares in any direction without moving.' },
-  sniper: { name: 'Sniper', val: 5, quiet: DIR8, shoot: [ORTH, 8], rules: 'Creeps 1 square to empty squares. Shoots the first enemy up to 8 squares away in a straight line.' },
+  sniper: { name: 'Sniper', val: 5, quiet: DIR8, shoot: [ORTH, 6], rules: 'Creeps 1 square to empty squares. Shoots the first enemy up to 6 squares away in a straight line.' },
   flamer: { name: 'Flame Trooper', val: 4, quiet: DIR8, shoot: [DIR8, 2], ignite: 1, rules: 'Steps 1 square to empty squares. Torches the first enemy within 2 squares and leaves that square burning.' },
   mortar: { name: 'Mortar Team', val: 4, quiet: ORTH, lob: [DIR8, [3, 4, 5]], rules: 'Shuffles 1 square straight. Lobs shells over anything at an enemy exactly 3, 4 or 5 squares away in a straight line (a king only if the line is clear).' },
   siegetank: { name: 'Siege Tank', val: 9, sl: [[ORTH, 2]], shoot: [ORTH, 7], armor: 1, pawnProof: 1, rules: 'Grinds 2 squares straight, shells the first enemy up to 7 squares away, wears 1 armour, and pawns can\'t touch it.' },
@@ -225,8 +226,8 @@ function cloneState(st) {
     snaps: st.snaps, extra: false, ply: st.ply, quiet: st.quiet,
   };
 }
-const homeRows = side => side === 'w' ? [BACK.w + 2, BACK.w + 1, BACK.w, PAWN.w, PAWN.w - 1, PAWN.w - 2] : [BACK.b - 2, BACK.b - 1, BACK.b, PAWN.b, PAWN.b + 1, PAWN.b + 2];
-const halfRows = side => side === 'w' ? [...Array(N / 2).keys()].map(r => r + N / 2) : [...Array(N / 2).keys()];
+const homeRows = side => (side === 'w' ? [BACK.w, PAWN.w, PAWN.w - 1] : [BACK.b, PAWN.b, PAWN.b + 1]).filter(r => r >= 0 && r < N);
+const halfRows = side => [...Array(N).keys()].filter(r => side === 'w' ? r > MID : r < MID);
 
 // ===================================================================== cards
 const SETS = {
@@ -385,11 +386,11 @@ const CARDS = {
   party: { name: 'Party Time', rarity: 'rare', text: 'Every enemy chicken, duck, pigeon and gnome hears the music and joins your side.', ai: 20,
     target: { t: 'none', can: (st, s) => st.board.some(p => p && p.s !== s && ['chicken', 'duck', 'pigeon', 'gnome'].includes(p.t)) },
     fx: (st, s, o, ev) => { let n = 0; st.board.forEach((p, i) => { if (p && p.s !== s && ['chicken', 'duck', 'pigeon', 'gnome'].includes(p.t)) { st.board[i] = { ...p, s }; n++; ev.push({ type: 'spell', sq: i }); } }); ev.push({ type: 'msg', text: `${n} party animal${n === 1 ? '' : 's'} switched sides` }); } },
-  nuke: { name: 'NUKE', rarity: 'legendary', text: 'Drops a nuke. Everything in a 9×9 blast is wiped out, yours too (kings survive, singed). Leaves a crater and radioactive ground that curses anything that stops on it.',
-    target: { t: 'square', f: (st, i, s) => area(i, 4).some(j => st.board[j] && st.board[j].s !== s && notKing(st.board[j])) },
+  nuke: { name: 'NUKE', rarity: 'legendary', text: 'Drops a nuke. Everything in a 5×5 blast is wiped out, yours too (kings survive, singed). Leaves a crater and radioactive ground that curses anything that stops on it.',
+    target: { t: 'square', f: (st, i, s) => area(i, 2).some(j => st.board[j] && st.board[j].s !== s && notKing(st.board[j])) },
     fx: (st, s, o, ev) => {
       ev.push({ type: 'nuke', sq: o.a });
-      for (const j of area(o.a, 4)) { kill(st, j, ev); st.terr[j] = area(o.a, 1).includes(j) ? { k: 'pit' } : { k: 'rad', n: 10 }; }
+      for (const j of area(o.a, 2)) { kill(st, j, ev); st.terr[j] = j === o.a ? { k: 'pit' } : { k: 'rad', n: 10 }; }
     } },
 
   // ---------- war, horror and oddities
@@ -562,7 +563,7 @@ function evalB(bd, side) {
     const p = bd[i]; if (!p) continue;
     const r = i / N | 0, c = i % N, u = U[p.t];
     let v = u.val * 100 + p.ar * 45 + (p.reb ? 120 : 0) + (u.income ? u.income * 25 : 0) + (p.hatch ? 120 : 0) + (p.bomb ? 25 : 0);
-    const centre = Math.max(0, 12 - (Math.abs(24.5 - r) + Math.abs(24.5 - c)) / 2);
+    const centre = Math.max(0, 9 - (Math.abs(MID - r) + Math.abs(MID - c)));
     if (p.t === 'P') v += Math.max(-10, p.s === 'w' ? (PAWN.w - r) : (r - PAWN.b)) * 7;
     else if (p.t === 'K') v -= Math.abs(r - BACK[p.s]) * 6;
     else if (!u.noCap && u.val) v += centre * 2;
@@ -650,7 +651,7 @@ function aiDecide(st, side) {
 
 Object.assign(INK, {
   N, DIR8, ORTH, DIAG, KN, U, VAL, ENV, setEnv, genMoves, makeMove, unmake, kingSq, inCheck, legalMoves, other, rc, inB,
-  BACK, PAWN, CENTRE_COLS, halfRows, mkPiece, newState, cloneState, homeRows, SETS, CARDS, RARITIES, RARITY_LABEL, SCRAP, PACKS, HAND_MAX, rollPack, rollCard, tradeUp,
+  BACK, PAWN, CENTRE_COLS, MID, halfRows, mkPiece, newState, cloneState, homeRows, SETS, CARDS, RARITIES, RARITY_LABEL, SCRAP, PACKS, HAND_MAX, rollPack, rollCard, tradeUp,
   addToHand, coinValue, cardOptions, applyCard, legalCardOptions, stateLegal, aiDecide, area, kill, lastSnap,
 });
 })();

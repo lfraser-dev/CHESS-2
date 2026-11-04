@@ -27,7 +27,7 @@ function newGame(mode) {
   G = I.newState(mode);
   Object.assign(G, { sel: -1, pend: null, lock: false, recycle: null });
   anims.length = 0; fx.length = 0;
-  if (sizeBoard.done) { cam.cell = BS / 22; centreOn(24, 24, false); }
+  if (sizeBoard.done) { cam.cell = MINZOOM(); clampCam(); }
   snap();
   addLog(mode === 'ai' ? 'New game against the Ink Baron. You play Paper and move first.' : 'New game. Paper moves first.');
   refresh();
@@ -309,17 +309,17 @@ function sizeBoard() {
   BS = Math.floor(Math.max(280, Math.min(wrap.clientWidth, wide ? window.innerHeight - 170 : 9999, 900)));
   bc.style.width = BS + 'px'; bc.style.height = BS + 'px';
   bc.width = BS * DPR; bc.height = BS * DPR;
-  if (!sizeBoard.done) { cam.cell = BS / 22; cam.x = 25 - 11; cam.y = 24.5 - 11; sizeBoard.done = true; }
+  if (!sizeBoard.done) { cam.cell = BS / (N + .4); cam.x = -.2; cam.y = -.2; sizeBoard.done = true; }
   else { const cx = cam.x + oldBS / cam.cell / 2, cy = cam.y + oldBS / cam.cell / 2; cam.cell *= BS / oldBS; cam.x = cx - BS / cam.cell / 2; cam.y = cy - BS / cam.cell / 2; }
   clampCam();
 }
 function buildLayer() { /* the board is drawn live now */ }
-const MINZOOM = () => BS / 52, MAXZOOM = () => BS / 6;
+const MINZOOM = () => BS / (N + .4), MAXZOOM = () => BS / 5;
 function clampCam() {
   cam.cell = Math.max(MINZOOM(), Math.min(MAXZOOM(), cam.cell));
   const vis = BS / cam.cell;
-  cam.x = Math.max(-1, Math.min(N + 1 - vis, cam.x)); cam.y = Math.max(-1, Math.min(N + 1 - vis, cam.y));
-  if (vis > N + 2) { cam.x = (N - vis) / 2; cam.y = (N - vis) / 2; }
+  cam.x = Math.max(-.2, Math.min(N + .2 - vis, cam.x)); cam.y = Math.max(-.2, Math.min(N + .2 - vis, cam.y));
+  if (vis > N - .01) { cam.x = (N - vis) / 2; cam.y = (N - vis) / 2; }
 }
 function zoomAt(px, py, f) {
   const bx = px / cam.cell + cam.x, by = py / cam.cell + cam.y;
@@ -565,7 +565,7 @@ function drawBoard(now) {
     }
   }
   c.setTransform(DPR, 0, 0, DPR, 0, 0);
-  if (BS / cam.cell < N - 1) drawMinimap(c);
+  if (BS / cam.cell < N - 1.5) drawMinimap(c);
   for (let i = anims.length - 1; i >= 0; i--) if (now > anims[i].start + anims[i].dur + 50) anims.splice(i, 1);
   for (let i = fx.length - 1; i >= 0; i--) if (now > fx[i].start + fx[i].dur + 50) fx.splice(i, 1);
 }
@@ -633,7 +633,7 @@ bc.addEventListener('pointerleave', () => { hover = -1; });
 bc.addEventListener('wheel', e => { e.preventDefault(); const [x, y] = boardPoint(e); zoomAt(x, y, e.deltaY < 0 ? 1.15 : 1 / 1.15); }, { passive: false });
 function boardClick(px, py) {
   const [mx, my, m] = miniBox();
-  if (BS / cam.cell < N - 1 && px >= mx && px <= mx + m && py >= my && py <= my + m) { centreOn((py - my) / m * N - .5, (px - mx) / m * N - .5); return; }
+  if (BS / cam.cell < N - 1.5 && px >= mx && px <= mx + m && py >= my && py <= my + m) { centreOn((py - my) / m * N - .5, (px - mx) / m * N - .5); return; }
   if (!humanTurn() || G.lock || G.recycle) return;
   const sq = sqAt(px, py); if (sq < 0) return;
   hover = sq;
@@ -953,172 +953,16 @@ function cutsceneCast() {
 let castCache = null;
 const NUKE_T = 22;
 function nukeCutscene() {
-  return new Promise(resolve => {
-    const ov = $('#cutscene'), cv = ov.querySelector('canvas');
-    ov.hidden = false;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2), W = window.innerWidth, H = window.innerHeight;
-    cv.width = W * dpr; cv.height = H * dpr; cv.style.width = W + 'px'; cv.style.height = H + 'px';
-    const c = cv.getContext('2d');
-    castCache = castCache || cutsceneCast();
-    const T = NUKE_T;
-    const music = startNukeMusic();
-    const cues = [[12.5, () => music.fadeTo(0, 250)], [13.5, () => snd('nukeboom')], [17.6, () => music.fadeTo(.55, 1500)], [20.2, () => music.fadeTo(0, 1600)]];
-    let done = false;
-    const savedBoil = I.boil;
-    const finish = () => { if (done) return; done = true; music.stop(); ov.hidden = true; ov.onclick = null; I.boil = savedBoil; resolve(); };
-    ov.onclick = finish; $('#cutSkip').onclick = e => { e.stopPropagation(); finish(); };
-    const t0 = performance.now();
-    const frame = now => {
-      if (done) return;
-      const t = (now - t0) / 1000;
-      while (cues.length && t >= cues[0][0]) cues.shift()[1]();
-      if (t > T) { finish(); return; }
-      drawNukeFrame(c, W, H, dpr, t);
-      requestAnimationFrame(frame);
-    };
-    requestAnimationFrame(frame);
-  });
+  const ov = $('#cutscene'), cv = ov.querySelector('canvas');
+  ov.hidden = false;
+  castCache = castCache || cutsceneCast();
+  const music = startNukeMusic();
+  let skip = null;
+  const p = I.runNukeCinematic(cv, { music, sfx: snd, lines: NUKE_LINES, cast: castCache, onSkip: fn => { skip = fn; } });
+  const finish = () => { if (skip) skip(); };
+  ov.onclick = finish; $('#cutSkip').onclick = e => { e.stopPropagation(); finish(); };
+  return p.then(() => { music.stop(); ov.hidden = true; ov.onclick = null; });
 }
-const lerp = (a, b, k) => a + (b - a) * k;
-const ease3 = k => 1 - Math.pow(1 - Math.max(0, Math.min(1, k)), 3);
-function crackPiece(c, x, y, sz, seed, side) {
-  c.save(); c.strokeStyle = side === 'b' ? PAPER : K; c.lineWidth = Math.max(1, sz / 28);
-  for (let k = 0; k < 3; k++) {
-    let px = x + (I.hash(seed + k) - .5) * sz * .3, py = y - sz * (.15 + I.hash(seed + k + 4) * .35);
-    c.beginPath(); c.moveTo(px, py);
-    for (let j = 0; j < 4; j++) { px += (I.hash(seed + k * 9 + j) - .5) * sz * .3; py += sz * .09; c.lineTo(px, py); }
-    c.stroke();
-  }
-  c.restore();
-}
-function drawNukeFrame(c, W, H, dpr, t) {
-  c.setTransform(dpr, 0, 0, dpr, 0, 0);
-  c.lineJoin = 'round'; c.lineCap = 'round';
-  const S = Math.min(W, H);
-  I.boil = Math.floor(t * 7) % 4;
-  // 0 – 1.2: fade to black
-  if (t < 1.6) { c.fillStyle = `rgba(10,9,14,${Math.min(1, t / 1.2)})`; c.fillRect(0, 0, W, H); return; }
-  // 1.6 – 10.5: white void, the bomb tumbles down as the camera slowly pulls back, captions either side
-  const WHITE_END = 10.5;
-  const boardScene = t >= 9.5;
-  if (boardScene) drawCutBoard(c, W, H, S, t);
-  if (t < WHITE_END) {
-    const a = boardScene ? 1 - (t - 9.5) / (WHITE_END - 9.5) : 1;
-    c.fillStyle = `rgba(255,255,255,${a})`; c.fillRect(0, 0, W, H);
-    if (a > .02) {
-      c.save(); c.globalAlpha = a;
-      const k = (t - 1.6) / (WHITE_END - 1.6), zoom = lerp(1.1, .22, ease3(k));
-      const len = S * zoom, bx = W / 2 + Math.sin(t * .9) * S * .015, by = H * .46 + Math.sin(t * 1.7) * S * .01;
-      c.strokeStyle = 'rgba(30,28,36,0.18)'; c.lineWidth = 1.5;
-      for (let i = 0; i < 16; i++) { const x = W * I.hash(i * 3.1), off = ((t * 900 * (.6 + I.hash(i))) % (H * 1.6)) - H * .3; I.ln(c, x, off, x, off + H * .25 * (.3 + I.hash(i + 5)), i, 1); }
-      I.drawNukeBomb(c, bx, by, len, Math.PI / 2 + Math.sin(t * 1.3) * .22, K, '#3b3a42', 2);
-      // spin cue: a highlight sweeping round the body
-      c.save(); c.translate(bx, by); c.rotate(Math.PI / 2 + Math.sin(t * 1.3) * .22); c.strokeStyle = 'rgba(255,255,255,.75)'; c.lineWidth = Math.max(2, len / 45);
-      const band = Math.sin(t * 5) * len * .2; c.beginPath(); c.moveTo(band - len * .08, -len * .18); c.quadraticCurveTo(band + len * .02, 0, band - len * .08, len * .18); c.stroke(); c.restore();
-      // captions
-      c.font = `${Math.round(S * .045)}px 'Cinzel', 'Times New Roman', serif`; c.textBaseline = 'middle';
-      NUKE_LINES.forEach((line, i) => {
-        const start = 2.2 + i * 1.9, la = Math.max(0, Math.min(1, (t - start) / .8)) * Math.max(0, Math.min(1, (9.4 - t) / .6));
-        if (la <= 0) return;
-        const left = i % 2 === 0;
-        c.globalAlpha = a * la; c.fillStyle = K; c.textAlign = left ? 'right' : 'left';
-        const x = left ? W / 2 - len * .48 - S * .04 : W / 2 + len * .48 + S * .04;
-        const y = H * (.22 + i * .16);
-        const words = line.split(' '); const lines = []; let cur = '';
-        for (const w of words) { const test = cur ? cur + ' ' + w : w; if (c.measureText(test).width > W * .3 && cur) { lines.push(cur); cur = w; } else cur = test; }
-        lines.push(cur);
-        lines.forEach((l, j) => c.fillText(l, x, y + j * S * .055));
-      });
-      c.restore();
-    }
-  }
-  if (t >= 17 && t < 17.6) { c.fillStyle = '#000'; c.fillRect(0, 0, W, H); return; }
-  if (t >= 17.6) {
-    c.fillStyle = '#000'; c.fillRect(0, 0, W, H);
-    const msg = 'nuclear option chosen', k = Math.min(1, (t - 17.9) / 2.2), n = Math.max(0, Math.floor(msg.length * k));
-    c.font = `${Math.round(S * .055)}px 'Special Elite', 'Courier New', monospace`; c.textAlign = 'center'; c.textBaseline = 'middle';
-    c.fillStyle = `rgba(200,196,188,${.75 + Math.sin(t * 9) * .08})`;
-    c.fillText(msg.slice(0, n), W / 2, H / 2);
-    if (t > NUKE_T - 1.2) { c.fillStyle = `rgba(242,238,226,${Math.min(1, (t - (NUKE_T - 1.2)) / 1.2)})`; c.fillRect(0, 0, W, H); }
-  }
-}
-// the board in perspective, with the bomb landing and the shockwave
-function drawCutBoard(c, W, H, S, t) {
-  const B = 6, Z0 = 3.2, Zc = Z0 + B, CAMH = 2.6, f = H * .95, hor = H * .26;
-  const IMPACT = 12.5, BLAST = 13.5, REACH = 17.0;
-  let shake = 0;
-  if (t > BLAST && t < REACH) shake = Math.min(1, (t - BLAST) / 1.5) * S * .012;
-  c.save(); c.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
-  const P = (X, Z, Y = 0) => [W / 2 + X * f / Z, hor + (CAMH - Y) * f / Z];
-  c.fillStyle = PAPER; c.fillRect(-20, -20, W + 40, H + 40);
-  // sky lines
-  c.strokeStyle = 'rgba(84,128,196,0.22)'; c.lineWidth = 1; for (let y = 24; y < hor; y += 24) { c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); }
-  c.strokeStyle = K; c.lineWidth = 2; I.ln(c, -10, hor + (CAMH * f) / (Z0 + 2 * B + 30), W + 10, hor + (CAMH * f) / (Z0 + 2 * B + 30), 1, 1);
-  // board squares, far to near
-  for (let r = 0; r < 12; r++) for (let col = 0; col < 12; col++) {
-    const z1 = Z0 + 2 * B - r, z2 = z1 - 1, x1 = -B + col, x2 = x1 + 1;
-    const q = [P(x1, z1), P(x2, z1), P(x2, z2), P(x1, z2)];
-    c.beginPath(); q.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath();
-    c.fillStyle = (r + col) % 2 ? '#d9d1bf' : '#f2eee2'; c.fill(); c.strokeStyle = 'rgba(30,28,36,.55)'; c.lineWidth = 1; c.stroke();
-  }
-  c.strokeStyle = K; c.lineWidth = 3; { const q = [P(-B, Z0 + 2 * B), P(B, Z0 + 2 * B), P(B, Z0), P(-B, Z0)]; c.beginPath(); q.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); c.stroke(); }
-  const R = t > BLAST ? Math.pow((t - BLAST) / (REACH - BLAST), 1.25) * (Zc + 1.5) : 0;
-  // shockwave footprint on the ground
-  if (t > BLAST) {
-    c.beginPath();
-    for (let i = 0; i <= 48; i++) { const a = i / 48 * Math.PI * 2, z = Math.max(.35, Zc + Math.sin(a) * R), [x, y] = P(Math.cos(a) * R, z); i ? c.lineTo(x, y) : c.moveTo(x, y); }
-    c.closePath(); c.fillStyle = 'rgba(232,137,43,0.45)'; c.fill(); c.strokeStyle = RED; c.lineWidth = 4; c.stroke();
-  }
-  if (t > BLAST) {
-    const g = ease3((t - BLAST) / 2.5), [bx, by] = P(0, Zc, 0), fr = S * .05 + g * S * .2;
-    c.fillStyle = 'rgba(255,248,220,0.9)'; c.beginPath(); c.arc(bx, by - fr * .5, fr * .6, 0, 7); c.fill();
-    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; c.lineWidth = 2.2; c.strokeStyle = K; I.circ(c, bx + Math.cos(a) * fr * .7, by - fr * .55 + Math.sin(a) * fr * .4, fr * (.18 + I.hash(i) * .1), i, 3, 10); I.fs(c, ['#f3d55b', '#e8892b', '#b3322b', PAPER][i % 4]); }
-    c.strokeStyle = K; c.lineWidth = 2.4; c.beginPath(); c.moveTo(bx - fr * .2, by); c.lineTo(bx - fr * .12, by - fr * .45); c.lineTo(bx + fr * .12, by - fr * .45); c.lineTo(bx + fr * .2, by); c.closePath(); c.fillStyle = '#e8892b'; c.fill(); c.stroke();
-  }
-  // units, far to near, flying when the wave reaches them
-  const cast = castCache.map(u => {
-    const X = -B + u.c + .5, Z = Z0 + 2 * B - u.r - .5;
-    const dx = X, dz = Z - Zc, d = Math.hypot(dx, dz) || .01;
-    let x = X, z = Z, y = 0, rot = 0, hit = false;
-    if (R > d) {
-      hit = true; const tt = (R - d) / (Zc + 1.5) * 3.5;
-      const v = 2.4 + I.hash(u.id) * 2.2;
-      x = X + dx / d * v * tt; z = Z + dz / d * v * tt; y = Math.sin(Math.min(Math.PI * .9, tt * 2)) * (1.2 + I.hash(u.id + 3) * 1.5) + tt * .4;
-      rot = tt * (3 + I.hash(u.id + 5) * 4) * (I.hash(u.id + 7) > .5 ? 1 : -1);
-    }
-    return { u, x, z, y, rot, hit };
-  }).filter(o => o.z > .3).sort((a, b) => b.z - a.z);
-  for (const o of cast) {
-    const [sx, sy] = P(o.x, o.z, o.y), sz = f * .9 / o.z;
-    if (sz > S * 3) continue;
-    c.save(); c.translate(sx, sy); c.rotate(o.rot);
-    I.drawPiece(c, o.u.t, o.u.s, 0, -sz * .36, sz, o.u.id);
-    if (o.hit) crackPiece(c, 0, 0, sz, o.u.id * 13, o.u.s);
-    c.restore();
-  }
-  // the bomb dropping into the middle of the board
-  if (t < IMPACT) {
-    const k = Math.max(0, (t - 9.5) / (IMPACT - 9.5)), Y = lerp(9, 0, Math.pow(k, 1.6));
-    const [bx, by] = P(0, Zc, Y), len = f * 1.4 / Zc;
-    I.drawNukeBomb(c, bx, by - len * .45, len, Math.PI / 2 + Math.sin(t * 1.3) * .15 * (1 - k), K, '#3b3a42', 2);
-  } else if (t < BLAST) {
-    // impact... and a second of nothing
-    const [bx, by] = P(0, Zc, 0), pulse = 3 + Math.sin(t * 30) * 1.5;
-    c.fillStyle = '#fff'; c.beginPath(); c.arc(bx, by, pulse, 0, 7); c.fill(); c.strokeStyle = K; c.lineWidth = 1.5; c.stroke();
-  } else {
-    // fireball and blast front rising from the centre
-    // dust wall where the ring is closest
-    const nearY = P(0, Math.max(.4, Zc - R), 0)[1], wall = Math.min(1, R / (Zc + .5));
-    c.strokeStyle = 'rgba(30,28,36,.5)'; c.lineWidth = 2;
-    for (let i = 0; i < 40; i++) { const x = W * I.hash(i + Math.floor(t * 10)); I.ln(c, x, nearY, x + (I.hash(i) - .5) * 20, nearY - S * (.05 + wall * .5) * I.hash(i + 2), i, 3); }
-    // the wave reaching the camera fills the screen
-    const fill = Math.max(0, (t - (REACH - .7)) / .7);
-    if (fill > 0) { c.fillStyle = `rgba(232,137,43,${Math.min(1, fill)})`; c.fillRect(-20, -20, W + 40, H + 40); c.fillStyle = `rgba(255,250,235,${Math.min(1, fill * fill)})`; c.fillRect(-20, -20, W + 40, H + 40); }
-    if (t > BLAST && t < BLAST + .25) { c.fillStyle = `rgba(255,255,255,${1 - (t - BLAST) / .25})`; c.fillRect(-20, -20, W + 40, H + 40); }
-  }
-  c.restore();
-}
-
 // ===================================================================== audio
 let AC = null, muted = false, noiseBuf = null;
 function unlockAudio() {
@@ -1148,7 +992,11 @@ function snd(type) {
     case 'legend': [523, 659, 784, 1046].forEach((f, i) => tone('triangle', f, f, .35, .06, i * .1)); noise(.6, .08, 5000, .3, 'highpass'); break;
     case 'check': tone('square', 330, 330, .1, .03); tone('square', 330, 330, .1, .03, .15); break;
     case 'scream': tone('sawtooth', 900, 1500, .5, .05); tone('square', 600, 1300, .5, .03); noise(.5, .15, 3000, 0, 'bandpass'); break;
-    case 'nukeboom': noise(1.8, .7, 220); tone('sine', 70, 25, 1.8, .2); break;
+    case 'nukeboom': noise(3.5, .9, 160); tone('sine', 60, 18, 3.2, .35); noise(.4, .5, 4000, 0, 'highpass'); break;
+    case 'nukeroar': noise(4.5, .35, 420, .3); noise(4.8, .25, 90, .8); break;
+    case 'rumble': noise(3.5, .12, 120); tone('sine', 45, 38, 3.5, .08); break;
+    case 'whistle': tone('sine', 2200, 420, 1.3, .05); tone('triangle', 1100, 210, 1.3, .03); break;
+    case 'tinnitus': tone('sine', 4100, 4000, 4.5, .025); break;
     case 'win': [392, 523, 659, 784].forEach((f, i) => tone('triangle', f, f, .4, .06, i * .14)); break;
   }
 }
@@ -1170,7 +1018,7 @@ $('#btnNukeTest').addEventListener('click', () => { unlockAudio(); nukeCutscene(
 $('#zIn').addEventListener('click', () => zoomAt(BS / 2, BS / 2, 1.3));
 $('#zOut').addEventListener('click', () => zoomAt(BS / 2, BS / 2, 1 / 1.3));
 $('#zFit').addEventListener('click', () => { cam.cell = MINZOOM(); clampCam(); cam.tx = null; });
-$('#zKing').addEventListener('click', () => { const k = I.kingSq(G.board, viewer()); if (k >= 0) { if (cam.cell < BS / 24) cam.cell = BS / 22; const [r, c] = rc(k); centreOn(r, c); } });
+$('#zKing').addEventListener('click', () => { const k = I.kingSq(G.board, viewer()); if (k >= 0) { if (cam.cell < BS / 9) cam.cell = BS / 8; const [r, c] = rc(k); centreOn(r, c); } });
 $('#musicFile').addEventListener('change', async e => {
   const f = e.target.files && e.target.files[0]; if (!f) return;
   if (musicURL) URL.revokeObjectURL(musicURL);
@@ -1182,7 +1030,7 @@ $('#musicFile').addEventListener('change', async e => {
 $('#rcTrade').addEventListener('click', tradePicked);
 for (const ov of ['#packOverlay', '#unitsOverlay']) $(ov).addEventListener('pointerdown', e => { if (e.target === $(ov) && (ov === '#unitsOverlay' || !$('#packDone').hidden)) closeOverlays(); });
 
-window.__inkmate = { get G() { return G; }, playMove, playCard, newGame, refresh, I };
+window.__inkmate = { get G() { return G; }, playMove, playCard, newGame, refresh, I, cast: () => (castCache = castCache || cutsceneCast()), lines: () => NUKE_LINES };
 window.addEventListener('resize', sizeBoard);
 sizeBoard();
 newGame('ai');

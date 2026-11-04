@@ -1,8 +1,8 @@
 # Inkmate
 
-Chess on a 50×50 notebook battlefield, scribbled in ink, with card packs.
+Chess on a 15×15 notebook board, scribbled in ink, with card packs.
 
-A normal chess army each (plus two Archers), far apart in the middle of a 50×50 board. Drag to look around, scroll or pinch to zoom, and use the minimap to jump. Every turn you either **move a piece or play a card**.
+A normal chess army each (plus two Archers) on a 15×15 board. Scroll or pinch to zoom in, drag to look around. Every turn you either **move a piece or play a card**.
 You earn coins (1 a turn, more for captures) and spend 5 to open a pack. Opening packs doesn't use your turn.
 There is **one pack with all 127 cards** in it: units, rule-bending spells, coins, and the **NUKE**.
 
@@ -16,7 +16,7 @@ Scribble · Sketch · Inked · Masterpiece · Legendary
 
 - **Dropship:** drops a 4×4 squad of 16 Line Troopers (move 1, shoot 2)
 - **Non-chess units:** Siege Tank, Gunship, Battle Mech, Sniper, Flame Trooper, Mortar Team, Field Medic, Necromancer, Vampire, Werewolf, Samurai, Ninja, UFO, Ogre, Bulldozer, Robot Vacuum, Cow, Screaming Pagoda, Shopping Trolley, Rubber Duck, Lawn Gnome, Pigeon, Vending Machine, Grandma, Toaster, Pogo Kid, Ink Blob, Star Paladin, Titan Walker, Sheriff, The Stranger, Kraken, Lizard King, Dragon, F-15 Fighter Jet, Golden Goose and more
-- **NUKE (Legendary):** full cutscene (press **Test nuke cutscene** to watch it any time), then a 9×9 blast, a crater and radioactive ground that curses anything stopping on it
+- **NUKE (Legendary):** full cutscene (press **Test nuke cutscene** to watch it any time), then a 5×5 blast, a crater and radioactive ground that curses anything stopping on it
 - **Execute:** chop any enemy piece one of yours is already attacking
 - **Rule benders:** Ouroboros (left and right edges join up), White Flag, Knightmare, Backpedal, Rewind, Double Time, Swap Hands, Mind Control, Earthquake, Mirror Mirror, Banana Peel, Landmine, Coin Flip, Party Time, Tax Day and more
 - **Recycling:** scrap cards for coins (Scribble 1 · Sketch 2 · Inked 3 · Masterpiece 5 · Legendary 8), or trade 3 of the same tier for 1 card a tier up
@@ -35,7 +35,8 @@ Open **Units & cards** in the game for every card, a move diagram for every unit
 - `style.css` – notebook styling, cards, pack opening, cutscene
 - `engine.js` – rules, units, terrain and effects, every card, the pack, and the computer opponent
 - `art.js` – all the hand-drawn art, drawn live on canvas
-- `game.js` – board, turns, shop, recycling, pack opening, nuke cutscene
+- `game.js` – board, turns, shop, recycling, pack opening
+- `cinema.js` – the NUKE cinematic (letterbox, grain, camera moves, mushroom cloud, shockwave)
 - `assets/` – drop `nuke-theme.mp3` here
 
 Earlier prototypes (Inkhold, the side-scrolling siege game) are in the git history.
