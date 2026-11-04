@@ -3,43 +3,38 @@
 Chess on a 10×10 notebook page, scribbled in ink, with card packs.
 
 Normal chess rules, a bigger board and two Archers each to start. Every turn you either **move a piece or play a card**.
-You earn coins (1 a turn, more for captures) and spend them in the pack shop. Buying and opening packs doesn't use your turn.
-There are 92 cards: units, rule-bending spells and coins, across a Classic set and four collab sets.
+You earn coins (1 a turn, more for captures) and spend 5 to open a pack. Opening packs doesn't use your turn.
+There is **one pack with all 108 cards** in it: units, rule-bending spells, coins, and the **NUKE**.
 
 **Play:** open `index.html` in a browser. No build step, no dependencies. Play the computer (the Ink Baron) or two players on one device.
 
-## Units
+## Rarity tiers
 
-| Unit ## Packs
+Scribble · Sketch · Inked · Masterpiece · Legendary
 
-| Pack | Cost | Flavour |
-| --- | --- | --- |
-| Inkmate Classic | 5 | The core set |
-| Iron Crusade | 7 | Grimdark space knights: armour, drop pods, orbital strikes, the Titan Walker |
-| Dust & Daring | 6 | Wild West: sheriffs, bandits, bounties, heists, The Stranger |
-| Monster Mayhem | 7 | B-movie monsters: tentacles, eggs, toxic goo, the Lizard King |
-| Plunder | 6 | Pirates: cannons, mutiny, buried treasure, the Kraken |
+## Highlights
 
-## Cards that bend the rules
-
-- **Board-wide effects:** Ouroboros (left and right edges join up), White Flag (no captures), Knightmare (pawns jump like knights), Backpedal (pawns step back)
-- **Terrain:** pits, walls of fire, holy ground, hidden landmines, toxic spills
-- **Statuses:** freeze, shield, armour, curses, strapped-on bombs, bounties, rebirth (Phoenix), hatching (Dragon Egg)
-- **Turn tricks:** Double Time (extra turn), Rewind (undo their last turn), Swap Hands, Sticky Fingers, Spilled Ink, Pickpocket
-- **Board tricks:** Mind Control, Mutiny, Chicken Curse, Ink Clone, Teleport, Swap Spots, Lasso, Earthquake, Mirror Mirror, Meteor, Orbital Strike
+- **Non-chess units:** Screaming Pagoda, Shopping Trolley, Rubber Duck, Lawn Gnome, Pigeon, Vending Machine, Grandma, Toaster, Pogo Kid, Ink Blob, Star Paladin, Titan Walker, Sheriff, The Stranger, Kraken, Lizard King, Dragon, F-15 Fighter Jet, Golden Goose and more
+- **NUKE (Legendary):** full-screen cutscene, then a 5×5 blast, a crater and radioactive ground that curses anything stopping on it
+- **Execute:** chop any enemy piece one of yours is already attacking
+- **Rule benders:** Ouroboros (left and right edges join up), White Flag, Knightmare, Backpedal, Rewind, Double Time, Swap Hands, Mind Control, Earthquake, Mirror Mirror, Banana Peel, Landmine, Coin Flip, Party Time, Tax Day and more
+- **Recycling:** scrap cards for coins (Scribble 1 · Sketch 2 · Inked 3 · Masterpiece 5 · Legendary 8), or trade 3 of the same tier for 1 card a tier up
 
 Flying units can only attack a king along a clear line, so nothing gives unblockable check from across the board.
 
-## Recycling
+## Nuke music
 
-Tap **Recycle cards** to scrap cards for coins (Common 1, Uncommon 2, Rare 3, Epic 5, Legendary 8), or trade 3 cards of the same rarity for 1 random card of the next rarity up. Recycling doesn't use your turn.
+Click **Nuke music** in the game to pick an audio file from your device (it's remembered in that browser), or put the file at `assets/nuke-theme.mp3`.
 
-Open **Units & cards** in the game to see every card and a move diagram for every unit.
+Open **Units & cards** in the game for every card, a move diagram for every unit, and a button to watch the nuke.
 
-x.html` – page layout and dialogs
-- `style.css` – notebook styling, cards, pack opening
-- `engine.js` – rules, units, terrain and effects, every card, packs, and the computer opponent
+## Files
+
+- `index.html` – page layout and dialogs
+- `style.css` – notebook styling, cards, pack opening, cutscene
+- `engine.js` – rules, units, terrain and effects, every card, the pack, and the computer opponent
 - `art.js` – all the hand-drawn art, drawn live on canvas
-- `game.js` – board, turns, shop, recycling, pack opening
+- `game.js` – board, turns, shop, recycling, pack opening, nuke cutscene
+- `assets/` – drop `nuke-theme.mp3` here
 
-The earlier side-scrolling siege prototype (Inkhold) is in the git history.
+Earlier prototypes (Inkhold, the side-scrolling siege game) are in the git history.
