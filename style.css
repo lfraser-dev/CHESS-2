@@ -268,3 +268,5 @@ button.card:disabled { cursor: default; }
 
 .qsel { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; }
 .qsel select { font: inherit; font-size: 16px; color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 8px 6px 9px 7px; padding: 4px 6px; }
+
+.cutscene video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; }

@@ -952,7 +952,7 @@ function cutsceneCast() {
 }
 let castCache = null;
 const NUKE_T = 22;
-function cineQuality() { try { return localStorage.getItem('inkmate.cine.quality') || 'auto'; } catch (e) { return 'auto'; } }
+function cineQuality() { let q = 'movie'; try { q = localStorage.getItem('inkmate.cine.quality') || 'movie'; } catch (e) {} return q === '2d' ? '2d' : (q === 'live' || q === 'full' || q === 'light') ? 'live' : 'movie'; }
 function nukeCutscene() {
   const ov = $('#cutscene'), cv = $('#cutscene2D');
   ov.hidden = false;
@@ -960,8 +960,8 @@ function nukeCutscene() {
   const music = startNukeMusic();
   let skip = null;
   const quality = cineQuality();
-  const p = I.runNukeCinematic(cv, { glCanvas: $('#cutsceneGL'), quality, music, sfx: snd, lines: NUKE_LINES, cast: castCache, onSkip: fn => { skip = fn; },
-    onFallback: () => toast('Your device was struggling, so the cutscene switched to the simple version') });
+  const p = I.runNukeCinematic(cv, { glCanvas: $('#cutsceneGL'), video: $('#cutsceneVideo'), videoSrc: 'assets/nuke-cinematic.mp4', quality, music, sfx: snd, lines: NUKE_LINES, cast: castCache, onSkip: fn => { skip = fn; },
+    onFallback: why => toast(why === 'movie' ? 'The cutscene movie couldn\'t load, so the simple version played' : 'Your device was struggling, so the cutscene switched to the simple version') });
   const finish = () => { if (skip) skip(); };
   ov.onclick = finish; $('#cutSkip').onclick = e => { e.stopPropagation(); finish(); };
   return p.then(() => { music.stop(); ov.hidden = true; ov.onclick = null; });
@@ -1023,8 +1023,7 @@ $('#btnNukeTest').addEventListener('click', () => { unlockAudio(); nukeCutscene(
   sel.value = cineQuality();
   sel.addEventListener('change', () => {
     try { localStorage.setItem('inkmate.cine.quality', sel.value); } catch (e) {}
-    if (sel.value === 'auto' && I.cinematicInfo) I.cinematicInfo.clearFallback();
-    toast(sel.value === 'full' ? 'Full 3D needs a strong graphics card. It will still drop to simple if it lags.' : 'Cutscene quality saved');
+    toast(sel.value === 'live' ? 'Live 3D needs a strong graphics card. It drops to simple if it lags.' : 'Cutscene quality saved');
   });
 }
 $('#zIn').addEventListener('click', () => zoomAt(BS / 2, BS / 2, 1.3));

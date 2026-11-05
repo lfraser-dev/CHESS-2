@@ -503,13 +503,12 @@ function overlays(c, W, H, S, t, gl) {
 const FALLBACK_KEY = 'inkmate.cine.fallback';
 const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
 const isChromeOS = /\bCrOS\b/.test(navigator.userAgent || '');
+const normQuality = q => q === '2d' ? '2d' : (q === 'live' || q === 'full' || q === 'light') ? 'live' : 'movie';
 function startChoice(quality, glCanvas, W, H) {
-  if (!glCanvas || !I.NukeGL || quality === '2d') return null;
-  if (quality === 'auto' && store.get(FALLBACK_KEY)) return null;
-  const maxTier = quality === 'light' ? 1 : quality === 'full' ? 2 : (isChromeOS ? 1 : 2);
-  const p = I.NukeGL.startProbe(glCanvas, W, H, maxTier, quality === 'auto');
+  if (!glCanvas || !I.NukeGL || quality !== 'live') return null;
+  const maxTier = isChromeOS ? 1 : 2;
+  const p = I.NukeGL.startProbe(glCanvas, W, H, maxTier, false);
   // without background compiling, building the shader would freeze the page, so Auto doesn't risk it
-  if (!p.parallel && quality === 'auto') return null;
   return p;
 }
 I.cinematicInfo = { isChromeOS, clearFallback: () => store.set(FALLBACK_KEY, '') };
@@ -533,6 +532,22 @@ I.runNukeCinematic = function (canvas, opts) {
     c.lineJoin = 'round'; c.lineCap = 'round';
     c.fillStyle = '#000'; c.fillRect(0, 0, canvas.width, canvas.height);
     let done = false, gl = null, strikes = 0, frames = 0, last = 0, avg = 30;
+    const quality = normQuality(opts.quality);
+    // ---- pre-rendered movie of the 3D scene (smooth on any device: the video hardware does the work)
+    const video = opts.video;
+    let movie = null;        // null = not using; 'loading' | 'ready' | 'playing' | 'ended' | 'failed'
+    if (quality === 'movie' && video && opts.videoSrc) {
+      movie = 'loading';
+      video.muted = true; video.playsInline = true; video.preload = 'auto';
+      video.onerror = () => { movie = 'failed'; video.hidden = true; if (opts.onFallback) opts.onFallback('movie'); };
+      video.oncanplaythrough = video.oncanplay = () => { if (movie === 'loading') movie = 'ready'; };
+      video.onended = () => { movie = 'ended'; };
+      if (!video.src || !video.src.endsWith(opts.videoSrc)) video.src = opts.videoSrc;
+      try { video.currentTime = 0; } catch (e) {}
+      video.load();
+      if (video.readyState >= 3) movie = 'ready';
+    }
+    opts.movie = false;
     const saved = I.boil;
     const glCanvas = opts.glCanvas;
     const fallBack = why => {
@@ -547,6 +562,7 @@ I.runNukeCinematic = function (canvas, opts) {
     const stop = () => {
       if (done) return; done = true; I.boil = saved;
       if (glCanvas) { glCanvas.hidden = true; glCanvas.removeEventListener('webglcontextlost', onLost); }
+      if (video) { try { video.pause(); } catch (e) {} video.hidden = true; }
       resolve();
     };
     opts.onSkip(stop);
@@ -560,17 +576,34 @@ I.runNukeCinematic = function (canvas, opts) {
       if (opts.onTier) opts.onTier(opts.tier);
     };
     opts.gl = false;
-    setTimeout(() => { if (done) return; probe = startChoice(opts.quality || 'auto', glCanvas, W, H); if (!probe) decide(null); }, 120);
-    const t0 = performance.now();
+    setTimeout(() => { if (done) return; probe = startChoice(quality, glCanvas, W, H); if (!probe) decide(null); }, 120);
+    let clock = opts.startAt || 0, waited = 0;
     {
       const frame = now => {
         if (done) return;
-        const t = (now - t0) / 1000 + (opts.startAt || 0);
         const dt = last ? now - last : 16; last = now; frames++;
+        // the clock: normally real time, but during the 3D scene it follows the movie so everything stays in sync
+        if (movie === 'playing' && video.currentTime > 0) clock = 4.4 + video.currentTime;
+        else if (movie === 'ended') { clock = Math.max(clock + dt / 1000, 22.2); }
+        else clock += Math.min(dt, 100) / 1000;
+        if (movie === 'loading' || movie === 'ready') {
+          if (clock >= 4.4) {
+            if (movie === 'ready') {
+              movie = 'playing'; opts.gl = true; opts.movie = true; video.hidden = false;
+              const pr = video.play(); if (pr && pr.catch) pr.catch(() => { movie = 'failed'; video.hidden = true; opts.gl = false; opts.movie = false; });
+            } else {
+              clock = 4.4; waited += dt;                    // hold on black until the movie can play
+              if (waited > 9000) { movie = 'failed'; if (opts.onFallback) opts.onFallback('movie'); }
+            }
+          }
+        }
+        if (movie === 'failed') { opts.gl = false; opts.movie = false; }
+        const t = clock;
         if (!decided && probe) {
           if (t >= 4.3) decide(null);                      // not ready in time: play the 2D version
           else { const r = probe.step(); if (r) decide(r); }
         }
+        if (movie === 'playing' && clock >= 22.2) { video.hidden = true; }
         if (gl) {
           // safety net: if frames start taking too long, drop to the 2D version for good
           if (t > 4.6) {

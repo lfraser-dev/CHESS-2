@@ -19,9 +19,8 @@
       <button class="btn" id="btnNukeTest" type="button">Test nuke cutscene</button>
       <label class="qsel" for="cineQ">Cutscene
         <select id="cineQ">
-          <option value="auto">Auto (safe)</option>
-          <option value="light">Light 3D</option>
-          <option value="full">Full 3D (strong PC)</option>
+          <option value="movie">Full 3D movie (best)</option>
+          <option value="live">Live 3D (strong PC only)</option>
           <option value="2d">Simple 2D</option>
         </select>
       </label>
@@ -102,7 +101,7 @@
   </div>
 </div>
 
-<div class="cutscene" id="cutscene" hidden><canvas id="cutsceneGL" aria-hidden="true" hidden></canvas><canvas id="cutscene2D" aria-label="Nuke cutscene"></canvas><button class="btn small" id="cutSkip" type="button">Skip</button></div>
+<div class="cutscene" id="cutscene" hidden><video id="cutsceneVideo" muted playsinline preload="none" aria-hidden="true" hidden></video><canvas id="cutsceneGL" aria-hidden="true" hidden></canvas><canvas id="cutscene2D" aria-label="Nuke cutscene"></canvas><button class="btn small" id="cutSkip" type="button">Skip</button></div>
 <div class="toast" id="toast" role="status" hidden></div>
 <script src="engine.js"></script>
 <script src="art.js"></script>

@@ -25,12 +25,13 @@ Flying units can only attack a king along a clear line, so nothing gives unblock
 
 ## Cutscene quality
 
-The **Cutscene** menu at the top sets how the NUKE cinematic is drawn:
+The **Cutscene** menu at the top sets how the NUKE cinematic plays:
 
-- **Auto (safe)**, the default: tests your device with a tiny frame first and only uses 3D if it can keep up. Chromebooks get Light 3D at most. If it starts lagging, it switches to the simple version and remembers.
-- **Light 3D**: fewer effects, lower resolution.
-- **Full 3D**: needs a strong graphics card (still drops to simple if it lags).
-- **Simple 2D**: the hand-drawn version, runs anywhere.
+- **Full 3D movie (best)**, the default: the 3D scene is pre-rendered into `assets/nuke-cinematic.mp4`, so it plays smoothly on any device, Chromebooks included. Titles, captions, flashes, grain and sound are drawn live on top, synced to the video.
+- **Live 3D (strong PC only)**: renders the scene in real time with WebGL. Tests your device first and drops to the simple version if it lags.
+- **Simple 2D**: the hand-drawn version.
+
+To re-render the movie after changing `cinema3d.js`, render frames 4.4s–22.2s at 24 fps with `INK.NukeGL.create(canvas, 1).draw(t, 854, 480, true)` and encode them with ffmpeg (H.264, yuv420p).
 
 ## Nuke music
 
