@@ -23,6 +23,12 @@ Scribble · Sketch · Inked · Masterpiece · Legendary
 
 Flying units can only attack a king along a clear line, so nothing gives unblockable check from across the board.
 
+## Battle cam
+
+When one piece takes another, a comic-book close-up plays over the board: the attacker winds up and dashes in (or fires), a black-and-white impact frame with a big word ("SLASH!", "BANG!", "CLANG!", "SHLURP!"...), and the loser goes flying with cracks and ink splatter. Every unit has its own attack: swords, guns, cannons, catapult rocks, flamethrowers, tentacles, dragon fire, missiles, tractor beams and more. Set it in the **Battle cam** menu: Big captures (default), Every capture, or Off. Click the close-up to skip it.
+
+On the board itself, attackers wind up and lunge with a motion trail, hits throw sparks and shake the board, and captured pieces get knocked flying.
+
 ## Cutscene quality
 
 The **Cutscene** menu at the top sets how the NUKE cinematic plays:
@@ -46,6 +52,7 @@ Open **Units & cards** in the game for every card, a move diagram for every unit
 - `engine.js` – rules, units, terrain and effects, every card, the pack, and the computer opponent
 - `art.js` – all the hand-drawn art, drawn live on canvas
 - `game.js` – board, turns, shop, recycling, pack opening
+- `battle.js` – the battle cam close-ups
 - `cinema3d.js` – the NUKE cinematic's real-time 3D: raymarched chess set, metal bomb, volumetric clouds, fireball, mushroom cloud and shockwave (WebGL)
 - `cinema.js` – the cinematic's timeline, titles, captions, letterbox, grain and flashes (plus a 2D fallback if WebGL isn't available)
 - `assets/` – drop `nuke-theme.mp3` here

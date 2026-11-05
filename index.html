@@ -17,6 +17,13 @@
       <button class="btn" id="btnUnits" type="button">Units &amp; cards</button>
       <button class="btn" id="btnNew" type="button">New game</button>
       <button class="btn" id="btnNukeTest" type="button">Test nuke cutscene</button>
+      <label class="qsel" for="battleQ">Battle cam
+        <select id="battleQ">
+          <option value="big">Big captures</option>
+          <option value="all">Every capture</option>
+          <option value="off">Off</option>
+        </select>
+      </label>
       <label class="qsel" for="cineQ">Cutscene
         <select id="cineQ">
           <option value="movie">Full 3D movie (best)</option>
@@ -33,7 +40,7 @@
     <section class="board-col" aria-label="Board">
       <div class="bar" id="oppBar"></div>
       <div class="fields" id="fields" aria-live="polite" hidden></div>
-      <div class="board-wrap" id="boardWrap"><div class="board-frame"><canvas id="board" aria-label="15 by 15 board. Scroll or pinch to zoom, drag to move around."></canvas>
+      <div class="board-wrap" id="boardWrap"><div class="board-frame"><canvas id="duel" aria-label="Battle close-up. Click to skip." hidden></canvas><canvas id="board" aria-label="15 by 15 board. Scroll or pinch to zoom, drag to move around."></canvas>
         <div class="zoom" role="group" aria-label="Board view">
           <button class="btn small" id="zIn" type="button" aria-label="Zoom in">+</button>
           <button class="btn small" id="zOut" type="button" aria-label="Zoom out">−</button>
@@ -107,6 +114,7 @@
 <script src="art.js"></script>
 <script src="cinema3d.js"></script>
 <script src="cinema.js"></script>
+<script src="battle.js"></script>
 <script src="game.js"></script>
 </body>
 </html>
