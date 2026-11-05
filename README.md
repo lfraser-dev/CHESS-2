@@ -25,7 +25,7 @@ Pick a **chaos level** on the start screen:
 
 ## Brainrot meter and special moves
 
-The **Brainrot meter** above the board fills every turn (faster with captures, specials and chaos). Each time it crosses a line, a title card announces the next act and crazier **special moves** unlock:
+The **Brainrot meter** above the board fills every turn (faster with captures, specials and chaos). Each time it crosses a line, a short popup names the next act and crazier **special moves** unlock:
 
 | Meter | Act |
 | --- | --- |

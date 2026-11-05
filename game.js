@@ -47,7 +47,7 @@ function newGame(mode) {
   snap();
   addLog(mode === 'ai' ? 'New game of Chess 2 against the Ink Baron. You play Paper and move first. Good luck.' : 'New game. Paper moves first.');
   refresh();
-  if (level !== 'calm' && newGame.started) { const t = M.TIERS[G.actShown]; G.lock = true; refresh(); showAct(t).then(() => { G.lock = false; refresh(); }); }
+  
   newGame.started = true;
 }
 function addLog(text, cls = '') { G.log.unshift({ text, cls }); if (G.log.length > 50) G.log.pop(); }
@@ -514,19 +514,11 @@ function slam(text, big) {
   snd(big ? 'vboom' : M.pick(['scratch', 'boing', 'brilliant']));
   clearTimeout(slamT); slamT = setTimeout(() => { el.hidden = true; }, 1500);
 }
+// act changes no longer cover the board: just a quick toast and a sting
 function showAct(t) {
-  return new Promise(resolve => {
-    const el = $('#act');
-    el.querySelector('.act-n').textContent = t.act;
-    el.querySelector('.act-name').textContent = t.name;
-    el.querySelector('.act-sub').textContent = t.sub;
-    el.classList.toggle('finale', t.act === 'THE FINALE');
-    el.hidden = false; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
-    snd(t.act === 'THE FINALE' ? 'airhorn' : 'dun');
-    let done = false;
-    const fin = () => { if (done) return; done = true; el.hidden = true; el.onclick = null; resolve(); };
-    el.onclick = fin; setTimeout(fin, t.act === 'THE FINALE' ? 3600 : 2600);
-  });
+  toast(`${t.act}: ${t.name}${t.act === 'THE FINALE' ? '' : '. New special moves unlocked'}`);
+  snd(t.act === 'THE FINALE' ? 'airhorn' : 'dun');
+  return Promise.resolve();
 }
 let punchFx = null;
 function punch(sq, amt, dur) { punchFx = { sq, amt, start: performance.now(), dur }; }
