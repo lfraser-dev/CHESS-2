@@ -1,4 +1,4 @@
-/* Inkmate engine: units, terrain, board-wide effects, cards, packs and the computer opponent.
+/* Chess 2 engine: units, terrain, board-wide effects, cards, packs and the computer opponent.
    Exposes everything on window.INK so art.js and game.js can use it. */
 (() => {
 'use strict';
@@ -93,9 +93,9 @@ const U = {
 const VAL = t => U[t].val;
 
 // ===================================================================== environment for move generation
-const ENV = { terr: new Array(N * N).fill(null), wrap: false, truce: false, km: false, bp: false };
+const ENV = { terr: new Array(N * N).fill(null), wrap: false, truce: false, km: false, bp: false, allkn: false };
 function setEnv(st) {
-  ENV.terr = st.terr; ENV.wrap = st.fields.wrap > 0; ENV.truce = st.fields.truce > 0; ENV.km = st.fields.km > 0; ENV.bp = st.fields.bp > 0;
+  ENV.terr = st.terr; ENV.wrap = st.fields.wrap > 0; ENV.truce = st.fields.truce > 0; ENV.km = st.fields.km > 0 || st.fields.allkn > 0; ENV.bp = st.fields.bp > 0; ENV.allkn = st.fields.allkn > 0;
 }
 const blockedSq = i => { const t = ENV.terr[i]; return !!t && (t.k === 'pit' || t.k === 'fire'); };
 
@@ -110,6 +110,30 @@ function canCap(p, u, q, qsq) {
   return true;
 }
 
+const MUTATIONS = {
+  kn: { name: 'jumps like a knight too', leap: KN },
+  step: { name: 'steps 1 square any way too', sl: [[DIR8, 1]] },
+  rook: { name: 'slides up to 3 squares straight too', sl: [[ORTH, 3]] },
+  diag: { name: 'slides up to 3 squares diagonally too', sl: [[DIAG, 3]] },
+  fly: { name: 'flies over pieces now', fly: 1 },
+  zoom: { name: 'zooms up to 6 squares in a line too', sl: [[DIR8, 6]] },
+  gun: { name: 'grew a gun: shoots 3 squares straight', shoot: [ORTH, 3] },
+};
+const mutCache = {};
+function mutU(t, muts, allkn) {
+  const key = t + '|' + (muts ? muts.join(',') : '') + (allkn ? '|K' : '');
+  if (mutCache[key]) return mutCache[key];
+  const u0 = U[t], u = { ...u0 };
+  const add = m => {
+    if (m.leap) u.leap = (u.leap || []).concat(m.leap);
+    if (m.sl) u.sl = (u.sl || []).concat(m.sl);
+    if (m.fly) u.fly = 1;
+    if (m.shoot && !u.shoot) u.shoot = m.shoot;
+  };
+  if (muts) for (const k of muts) if (MUTATIONS[k]) add(MUTATIONS[k]);
+  if (allkn && !u.pawn) add({ leap: KN });
+  return (mutCache[key] = u);
+}
 function genMoves(bd, side, out = []) {
   let pinned = null;
   for (let i = 0; i < N * N; i++) { const g = bd[i]; if (g && g.t === 'gnome' && g.s !== side) { pinned = pinned || new Set(); const r = i / N | 0, c = i % N; for (const [dr, dc] of DIR8) if (inB(r + dr, c + dc)) pinned.add((r + dr) * N + c + dc); } }
@@ -117,7 +141,7 @@ function genMoves(bd, side, out = []) {
     const p = bd[sq];
     if (!p || p.s !== side || p.fz > 0) continue;
     if (pinned && pinned.has(sq) && p.t !== 'K') continue;
-    const u = U[p.t]; const r = sq / N | 0, c = sq % N;
+    const u = (p.mut || ENV.allkn) ? mutU(p.t, p.mut, ENV.allkn) : U[p.t]; const r = sq / N | 0, c = sq % N;
     const to = (rr, cc) => {
       if (u.wrapAll) { rr = mod(rr); cc = mod(cc); } else if (ENV.wrap) cc = mod(cc);
       return inB(rr, cc) ? rr * N + cc : -1;
@@ -138,6 +162,12 @@ function genMoves(bd, side, out = []) {
           if (bd[t].ar > 0) out.push({ f: sq, t, cap: bd[t], arm: true });
           else out.push({ f: sq, t, cap: bd[t], pr: promo(r + d) ? 'Q' : undefined });
         }
+      }
+      if (p.mut) for (const mk of p.mut) {
+        const mm = MUTATIONS[mk]; if (!mm) continue;
+        if (mm.leap) for (const [dr, dc] of mm.leap) { const t = to(r + dr, c + dc); if (t < 0) continue; if (!bd[t]) { if (!blockedSq(t)) addMove(t); } else if (canCap(p, u, bd[t], t)) addCap(t); }
+        if (mm.sl) for (const [dirs, max] of mm.sl) for (const [dr, dc] of dirs) for (let k = 1; k <= max; k++) { const t = to(r + dr * k, c + dc * k); if (t < 0) break; const q = bd[t]; if (!q) { if (blockedSq(t)) break; addMove(t); continue; } if (canCap(p, u, q, t)) addCap(t); break; }
+        if (mm.shoot) for (const [dr, dc] of mm.shoot[0]) for (let k = 1; k <= mm.shoot[1]; k++) { const t = to(r + dr * k, c + dc * k); if (t < 0) break; const q = bd[t]; if (!q) continue; if (canCap(p, u, q, t)) addCap(t, true); break; }
       }
       if (ENV.km) for (const [dr, dc] of KN) { const t = to(r + dr, c + dc); if (t < 0) continue; if (!bd[t]) { if (!blockedSq(t)) addMove(t); } else if (canCap(p, u, bd[t], t)) addCap(t); }
       if (ENV.bp) { const t = to(r - d, c); if (t >= 0 && !bd[t] && !blockedSq(t)) addMove(t); }
@@ -204,17 +234,25 @@ function mkPiece(t, s) {
   const u = U[t];
   return { t, s, id: pid++, fz: 0, sh: 0, ar: u.armor || 0, reb: u.reborn ? 1 : 0, hatch: u.hatch || 0, curse: 0, bomb: 0, bounty: 0 };
 }
-function newState(mode) {
+const WEIRD_START = ['jester', 'golem', 'trolley', 'duck', 'grandma', 'samurai', 'ninja', 'pogo', 'toaster', 'werewolf', 'blob', 'pigeon', 'cow', 'vending', 'T', 'Z', 'C', 'chicken', 'assassin', 'sheriff', 'bandit', 'mortar', 'gnome', 'keg', 'goose'];
+function chaosLineup() {
+  const back = ['R', 'N', 'B', 'A', 'Q', 'K', 'A', 'B', 'N', 'R'];
+  for (let i = back.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [back[i], back[j]] = [back[j], back[i]]; }
+  const slots = back.map((t, i) => i).filter(i => back[i] !== 'K').sort(() => Math.random() - .5).slice(0, 3);
+  for (const i of slots) back[i] = WEIRD_START[Math.floor(Math.random() * WEIRD_START.length)];
+  return back;
+}
+function newState(mode, opts = {}) {
   pid = 1;
   const bd = new Array(N * N).fill(null);
-  const back = ['R', 'N', 'B', 'A', 'Q', 'K', 'A', 'B', 'N', 'R'];
+  const back = opts.chaosStart ? chaosLineup() : ['R', 'N', 'B', 'A', 'Q', 'K', 'A', 'B', 'N', 'R'];
   for (let k = 0; k < 10; k++) {
     const c = FILE0 + k;
     bd[BACK.b * N + c] = mkPiece(back[k], 'b'); bd[PAWN.b * N + c] = mkPiece('P', 'b');
     bd[PAWN.w * N + c] = mkPiece('P', 'w'); bd[BACK.w * N + c] = mkPiece(back[k], 'w');
   }
   return {
-    mode, board: bd, terr: new Array(N * N).fill(null), fields: { wrap: 0, truce: 0, km: 0, bp: 0 },
+    mode, board: bd, terr: new Array(N * N).fill(null), fields: { wrap: 0, truce: 0, km: 0, bp: 0, allkn: 0, flip: 0, bighead: 0, tiny: 0 },
     turn: 'w', coins: { w: 5, b: 5 }, hand: { w: [], b: [] }, grave: { w: [], b: [] }, snaps: [], extra: false,
     ply: 0, quiet: 0, over: null, last: null, log: [],
   };
@@ -231,7 +269,7 @@ const halfRows = side => [...Array(N).keys()].filter(r => side === 'w' ? r > MID
 
 // ===================================================================== cards
 const SETS = {
-  classic: { name: 'Inkmate Classic', short: '' },
+  classic: { name: 'Chess 2 Classic', short: '' },
   crusade: { name: 'Iron Crusade', short: 'Iron Crusade' },
   west: { name: 'Dust & Daring', short: 'Dust & Daring' },
   monster: { name: 'Monster Mayhem', short: 'Monster Mayhem' },
@@ -489,7 +527,7 @@ const RARITIES = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
 const RARITY_LABEL = { common: 'Scribble', uncommon: 'Sketch', rare: 'Inked', epic: 'Masterpiece', legendary: 'Legendary' };
 const SCRAP = { common: 1, uncommon: 2, rare: 3, epic: 5, legendary: 8 };
 const PACKS = {
-  main: { name: 'Inkmate Pack', cost: 5, badge: 'pagoda', blurb: 'Everything is in here. Every unit, every spell, every coin card, and the NUKE.' },
+  main: { name: 'Chess 2 Pack', cost: 5, badge: 'pagoda', blurb: 'Everything is in here. Every unit, every spell, every coin card, and the NUKE.' },
 };
 
 function pool(set, rarity) { return Object.values(CARDS).filter(c => (set === 'all' || c.set === set) && c.rarity === rarity).map(c => c.key); }
@@ -562,7 +600,7 @@ function evalB(bd, side) {
   for (let i = 0; i < N * N; i++) {
     const p = bd[i]; if (!p) continue;
     const r = i / N | 0, c = i % N, u = U[p.t];
-    let v = u.val * 100 + p.ar * 45 + (p.reb ? 120 : 0) + (u.income ? u.income * 25 : 0) + (p.hatch ? 120 : 0) + (p.bomb ? 25 : 0);
+    let v = u.val * 100 + (p.mut ? p.mut.length * 70 : 0) + p.ar * 45 + (p.reb ? 120 : 0) + (u.income ? u.income * 25 : 0) + (p.hatch ? 120 : 0) + (p.bomb ? 25 : 0);
     const centre = Math.max(0, 9 - (Math.abs(MID - r) + Math.abs(MID - c)));
     if (p.t === 'P') v += Math.max(-10, p.s === 'w' ? (PAWN.w - r) : (r - PAWN.b)) * 7;
     else if (p.t === 'K') v -= Math.abs(r - BACK[p.s]) * 6;
@@ -651,7 +689,7 @@ function aiDecide(st, side) {
 
 Object.assign(INK, {
   N, DIR8, ORTH, DIAG, KN, U, VAL, ENV, setEnv, genMoves, makeMove, unmake, kingSq, inCheck, legalMoves, other, rc, inB,
-  BACK, PAWN, CENTRE_COLS, MID, halfRows, mkPiece, newState, cloneState, homeRows, SETS, CARDS, RARITIES, RARITY_LABEL, SCRAP, PACKS, HAND_MAX, rollPack, rollCard, tradeUp,
+  BACK, PAWN, CENTRE_COLS, MID, MUTATIONS, WEIRD_START, halfRows, mkPiece, newState, cloneState, homeRows, SETS, CARDS, RARITIES, RARITY_LABEL, SCRAP, PACKS, HAND_MAX, rollPack, rollCard, tradeUp,
   addToHand, coinValue, cardOptions, applyCard, legalCardOptions, stateLegal, aiDecide, area, kill, lastSnap,
 });
 })();

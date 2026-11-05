@@ -1,4 +1,4 @@
-/* Inkmate game screen: board rendering, turns, card effects, shop, recycling, pack opening, the Ink Baron. */
+/* Chess 2 game screen: board rendering, turns, card effects, shop, recycling, pack opening, the Ink Baron. */
 (() => {
 'use strict';
 const I = window.INK;
@@ -21,16 +21,25 @@ const FIELD_INFO = {
   truce: ['White Flag', 'nobody can capture'],
   km: ['Knightmare', 'pawns can also jump like knights'],
   bp: ['Backpedal', 'pawns can also step backwards'],
+  allkn: ['Everything is a knight', 'every piece can also jump like a knight'],
+  flip: ['Australia mode', 'everything is upside down'],
+  bighead: ['Big head mode', 'everyone is enormous'],
+  tiny: ['Tiny mode', 'everyone is tiny'],
 };
 
 function snap() { G.snaps.push({ board: G.board.slice(), terr: G.terr.slice(), side: G.turn }); if (G.snaps.length > 12) G.snaps.shift(); }
+function chaosLevel() { try { return localStorage.getItem('chess2.chaos') || 'wild'; } catch (e) { return 'wild'; } }
+const CHAOS_EVERY = { calm: 0, mild: 6, wild: 2, unhinged: 1 };
+const MUTATE_CHANCE = { calm: 0, mild: .15, wild: .3, unhinged: .55 };
 function newGame(mode) {
-  G = I.newState(mode);
+  const level = chaosLevel();
+  G = I.newState(mode, { chaosStart: level !== 'calm' });
+  G.chaos = level;
   Object.assign(G, { sel: -1, pend: null, lock: false, recycle: null });
   anims.length = 0; fx.length = 0;
   if (sizeBoard.done) { cam.cell = MINZOOM(); clampCam(); }
   snap();
-  addLog(mode === 'ai' ? 'New game against the Ink Baron. You play Paper and move first.' : 'New game. Paper moves first.');
+  addLog(mode === 'ai' ? 'New game of Chess 2 against the Ink Baron. You play Paper and move first. Good luck.' : 'New game. Paper moves first.');
   refresh();
 }
 function addLog(text, cls = '') { G.log.unshift({ text, cls }); if (G.log.length > 50) G.log.pop(); }
@@ -156,6 +165,13 @@ async function playMove(side, m) {
     if (mu.abduct && !m.r && !G.board[m.f]) { G.board[m.f] = I.mkPiece('cow', cap.s); addFx({ kind: 'summon', sq: m.f, delay: 250, dur: 700 }); line += ' and beams it up, leaving a cow behind'; }
     if (mu.split && !m.r && !G.board[m.f]) { G.board[m.f] = I.mkPiece('blob', side); addFx({ kind: 'summon', sq: m.f, delay: 200, dur: 700 }); line += ', and splits in two'; }
   } else if (!m.arm && !m.sw) G.quiet++;
+  if (cap && !m.arm && !m.sw && G.chaos && Math.random() < (MUTATE_CHANCE[G.chaos] || 0)) {
+    const at = m.r ? m.f : m.t, pc = G.board[at];
+    if (pc && pc.t !== 'K') {
+      const keys = Object.keys(I.MUTATIONS).filter(k => !(pc.mut || []).includes(k));
+      if (keys.length) { const mk = keys[Math.floor(Math.random() * keys.length)]; G.board[at] = { ...pc, mut: (pc.mut || []).concat(mk) }; line += `. It MUTATES and ${I.MUTATIONS[mk].name}`; addFx({ kind: 'text', sq: at, str: 'MUTATED!', col: GREEN, delay: 500, dur: 1300 }); addFx({ kind: 'spell', key: 'mutate', sq: at, dur: 800, delay: 450 }); }
+    }
+  }
   if (m.pr) { line += ', promoted to Queen'; addFx({ kind: 'text', sq: m.t, str: 'Queen!', col: RED, delay: 250, dur: 1200 }); }
   // landing effects
   if (!m.r && !m.arm && !m.sw && G.board[m.t]) {
@@ -177,6 +193,14 @@ async function playMove(side, m) {
     if (lp && lp.t === 'pigeon') {
       const near = I.area(m.t).some(j => j !== m.t && G.board[j] && G.board[j].s !== side);
       if (near && G.coins[other(side)] > 0) { G.coins[other(side)]--; G.coins[side]++; line += ', and nicks a coin'; addFx({ kind: 'text', sq: m.t, str: '+1', col: GOLD, delay: 250, dur: 1000 }); }
+    }
+    const pt = G.terr[m.t];
+    if (pt && pt.k === 'portal' && G.board[m.t] && !G.board[pt.to] && !(G.terr[pt.to] && G.terr[pt.to].k === 'pit')) {
+      const pc = G.board[m.t]; G.board[pt.to] = pc; G.board[m.t] = null;
+      addAnim({ kind: 'move', p: pc, f: m.t, t: pt.to, dur: 380, delay: 300, fly: true });
+      addFx({ kind: 'spell', key: 'teleport', sq: m.t, sq2: pt.to, dur: 700, delay: 250 });
+      line += ` and falls through a portal to ${sqName(pt.to)}`;
+      m = { ...m, t: pt.to };
     }
     if (G.board[m.t] && G.board[m.t].t === 'moth') {
       let n = 0; for (const j of I.area(m.t)) { const p = G.board[j]; if (p && p.s !== side && p.t !== 'K' && p.sh <= 0) { G.board[j] = { ...p, fz: Math.max(p.fz, 1) }; n++; } }
@@ -259,7 +283,7 @@ function endOfTurnEffects(side) {
     addFx({ kind: 'scream', sq: i, dur: 900 });
     if (hits) { notes.push(`The Screaming Pagoda SCREAMS at ${hits} enem${hits === 1 ? 'y' : 'ies'}`); shakeT = performance.now() + 500; snd('scream'); }
   }
-  for (let i = 0; i < N * N; i++) { const t = G.terr[i]; if (t && (t.k === 'fire' || t.k === 'rad')) { const n = t.n - 1; G.terr[i] = n > 0 ? { ...t, n } : null; } }
+  for (let i = 0; i < N * N; i++) { const t = G.terr[i]; if (t && (t.k === 'fire' || t.k === 'rad' || t.k === 'portal')) { const n = t.n - 1; G.terr[i] = n > 0 ? { ...t, n } : null; } }
   for (const k in G.fields) if (G.fields[k] > 0) { G.fields[k]--; if (!G.fields[k] && FIELD_INFO[k]) notes.push(`${FIELD_INFO[k][0]} wears off`); }
   for (const n of notes) addLog(n + '.', 'warn');
 }
@@ -279,6 +303,11 @@ function finishTurn(side) {
     if (income) { G.coins[G.turn] += income; addLog(`Geese and vending machines pay ${who(G.turn)} ${income} coins.`, 'played'); }
   }
   snap();
+  const every = CHAOS_EVERY[G.chaos] || 0;
+  if (every && G.ply % every === 0 && !G.over) { G.lock = true; refresh(); runChaos().then(startTurn); return; }
+  startTurn();
+}
+function startTurn() {
   I.setEnv(G);
   const t = G.turn;
   if (!canAct(t)) {
@@ -290,6 +319,55 @@ function finishTurn(side) {
   refresh();
   if (G.over) { const ov = G.over, msg = ov.winner ? (G.mode === 'ai' ? (ov.winner === 'w' ? 'Checkmate. You win!' : 'Checkmate. The Ink Baron wins.') : `Checkmate. ${who(ov.winner)} wins!`) : 'Draw'; setTimeout(() => toast(msg), 900); return; }
   if (G.mode === 'ai' && G.turn === 'b') { G.lock = true; refresh(); setTimeout(aiTurn, 450); }
+}
+
+// ---- chaos events
+let lastChaos = null;
+function chaosBanner(name, text) {
+  return new Promise(resolve => {
+    const el = $('#chaos'), reel = el.querySelector('.reel'), desc = el.querySelector('.desc');
+    el.hidden = false; el.classList.remove('land'); desc.textContent = '';
+    const names = I.CHAOS.EVENTS.map(e => e.name);
+    let i = 0, delay = 45, done = false;
+    snd('spin');
+    const finish = () => { if (done) return; done = true; el.hidden = true; el.onclick = null; resolve(); };
+    el.onclick = finish;
+    const tick = () => {
+      if (done) return;
+      if (delay < 230) { reel.textContent = names[(i++ * 7 + Math.floor(Math.random() * names.length)) % names.length]; delay *= 1.16; snd('tick'); setTimeout(tick, delay); return; }
+      reel.textContent = name; desc.textContent = text; el.classList.add('land'); snd('ding');
+      setTimeout(finish, 1700);
+    };
+    tick();
+  });
+}
+async function runChaos() {
+  const side = G.turn;
+  const { ev, st } = I.CHAOS.roll(G, side, lastChaos);
+  lastChaos = ev.key;
+  await chaosBanner(ev.name, ev.text);
+  // animate: pieces that moved slide, pieces that vanished go flying, new ones pop in, changed ones sparkle
+  const before = new Map(); G.board.forEach((p, i) => { if (p) before.set(p.id, { p, i }); });
+  const after = new Map(); st.board.forEach((p, i) => { if (p) after.set(p.id, { p, i }); });
+  Object.assign(G, { board: st.board, terr: st.terr, fields: st.fields, coins: st.coins, hand: st.hand, grave: st.grave });
+  let moved = 0;
+  for (const [id, a] of after) {
+    const b = before.get(id);
+    if (!b) addFx({ kind: 'summon', sq: a.i, dur: 600, delay: Math.random() * 250, big: true });
+    else {
+      if (b.i !== a.i) { addAnim({ kind: 'move', p: a.p, f: b.i, t: a.i, dur: 520 + Math.random() * 200, fly: true }); moved++; }
+      if (b.p.t !== a.p.t || b.p.s !== a.p.s || (a.p.mut || []).length !== (b.p.mut || []).length || a.p.bomb !== b.p.bomb) addFx({ kind: 'spell', key: 'mutate', sq: a.i, dur: 800, delay: 300 });
+    }
+  }
+  for (const [id, b] of before) if (!after.has(id)) { const a = Math.random() * Math.PI * 2; addFx({ kind: 'fling', p: b.p, sq: b.i, dir: [Math.cos(a), Math.sin(a) - .6], delay: 150, dur: 900, s: id }); }
+  if (st._marks) for (const sq of st._marks) addFx({ kind: 'boom', sq, delay: Math.random() * 400, dur: 700 });
+  if (moved > 3) shakeT = performance.now() + 500;
+  addFx({ kind: 'field', key: 'quake', dur: 900 });
+  let line = `CHAOS: ${ev.name}. ${ev.text}`;
+  if (st._winner) line += ` (${who(st._winner)}!)`;
+  addLog(line, 'chaoslog');
+  refresh();
+  await waitAnims();
 }
 
 // ---- the Ink Baron
@@ -521,7 +599,9 @@ function drawBoard(now) {
     let alpha = 1;
     const sm = fx.find(f => f.kind === 'summon' && f.sq === sq && now < f.start + f.dur);
     if (sm) alpha = now < sm.start ? 0 : Math.min(1, (now - sm.start) / (sm.dur * 0.6));
-    I.drawPiece(c, p.t, p.s, x, y, CELL * .82, p.id * 3.7, alpha);
+    const fsz = CELL * .82 * (G.fields.bighead > 0 ? 1.55 : G.fields.tiny > 0 ? .45 : 1);
+    if (G.fields.flip > 0) { c.save(); c.translate(x, y); c.rotate(Math.PI); I.drawPiece(c, p.t, p.s, 0, 0, fsz, p.id * 3.7, alpha); c.restore(); }
+    else I.drawPiece(c, p.t, p.s, x, y, fsz, p.id * 3.7, alpha);
     I.drawBadges(c, p, x, y, CELL);
   }
   for (const f of fx) {
@@ -664,7 +744,7 @@ function drawSpellFx(c, f, k) {
     if (key === 'orbital' && k < .5) { c.fillStyle = 'rgba(179,50,43,0.25)'; c.fillRect(x - CELL * .3, 0, CELL * .6, y); }
     if (key === 'meteor' && k < .4) { c.strokeStyle = K; c.lineWidth = 2; I.circ(c, x - (1 - k / .4) * CELL * 3, y - (1 - k / .4) * CELL * 4, CELL * .25, 1, 1, 10); I.fs(c, K); }
   } else if (key === 'lightning') { if (k < .5) { c.strokeStyle = GOLD; c.lineWidth = 4; c.beginPath(); c.moveTo(x, 0); for (let i = 1; i <= 6; i++) c.lineTo(x + (i < 6 ? (I.hash(i + I.boil) - .5) * CELL : 0), y * i / 6); c.stroke(); } }
-  else if (['curse', 'goo'].includes(key)) { c.strokeStyle = GREEN; c.lineWidth = 1.6; for (let i = 0; i < 6; i++) { c.beginPath(); c.arc(x + (I.hash(i) - .5) * CELL, y - k * CELL * .8 + I.hash(i + 4) * CELL * .3, 3 + i % 3, 0, 7); c.stroke(); } }
+  else if (['curse', 'goo', 'mutate'].includes(key)) { c.strokeStyle = GREEN; c.lineWidth = 1.6; for (let i = 0; i < 6; i++) { c.beginPath(); c.arc(x + (I.hash(i) - .5) * CELL, y - k * CELL * .8 + I.hash(i + 4) * CELL * .3, 3 + i % 3, 0, 7); c.stroke(); } }
   else if (['teleport', 'lasso', 'shuffle'].includes(key)) { c.strokeStyle = BLUE; c.lineWidth = 2; for (const s of [f.sq, f.sq2]) { if (s == null || s < 0) continue; const [px, py] = sqXY(s); for (let r = 1; r <= 3; r++) { c.beginPath(); c.ellipse(px, py + CELL * .3, CELL * .14 * r * (1 + k), CELL * .05 * r * (1 + k), 0, 0, 7); c.stroke(); } } }
   else if (['mindcontrol', 'mutiny'].includes(key)) { c.strokeStyle = BLUE; c.lineWidth = 2; c.beginPath(); for (let a = 0; a < 14; a += .3) c.lineTo(x + Math.cos(a + k * 8) * a * CELL * .03, y + Math.sin(a + k * 8) * a * CELL * .03); c.stroke(); }
   else if (['shield', 'armor', 'repairs', 'bombvest'].includes(key)) { c.strokeStyle = K; c.lineWidth = 2.4; I.circ(c, x, y, CELL * (.3 + k * .3), 4, 1, 14); c.stroke(); }
@@ -1072,6 +1152,9 @@ function snd(type) {
     case 'epic': tone('triangle', 523, 523, .2, .05); tone('triangle', 784, 784, .3, .05, .12); break;
     case 'legend': [523, 659, 784, 1046].forEach((f, i) => tone('triangle', f, f, .35, .06, i * .1)); noise(.6, .08, 5000, .3, 'highpass'); break;
     case 'check': tone('square', 330, 330, .1, .03); tone('square', 330, 330, .1, .03, .15); break;
+    case 'spin': noise(.08, .05, 3000, 0, 'highpass'); break;
+    case 'tick': tone('square', 1200, 1100, .03, .02); break;
+    case 'ding': [660, 880, 1320].forEach((f, i) => tone('triangle', f, f, .25, .05, i * .07)); break;
     case 'whoosh': noise(.22, .18, 1800, 0, 'bandpass'); break;
     case 'scream': tone('sawtooth', 900, 1500, .5, .05); tone('square', 600, 1300, .5, .03); noise(.5, .15, 3000, 0, 'bandpass'); break;
     case 'nukeboom': noise(3.5, .9, 160); tone('sine', 60, 18, 3.2, .35); noise(.4, .5, 4000, 0, 'highpass'); break;
@@ -1091,6 +1174,10 @@ $('#startUnits').addEventListener('click', openGuide);
 $('#unitsClose').addEventListener('click', () => { $('#unitsOverlay').hidden = true; });
 $('#btnNew').addEventListener('click', openStart);
 $('#btnMute').addEventListener('click', () => { muted = !muted; $('#btnMute').textContent = muted ? 'Sound off' : 'Sound on'; $('#btnMute').setAttribute('aria-pressed', String(!muted)); });
+{
+  const cs = $('#chaosQ'); cs.value = chaosLevel();
+  cs.addEventListener('change', () => { try { localStorage.setItem('chess2.chaos', cs.value); } catch (e) {} });
+}
 $('#startAi').addEventListener('click', () => { unlockAudio(); $('#startOverlay').hidden = true; newGame('ai'); });
 $('#startPvp').addEventListener('click', () => { unlockAudio(); $('#startOverlay').hidden = true; newGame('pvp'); });
 $('#btnRecycle').addEventListener('click', () => { if (!humanTurn() || G.lock) return; G.recycle = G.recycle ? null : { picked: new Set() }; G.pend = null; G.sel = -1; refresh(); });

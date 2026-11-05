@@ -1,4 +1,4 @@
-/* Inkmate: the NUKE cinematic, real-time 3D.
+/* Chess 2: the NUKE cinematic, real-time 3D.
    One full-screen fragment shader raymarches the scene: chess pieces and board as signed distance fields,
    a lit metal bomb, and volumetric fireball / mushroom cloud / shockwave / clouds.
    INK.NukeGL.create(canvas) -> renderer or null (no WebGL / shader failed).  renderer.draw(t) draws one frame. */

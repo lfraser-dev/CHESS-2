@@ -1,4 +1,4 @@
-/* Inkmate art: every piece, card illustration, pack wrapper and card back, drawn live with wobbly ink. */
+/* Chess 2 art: every piece, card illustration, pack wrapper and card back, drawn live with wobbly ink. */
 (() => {
 'use strict';
 const INK = window.INK;
@@ -585,6 +585,7 @@ function drawBadges(c, p, x, y, cell) {
   if (p.curse) { c.strokeStyle = GREEN; circ(c, bx, by, r * 1.05, p.id, .3, 8); fs(c, PAPER); badgeNum(c, bx, by, p.curse, GREEN, r); next(); }
   if (p.hatch) { c.strokeStyle = GOLD; circ(c, bx, by, r * 1.05, p.id, .3, 8); fs(c, PAPER); badgeNum(c, bx, by, p.hatch, '#8a6510', r); next(); }
   if (p.bounty) { c.fillStyle = '#8a6510'; c.font = `bold ${Math.round(r * 2.2)}px sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('$', bx, by); next(); }
+  if (p.mut && p.mut.length) { c.save(); c.strokeStyle = '#4c8a3a'; c.fillStyle = '#c9ee8a'; c.lineWidth = Math.max(1.2, cell / 40); c.beginPath(); for (let i = 0; i <= 10; i++) { const a = i / 10 * Math.PI * 2, rr = i % 2 ? r * .55 : r * 1.15; const px = bx + Math.cos(a) * rr, py = by + Math.sin(a) * rr; i ? c.lineTo(px, py) : c.moveTo(px, py); } c.closePath(); c.fill(); c.stroke(); badgeNum(c, bx, by, p.mut.length, '#2e5a22', r); c.restore(); next(); }
   if (p.reb) { c.strokeStyle = RED; c.lineWidth = Math.max(1.2, cell / 40); c.beginPath(); c.moveTo(bx - r, by + r); c.quadraticCurveTo(bx + r * .2, by, bx + r, by - r * 1.2); c.stroke(); ln(c, bx - r * .2, by + r * .2, bx + r * .4, by + r * .6, p.id, .1); next(); }
   if (p.sh > 0) { c.strokeStyle = K; c.lineWidth = 1.6; c.setLineDash([4, 4]); c.beginPath(); c.arc(x, y, cell * .45, 0, 7); c.stroke(); c.setLineDash([]); }
   c.strokeStyle = K;
@@ -616,6 +617,12 @@ function drawTerrain(c, t, x, y, cell, sq, showMine) {
   } else if (t.k === 'holy') {
     c.strokeStyle = GOLD; c.lineWidth = 1.6; c.setLineDash([3, 4]); c.beginPath(); c.arc(x, y, h * .82, 0, 7); c.stroke(); c.setLineDash([]);
     for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; ln(c, x + Math.cos(a) * h * .85, y + Math.sin(a) * h * .85, x + Math.cos(a) * h * .97, y + Math.sin(a) * h * .97, sq + i, .2); }
+  } else if (t.k === 'portal') {
+    const hue = Math.floor((t.id || 0) * 2) % 2 ? '#4a6fb0' : '#b05ad0', sp = performance.now() / 400;
+    c.save(); c.strokeStyle = hue; c.lineWidth = Math.max(1.5, cell / 24);
+    for (let k = 0; k < 3; k++) { c.beginPath(); c.ellipse(x, y + h * .25, h * (.75 - k * .2), h * (.32 - k * .08), 0, sp + k, sp + k + Math.PI * 1.5); c.stroke(); }
+    c.fillStyle = hue; c.globalAlpha = .18; c.beginPath(); c.ellipse(x, y + h * .25, h * .75, h * .32, 0, 0, Math.PI * 2); c.fill();
+    c.restore();
   } else if (t.k === 'banana') {
     c.save(); c.translate(x, y + h * .35); c.rotate(-.3); c.strokeStyle = K; c.lineWidth = 1.4;
     for (const a of [-1.2, -.4, .5]) { c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(Math.cos(a) * h * .5, Math.sin(a) * h * .25 - h * .2, Math.cos(a) * h * .55, Math.sin(a) * h * .3); c.lineTo(0, 0); c.fillStyle = '#f3d55b'; c.fill(); c.stroke(); }
@@ -774,7 +781,7 @@ function drawPackArt(cv, w, h, packKey = 'classic') {
   c.fillStyle = PAPER; ell(c, w / 2, h * .47, w * .34, h * .25); c.fill(); c.stroke();
   drawPiece(c, pk.badge, 'w', w / 2, h * .44, w * .45, 3);
   c.fillStyle = K; c.textAlign = 'center';
-  const title = 'INKMATE';
+  const title = 'CHESS 2';
   c.font = `${Math.round(w * (title.length > 9 ? .095 : .13))}px 'Permanent Marker', 'Patrick Hand', cursive`; c.fillText(title, w / 2, m * 2.6 + w * .14);
   if (w > 80) { c.font = `${Math.round(w * .075)}px 'Patrick Hand', cursive`; c.fillText('3 cards · could be a NUKE', w / 2, h - m * 2.6 - w * .05); }
   INK.boil = saved;

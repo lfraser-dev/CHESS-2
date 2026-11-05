@@ -272,3 +272,21 @@ button.card:disabled { cursor: default; }
 .cutscene video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #000; }
 
 #duel { position: absolute; left: 0; top: 0; z-index: 5; cursor: pointer; }
+
+.sub-title { margin: -6px 0 10px; font: 400 20px/1 var(--hand); color: var(--red); transform: rotate(-1deg); }
+.chaos-pick { display: flex; flex-direction: column; gap: 4px; margin: 0 0 16px; font-size: 18px; }
+.chaos-pick select { font: inherit; font-size: 17px; color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 8px 6px 9px 7px; padding: 6px 8px; max-width: 100%; }
+.chaos {
+  position: absolute; left: 50%; top: 22%; z-index: 6; transform: translateX(-50%) rotate(-2deg);
+  width: min(92%, 560px); padding: 12px 18px 14px; text-align: center; cursor: pointer;
+  background: #1e1c24; color: #f2eee2; border: 4px solid #1e1c24; outline: 3px solid #f3d55b; outline-offset: -9px;
+  box-shadow: 6px 8px 0 rgba(30,28,36,.55);
+  animation: chaosIn .25s cubic-bezier(.2,.9,.3,1.4);
+}
+.chaos-head { font: 400 15px/1 var(--marker); letter-spacing: .3em; color: #f3d55b; }
+.chaos .reel { font: 400 clamp(24px, 5vw, 40px)/1.1 var(--marker); margin: 8px 0 4px; min-height: 1.1em; }
+.chaos .desc { font: 19px/1.25 var(--hand); color: #e9e1cf; min-height: 1.2em; }
+.chaos.land .reel { color: #f3d55b; animation: chaosLand .45s cubic-bezier(.2,.9,.3,1.6); }
+@keyframes chaosIn { from { transform: translateX(-50%) rotate(-12deg) scale(.4); opacity: 0; } }
+@keyframes chaosLand { 0% { transform: scale(1.6) rotate(4deg); } 100% { transform: scale(1); } }
+.log li.chaoslog, .log li.chaoslog:first-child { color: #8a3fb0; font-weight: bold; }

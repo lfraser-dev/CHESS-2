@@ -1,12 +1,31 @@
-# Inkmate
+# Chess 2
 
-Chess on a 15×15 notebook board, scribbled in ink, with card packs.
+*The sequel nobody asked for.*
+
+Chess on a 15×15 notebook board, scribbled in ink, with card packs and absolutely no stability.
 
 A normal chess army each (plus two Archers) on a 15×15 board. Scroll or pinch to zoom in, drag to look around. Every turn you either **move a piece or play a card**.
 You earn coins (1 a turn, more for captures) and spend 5 to open a pack. Opening packs doesn't use your turn.
 There is **one pack with all 127 cards** in it: units, rule-bending spells, coins, and the **NUKE**.
 
 **Play:** open `index.html` in a browser. No build step, no dependencies. Play the computer (the Ink Baron) or two players on one device.
+
+## Chaos
+
+Pick a **chaos level** on the start screen:
+
+| Level | What happens |
+| --- | --- |
+| Calm | Normal starting armies, no events |
+| Mild | Shuffled armies, a chaos event every 3 rounds |
+| Wild (default) | Shuffled armies, a chaos event every round |
+| Unhinged | A chaos event every single turn, and lots of mutations |
+
+**Chaos events** spin up on a slot machine and then happen, including: Gravity Turned On, Gravity Reversed, The Board Tilts, The Board Spins, Sideways, Mirror World, Kings Swap Places, Traitors!, It's Raining Ducks, Chicken Stampede, Glow-Up, Budget Cuts, Cloning Accident, Tornado, The Floor Is Lava, The Board Is Crumbling, Portals Open, Everything Is a Knight, Australia Mode, Big Head Mode, Honey I Shrunk the Pieces, Mutation Season, Pawn Storm, Gust of Wind, Musical Chairs, Bomb Squad, Meteor Shower, The Kings Do a Little Dance, Inflation, Market Crash, Lottery Winner, Free Cards, Hands Swapped, and Nothing Happened (suspicious).
+
+**Mutations:** a piece that captures may mutate and gain a power: jumping like a knight, stepping like a king, sliding straight or diagonally, flying over pieces, zooming 6 squares, or growing a gun. Mutated pieces show a green star with the number of mutations.
+
+**Shuffled armies:** the back row is shuffled and three pieces are swapped for random weird units (both sides get the same lineup).
 
 ## Rarity tiers
 
@@ -53,6 +72,7 @@ Open **Units & cards** in the game for every card, a move diagram for every unit
 - `art.js` – all the hand-drawn art, drawn live on canvas
 - `game.js` – board, turns, shop, recycling, pack opening
 - `battle.js` – the battle cam close-ups
+- `chaos.js` – the chaos events
 - `cinema3d.js` – the NUKE cinematic's real-time 3D: raymarched chess set, metal bomb, volumetric clouds, fireball, mushroom cloud and shockwave (WebGL)
 - `cinema.js` – the cinematic's timeline, titles, captions, letterbox, grain and flashes (plus a 2D fallback if WebGL isn't available)
 - `assets/` – drop `nuke-theme.mp3` here

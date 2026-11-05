@@ -1,4 +1,4 @@
-/* Inkmate: the NUKE cinematic.
+/* Chess 2: the NUKE cinematic.
    Rendered live on a canvas: letterbox, film grain, grading, camera moves and cuts.
    runNukeCinematic(canvas, { music, sfx, lines, cast }) -> Promise (resolves when it ends or is skipped).
 
@@ -134,7 +134,7 @@ function titleCard(c, W, H, S, t) {
   try { c.letterSpacing = `${Math.round(S * .018)}px`; } catch (e) {}
   c.font = `600 ${Math.round(S * .055)}px 'Cinzel', 'Times New Roman', serif`; c.fillText('THE NUCLEAR OPTION', 0, 0);
   try { c.letterSpacing = `${Math.round(S * .01)}px`; } catch (e) {}
-  c.globalAlpha = k * .6; c.font = `${Math.round(S * .02)}px 'Cinzel', serif`; c.fillText('AN INKMATE PICTURE', 0, -S * .07);
+  c.globalAlpha = k * .6; c.font = `${Math.round(S * .02)}px 'Cinzel', serif`; c.fillText('A CHESS 2 PICTURE', 0, -S * .07);
   c.restore();
   try { c.letterSpacing = '0px'; } catch (e) {}
 }

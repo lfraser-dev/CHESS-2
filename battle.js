@@ -1,4 +1,4 @@
-/* Inkmate battle cam: a quick comic-book close-up whenever one piece takes another.
+/* Chess 2 battle cam: a quick comic-book close-up whenever one piece takes another.
    INK.Battle.play(canvas, { att, def, armour, gain, snd }) -> Promise (resolves when done or skipped)
    INK.Battle.style(type, ranged) -> how a unit attacks (used by the board animations too). */
 (() => {
