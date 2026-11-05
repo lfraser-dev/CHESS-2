@@ -12,6 +12,7 @@ const lerp = (a, b, k) => a + (b - a) * k;
 let G = null;
 const NAMES = { ai: { w: 'You', b: 'The Ink Baron' }, pvp: { w: 'Paper', b: 'Ink' } };
 const who = s => NAMES[G.mode][s];
+const poss = s => who(s) === 'You' ? 'Your' : who(s) + '\'s';
 const colName = c => c < 26 ? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[c] : 'A' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[c - 26];
 const sqName = i => { const [r, c] = rc(i); return colName(c) + (N - r); };
 const viewer = () => G.mode === 'ai' ? 'w' : G.turn;
@@ -31,16 +32,23 @@ function snap() { G.snaps.push({ board: G.board.slice(), terr: G.terr.slice(), s
 function chaosLevel() { try { return localStorage.getItem('chess2.chaos') || 'wild'; } catch (e) { return 'wild'; } }
 const CHAOS_EVERY = { calm: 0, mild: 6, wild: 2, unhinged: 1 };
 const MUTATE_CHANCE = { calm: 0, mild: .15, wild: .3, unhinged: .55 };
+const M = I.MEMES;
+const SPECIAL_CD = { calm: 99, mild: 3, wild: 2, unhinged: 1 };
+const tier = () => G.chaos === 'calm' ? 0 : M.tierOf(G.rot || 0);
+function addRot(n) { if (G.chaos === 'calm') return; G.rot = Math.min(100, (G.rot || 0) + n * (M.RATE[G.chaos] || 1)); }
 function newGame(mode) {
   const level = chaosLevel();
   G = I.newState(mode, { chaosStart: level !== 'calm' });
   G.chaos = level;
-  Object.assign(G, { sel: -1, pend: null, lock: false, recycle: null });
+  Object.assign(G, { sel: -1, pend: null, spec: null, lock: false, recycle: null, rot: level === 'unhinged' ? 20 : 0, limbo: [], spcd: { w: 0, b: 0 }, finale: false });
+  G.actShown = level === 'calm' ? 0 : M.tierOf(G.rot);
   anims.length = 0; fx.length = 0;
   if (sizeBoard.done) { cam.cell = MINZOOM(); clampCam(); }
   snap();
   addLog(mode === 'ai' ? 'New game of Chess 2 against the Ink Baron. You play Paper and move first. Good luck.' : 'New game. Paper moves first.');
   refresh();
+  if (level !== 'calm' && newGame.started) { const t = M.TIERS[G.actShown]; G.lock = true; refresh(); showAct(t).then(() => { G.lock = false; refresh(); }); }
+  newGame.started = true;
 }
 function addLog(text, cls = '') { G.log.unshift({ text, cls }); if (G.log.length > 50) G.log.pop(); }
 
@@ -208,6 +216,11 @@ async function playMove(side, m) {
     }
   }
   addLog(line);
+  { I.setEnv(G); const chk = I.inCheck(G.board, other(side)), atk = G.board[m.t] || mover;
+    const mc = M.moveCaption(side, atk, cap && !m.sw ? cap : null, tier(), chk);
+    meme(mc.text, { react: mc.react, sq: m.t, big: !!(cap && U[cap.t].val >= 5) || (chk && tier() >= 2) });
+    if (mc.annot) addFx({ kind: 'annot', sq: m.t, a: mc.annot, delay: 250, dur: 1800 });
+    if (cap && !m.arm && !m.sw) addRot(4); }
   refresh();
   await waitAnims();
   finishTurn(side);
@@ -254,8 +267,8 @@ function endOfTurnEffects(side) {
     let p = G.board[i]; if (!p) continue;
     if (p.s === side) {
       if (p.fz > 0) p = { ...p, fz: p.fz - 1 };
-      if (p.curse) { p = { ...p, curse: p.curse - 1 }; if (p.curse <= 0) { G.board[i] = p; killReal(i, 100); notes.push(`${who(side)}'s cursed ${U[p.t].name} crumbles to dust`); continue; } }
-      if (p.hatch) { p = { ...p, hatch: p.hatch - 1 }; if (p.hatch <= 0) { p = { ...p, t: 'D', hatch: 0 }; addFx({ kind: 'summon', sq: i, dur: 900, big: true }); notes.push(`${who(side)}'s Dragon Egg hatches!`); } }
+      if (p.curse) { p = { ...p, curse: p.curse - 1 }; if (p.curse <= 0) { G.board[i] = p; killReal(i, 100); notes.push(`${poss(side)} cursed ${U[p.t].name} crumbles to dust`); continue; } }
+      if (p.hatch) { p = { ...p, hatch: p.hatch - 1 }; if (p.hatch <= 0) { p = { ...p, t: 'D', hatch: 0 }; addFx({ kind: 'summon', sq: i, dur: 900, big: true }); notes.push(`${poss(side)} Dragon Egg hatches!`); } }
     } else if (p.sh > 0) p = { ...p, sh: p.sh - 1 };
     G.board[i] = p;
   }
@@ -303,15 +316,72 @@ function finishTurn(side) {
     if (income) { G.coins[G.turn] += income; addLog(`Geese and vending machines pay ${who(G.turn)} ${income} coins.`, 'played'); }
   }
   snap();
-  const every = CHAOS_EVERY[G.chaos] || 0;
-  if (every && G.ply % every === 0 && !G.over) { G.lock = true; refresh(); runChaos().then(startTurn); return; }
-  startTurn();
+  addRot(2.5);
+  returnFromLimbo();
+  let every = CHAOS_EVERY[G.chaos] || 0;
+  if (every > 1 && tier() >= 3) every = Math.max(1, every - 1);
+  const steps = [];
+  if (G.finale && !G.over) steps.push(finaleMeteor);
+  if (every && G.ply % every === 0 && !G.over) steps.push(runChaos);
+  if (G.chaos !== 'calm' && tier() > (G.actShown || 0) && !G.over) steps.push(nextAct);
+  if (!steps.length) { startTurn(); return; }
+  G.lock = true; refresh();
+  (async () => { for (const f of steps) await f(); startTurn(); })();
+}
+// pieces that walked off the board come back when it's the other side's move (so they can give check but never leave a king hanging)
+function returnFromLimbo() {
+  if (!G.limbo || !G.limbo.length) return;
+  for (const e of G.limbo.slice()) {
+    if (G.ply < e.back || G.turn === e.p.s) continue;
+    const rows = e.why === 'snacks' ? I.homeRows(e.p.s) : I.halfRows(other(e.p.s));
+    let at = -1; const opts = [];
+    for (let i = 0; i < N * N; i++) { const r = i / N | 0; const t = G.terr[i]; if (rows.includes(r) && !G.board[i] && !(t && (t.k === 'pit' || t.k === 'fire' || t.k === 'portal'))) opts.push(i); }
+    if (!opts.length) continue;
+    at = opts[Math.floor(Math.random() * opts.length)];
+    G.board[at] = { ...e.p, fz: 0 };
+    G.limbo.splice(G.limbo.indexOf(e), 1);
+    addFx({ kind: 'summon', sq: at, dur: 900, big: true }); addFx({ kind: 'spell', key: 'teleport', sq: at, dur: 800 });
+    if (e.why === 'snacks') { G.coins[e.p.s] += 3; addFx({ kind: 'text', sq: at, str: '+3 snacks', col: GOLD, delay: 300, dur: 1300 }); }
+    addLog(e.why === 'snacks' ? `${poss(e.p.s)} ${U[e.p.t].name} is back from the shop on ${sqName(at)} with 3 coins.` : `${poss(e.p.s)} ${U[e.p.t].name} falls out of another dimension onto ${sqName(at)}!`, 'special');
+    meme(`${M.SIDE(e.p.s)}: *${U[e.p.t].name} ${e.why === 'snacks' ? 'is back with snacks' : 'returns from another dimension'}*`, { react: e.why === 'snacks' ? 'he\'s back' : 'HE\'S BACK', sq: at, big: e.why !== 'snacks' });
+    focusOn(at);
+  }
+}
+async function nextAct() {
+  const t = tier();
+  G.actShown = t;
+  if (t >= 5 && !G.finale) { await runFinale(); return; }
+  await showAct(M.TIERS[t]);
+  addLog(`${M.TIERS[t].act}: ${M.TIERS[t].name}. New special moves unlocked.`, 'act');
+}
+async function runFinale() {
+  await showAct(M.TIERS[5]);
+  G.finale = true;
+  for (const s of ['w', 'b']) I.addToHand(G, s, 'nuke');
+  addLog('THE FINALE: both sides get a NUKE card, a meteor lands every turn, and anything can self-destruct.', 'act');
+  snd('airhorn'); slam('FINAL BOSS MUSIC', true);
+  refresh(); await sleep(900);
+}
+async function finaleMeteor() {
+  const hit = M.meteor(G, G.turn);
+  if (!hit) return;
+  focusOn(hit.sq);
+  Object.assign(G, { board: hit.st.board, terr: hit.st.terr, grave: hit.st.grave });
+  addFx({ kind: 'spell', key: 'meteor', sq: hit.sq, dur: 900 }); addFx({ kind: 'boom', sq: hit.sq, delay: 350, dur: 800 });
+  if (hit.p) { const a = Math.random() * Math.PI * 2; addFx({ kind: 'fling', p: hit.p, sq: hit.sq, dir: [Math.cos(a), Math.sin(a) - .6], delay: 380, dur: 850, s: hit.p.id }); }
+  setTimeout(() => snd('boom'), 350); shakeT = performance.now() + 900;
+  addLog(`A meteor lands on ${sqName(hit.sq)}${hit.p ? `, flattening ${poss(hit.p.s)} ${U[hit.p.t].name}` : ''}.`, 'chaoslog');
+  meme(`The sky: *drops a meteor${hit.p ? ` on the ${U[hit.p.t].name}` : ''}*`, { react: hit.p ? M.pick(['UNLUCKY', 'skill issue (cosmic)', 'GG']) : null, sq: hit.sq });
+  refresh(); await waitAnims();
 }
 function startTurn() {
   I.setEnv(G);
   const t = G.turn;
+  if (G.spcd && G.spcd[t] > 0) G.spcd[t]--;
   if (!canAct(t)) {
-    if (I.inCheck(G.board, t)) { G.over = { winner: other(t), why: 'checkmate' }; addLog(`Checkmate! ${G.mode === 'ai' ? (other(t) === 'w' ? 'You win.' : 'The Ink Baron wins.') : who(other(t)) + ' wins.'}`, 'big'); snd('win'); }
+    if (I.inCheck(G.board, t)) { G.over = { winner: other(t), why: 'checkmate' }; addLog(`Checkmate! ${G.mode === 'ai' ? (other(t) === 'w' ? 'You win.' : 'The Ink Baron wins.') : who(other(t)) + ' wins.'}`, 'big');
+      const lost = G.mode === 'ai' && other(t) === 'b'; snd(lost ? 'trombone' : 'win');
+      meme(`${M.SIDE(other(t))}: *checkmates*`, { react: lost ? 'it\'s so over' : M.pick(['GG EZ', 'WE\'RE SO BACK', 'absolute cinema']), big: true, sq: I.kingSq(G.board, t) }); }
     else { G.over = { winner: null, why: 'stalemate' }; addLog('Stalemate. Nobody can move, so it\'s a draw.', 'big'); }
   } else if (G.quiet >= 120) { G.over = { winner: null, why: 'quiet' }; addLog('Sixty moves each with nothing captured. It\'s a draw.', 'big'); }
   else if (I.inCheck(G.board, t)) { addLog(`${who(t)} ${G.mode === 'ai' && t === 'w' ? 'are' : 'is'} in check!`, 'warn'); snd('check'); }
@@ -366,9 +436,100 @@ async function runChaos() {
   let line = `CHAOS: ${ev.name}. ${ev.text}`;
   if (st._winner) line += ` (${who(st._winner)}!)`;
   addLog(line, 'chaoslog');
+  addRot(3);
+  if (ev.key !== 'nothing' && Math.random() < .55) setTimeout(() => slam(M.pick(M.REACT.chaos)), 250);
   refresh();
   await waitAnims();
 }
+
+// ---- special moves
+async function doSpecial(side, at, key, tg) {
+  const res = M.trySpecial(G, side, at, key, tg);
+  G.spec = null; G.sel = -1; tKey = null;
+  if (!res) { toast('That special move isn\'t allowed right now'); refresh(); return; }
+  G.lock = true;
+  const p = G.board[at], sp = res.sp, name = U[p.t].name;
+  focusOn(at); refresh();
+  punch(at, 1.0, 1300);
+  meme(`${M.SIDE(side)}: *${sp.verb}*`, { react: M.pick(sp.react), sq: tg >= 0 ? tg : at, big: true, sound: false });
+  snd(sp.tier >= 3 ? 'airhorn' : 'vboom');
+  await sleep(650);
+  const before = new Map(); G.board.forEach((q, i) => { if (q) before.set(q.id, { p: q, i }); });
+  const st = res.st;
+  Object.assign(G, { board: st.board, terr: st.terr, fields: st.fields, coins: st.coins, hand: st.hand, grave: st.grave });
+  evToFx(res.ev, sp.key === 'airstrike' ? 'orbital' : sp.key === 'convert' ? 'mindcontrol' : sp.key);
+  const killed = new Set(res.ev.filter(e => e.type === 'destroy').map(e => e.p.id));
+  G.board.forEach((q, i) => { if (!q) return; const b = before.get(q.id); if (b && b.i !== i) addAnim({ kind: 'move', p: q, f: b.i, t: i, dur: 480, fly: true }); else if (b && b.p.s !== q.s) addFx({ kind: 'spell', key: 'mutate', sq: i, dur: 900 }); });
+  if (res.out.limbo) {
+    G.limbo.push({ p: res.out.limbo.p, back: G.ply + 4, why: res.out.limbo.why });
+    addFx({ kind: 'warp', p: res.out.limbo.p, sq: at, dur: 1000 });
+  }
+  if (res.ev.some(e => e.type === 'shell')) snd('boom');
+  else if (killed.size) setTimeout(() => snd('hit'), 200);
+  G.last = { f: at, t: tg >= 0 ? tg : at };
+  addLog(`${poss(side)} ${name} ${res.text}.`, 'special');
+  G.spcd[side] = SPECIAL_CD[G.chaos] || 2;
+  addRot(6);
+  if (res.out.extra) G.extra = true;
+  refresh();
+  await waitAnims();
+  if (sp.free) { G.lock = false; refresh(); if (G.mode === 'ai' && side === 'b') setTimeout(aiTurn, 300); return; }
+  finishTurn(side);
+}
+// the Ink Baron picks the special that wins the most material (or a random harmless one now and then)
+function aiSpecial() {
+  const all = M.allSpecials(G, 'b'); if (!all.length) return null;
+  const worth = st => st.board.reduce((n, p) => n + (p ? (p.s === 'b' ? 1 : -1) * (U[p.t].val || 0) : 0), 0);
+  const base = worth(G);
+  let best = null, bestSc = -1e9;
+  for (const o of all) {
+    const r = M.trySpecial(G, 'b', o.at, o.key, o.tg); if (!r) continue;
+    let sc = worth(r.st) - base + Math.random() * 1.5;
+    if (r.out.limbo) sc -= U[G.board[o.at].t].val * .4;
+    if (o.key === 'selfdestruct' && sc < 3) continue;
+    if (o.key === 'snack' && G.coins.b > 10) sc -= 3;
+    if (sc > bestSc) { bestSc = sc; best = o; }
+  }
+  return bestSc >= .8 || (best && Math.random() < .25) ? best : null;
+}
+
+// ---- meme presentation
+let memeT = 0;
+function meme(text, o = {}) {
+  const el = $('#memeCap');
+  el.textContent = text; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); el.hidden = false;
+  clearTimeout(memeT); memeT = setTimeout(() => { el.hidden = true; }, 2300);
+  if (o.react) setTimeout(() => slam(o.react, o.big), 380);
+  if (o.big && o.sq != null && o.sq >= 0) punch(o.sq, .55, 900);
+}
+let slamT = 0;
+function slam(text, big) {
+  const el = $('#memeReact');
+  el.textContent = text;
+  el.style.setProperty('--rot', ((Math.random() - .5) * 18).toFixed(1) + 'deg');
+  el.style.setProperty('--x', ((Math.random() - .5) * 30).toFixed(0) + '%');
+  el.classList.toggle('big', !!big);
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); el.hidden = false;
+  if (big) { const fr = bc.parentElement; fr.classList.remove('fried'); void fr.offsetWidth; fr.classList.add('fried'); shakeT = performance.now() + 350; }
+  snd(big ? 'vboom' : M.pick(['scratch', 'boing', 'brilliant']));
+  clearTimeout(slamT); slamT = setTimeout(() => { el.hidden = true; }, 1500);
+}
+function showAct(t) {
+  return new Promise(resolve => {
+    const el = $('#act');
+    el.querySelector('.act-n').textContent = t.act;
+    el.querySelector('.act-name').textContent = t.name;
+    el.querySelector('.act-sub').textContent = t.sub;
+    el.classList.toggle('finale', t.act === 'THE FINALE');
+    el.hidden = false; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+    snd(t.act === 'THE FINALE' ? 'airhorn' : 'dun');
+    let done = false;
+    const fin = () => { if (done) return; done = true; el.hidden = true; el.onclick = null; resolve(); };
+    el.onclick = fin; setTimeout(fin, t.act === 'THE FINALE' ? 3600 : 2600);
+  });
+}
+let punchFx = null;
+function punch(sq, amt, dur) { punchFx = { sq, amt, start: performance.now(), dur }; }
 
 // ---- the Ink Baron
 async function aiTurn() {
@@ -391,6 +552,10 @@ async function aiTurn() {
       toast(`The Ink Baron opened an ${PACKS[pk].name}`); snd('rip'); refresh();
       await sleep(650);
     }
+  }
+  if (G.chaos !== 'calm' && !G.spcd.b && tier() >= 1 && Math.random() < .45) {
+    const sp = aiSpecial();
+    if (sp) { await sleep(250); await doSpecial('b', sp.at, sp.key, sp.tg); return; }
   }
   const plan = I.aiDecide(G, 'b');
   I.setEnv(G);
@@ -521,10 +686,11 @@ function inCheckCached(s) {
 let tKey = null, tList = [];
 function currentTargets() {
   if (!humanTurn() || G.lock || G.recycle) return [];
-  const key = G.ply + ':' + G.sel + ':' + (G.pend ? G.pend.idx + '/' + G.pend.first : '') + ':' + G.turn;
+  const key = G.ply + ':' + G.sel + ':' + (G.pend ? G.pend.idx + '/' + G.pend.first : '') + ':' + G.turn + ':' + (G.spec ? G.spec.key : '');
   if (tKey === key) return tList;
   let list = [];
-  if (G.pend) {
+  if (G.spec) list = G.spec.opts.filter(o => o >= 0).map(o => ({ sq: o, type: 'special' }));
+  else if (G.pend) {
     const card = CARDS[G.pend.key], T = card.target;
     if (T.t === 'pair') {
       if (G.pend.first == null) list = [...new Set(G.pend.opts.map(o => o.a))].map(sq => ({ sq, type: 'spell' }));
@@ -546,7 +712,13 @@ function drawBoard(now) {
   let sx = 0, sy = 0;
   if (now < shakeT) { sx = (Math.random() - .5) * 8 * DPR; sy = (Math.random() - .5) * 6 * DPR; }
   for (const f of fx) if (f.kind === 'impact' && now >= f.start && now < f.start + 200) { const a = (1 - (now - f.start) / 200) * (f.big ? 9 : 5) * DPR; sx += (Math.random() - .5) * a; sy += (Math.random() - .5) * a; }
-  c.setTransform(DPR, 0, 0, DPR, sx, sy);
+  let z = 1, zx = 0, zy = 0;
+  if (punchFx && G) {
+    const k = (now - punchFx.start) / punchFx.dur;
+    if (k >= 1) punchFx = null;
+    else { const env = k < .15 ? 1 - Math.pow(1 - k / .15, 3) : k < .7 ? 1 : 1 - ease((k - .7) / .3); z = 1 + punchFx.amt * env; const [px, py] = sqXY(punchFx.sq); const fx0 = Math.max(BS * .2, Math.min(BS * .8, px)), fy0 = Math.max(BS * .2, Math.min(BS * .8, py)); zx = (BS / 2 - fx0 * z) * env + (1 - env) * (fx0 - fx0 * z); zy = (BS / 2 - fy0 * z) * env + (1 - env) * (fy0 - fy0 * z); }
+  }
+  c.setTransform(DPR * z, 0, 0, DPR * z, sx + zx * DPR, sy + zy * DPR);
   c.lineCap = 'round'; c.lineJoin = 'round';
   if (!G) return;
   drawGrid(c);
@@ -579,6 +751,7 @@ function drawBoard(now) {
     else if (t.type === 'swap') { c.strokeStyle = BLUE; c.lineWidth = 2; c.beginPath(); c.arc(x, y, CELL * .36, -2.6, -0.5); c.stroke(); c.beginPath(); c.arc(x, y, CELL * .36, 0.5, 2.6); c.stroke(); }
     else if (t.type === 'place') { c.strokeStyle = BLUE; c.lineWidth = 1.6; c.setLineDash([4, 4]); c.strokeRect(x - CELL * .38, y - CELL * .38, CELL * .76, CELL * .76); c.setLineDash([]); }
     else if (t.type === 'spell') { c.strokeStyle = BLUE; c.lineWidth = 2.2; I.circ(c, x, y, CELL * .42, t.sq, 1, 12); c.stroke(); }
+    else if (t.type === 'special') { c.fillStyle = 'rgba(122,63,184,0.16)'; c.fillRect(x - CELL / 2 + 2, y - CELL / 2 + 2, CELL - 4, CELL - 4); c.strokeStyle = '#7a3fb8'; c.lineWidth = 2.2; I.circ(c, x, y, CELL * .4, t.sq + 9, 1.2, 12); c.stroke(); }
   }
   if (hover >= 0 && humanTurn() && !G.lock) {
     const [x, y] = sqXY(hover); c.strokeStyle = 'rgba(30,28,36,0.25)'; c.lineWidth = 1.5; c.strokeRect(x - CELL / 2 + 3, y - CELL / 2 + 3, CELL - 6, CELL - 6);
@@ -714,6 +887,24 @@ function drawBoard(now) {
       c.lineWidth = 4; c.strokeStyle = PAPER; c.strokeText(f.str, x, y - CELL * .55 - k * CELL * .5);
       c.fillStyle = f.col === GOLD ? '#9a6f0c' : f.col; c.fillText(f.str, x, y - CELL * .55 - k * CELL * .5); c.globalAlpha = 1;
     } else if (f.kind === 'spell') drawSpellFx(c, f, k);
+    else if (f.kind === 'annot') {
+      const [x, y] = sqXY(f.sq), R = Math.max(9, CELL * .24), pop = k < .1 ? k / .1 : 1, bx = x + CELL * .38, by = y - CELL * .38;
+      c.globalAlpha = k > .8 ? (1 - k) / .2 : 1;
+      c.save(); c.translate(bx, by); c.scale(pop * (1 + .25 * Math.sin(Math.min(1, k * 6) * Math.PI)), pop);
+      c.fillStyle = f.a[2]; c.strokeStyle = PAPER; c.lineWidth = 2.5; c.beginPath(); c.arc(0, 0, R, 0, 7); c.fill(); c.stroke();
+      c.fillStyle = '#fff'; c.font = `${Math.round(R * 1.1)}px Anton, Impact, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(f.a[0], 0, R * .06);
+      c.restore();
+      c.font = `${Math.round(Math.max(11, CELL * .2))}px 'Patrick Hand', cursive`; c.textAlign = 'left'; c.textBaseline = 'middle';
+      c.lineWidth = 3; c.strokeStyle = PAPER; c.strokeText(f.a[1], bx + R + 3, by); c.fillStyle = f.a[2]; c.fillText(f.a[1], bx + R + 3, by);
+      c.globalAlpha = 1;
+    } else if (f.kind === 'warp') {
+      // the piece spins and shrinks into a little portal
+      const [x, y] = sqXY(f.sq);
+      c.strokeStyle = '#7a3fb8'; c.lineWidth = 2.2; c.globalAlpha = 1 - Math.max(0, k - .7) / .3;
+      for (let r = 1; r <= 3; r++) { c.beginPath(); c.ellipse(x, y + CELL * .2, CELL * .16 * r * (.4 + k), CELL * .06 * r * (.4 + k), 0, 0, 7); c.stroke(); }
+      c.save(); c.translate(x, y - k * CELL * .4); c.rotate(k * 9); I.drawPiece(c, f.p.t, f.p.s, 0, 0, CELL * .82 * Math.max(0, 1 - k), f.p.id * 3.7); c.restore();
+      c.globalAlpha = 1;
+    }
     else if (f.kind === 'field') {
       c.globalAlpha = Math.sin(k * Math.PI) * .6;
       const col = { quake: K, mirror: BLUE, rewind: '#8a6510', wrap: BLUE, truce: SOFT, double: GOLD, hymn: GOLD, siren: RED }[f.key] || K;
@@ -796,6 +987,10 @@ function boardClick(px, py) {
   const sq = sqAt(px, py); if (sq < 0) return;
   hover = sq;
   const side = G.turn, hit = currentTargets().find(t => t.sq === sq);
+  if (G.spec) {
+    if (hit) { doSpecial(side, G.spec.at, G.spec.key, sq); return; }
+    G.spec = null; tKey = null; refresh(); return;
+  }
   if (G.pend) {
     if (!hit) { if (G.pend.first != null) { G.pend.first = null; tKey = null; refresh(); } return; }
     if (CARDS[G.pend.key].target.t === 'pair') {
@@ -826,7 +1021,7 @@ window.addEventListener('keydown', e => {
   if (!$('#unitsOverlay').hidden) { closeOverlays(); return; }
   if (!$('#packOverlay').hidden) { if (!$('#packDone').hidden) closeOverlays(); return; }
   if (G.recycle) { G.recycle = null; refresh(); return; }
-  G.sel = -1; G.pend = null; tKey = null; refresh();
+  G.sel = -1; G.pend = null; G.spec = null; tKey = null; refresh();
 });
 
 // ===================================================================== HTML panels
@@ -846,6 +1041,7 @@ function setStatus() {
     html += ' <button class="btn small" id="stAgain" type="button">Play again</button>';
   } else if (G.mode === 'ai' && G.turn === 'b') html = '<span class="thinking">The Ink Baron is thinking</span>';
   else if (G.lock) html = '…';
+  else if (G.spec) html = `<b class="spx">${M.BY_KEY[G.spec.key].name}</b>: pick a purple square. <button class="btn small ghost" id="stCancel" type="button">Cancel</button>`;
   else if (G.recycle) html = 'Recycling: tap cards in your hand to pick them, then scrap them for coins or trade 3 of the same rarity up.';
   else if (G.pend) {
     const card = CARDS[G.pend.key], T = card.target;
@@ -862,7 +1058,7 @@ function setStatus() {
   }
   st.innerHTML = html;
   const again = $('#stAgain'); if (again) again.onclick = openStart;
-  const cancel = $('#stCancel'); if (cancel) cancel.onclick = () => { G.pend = null; tKey = null; refresh(); };
+  const cancel = $('#stCancel'); if (cancel) cancel.onclick = () => { G.pend = null; G.spec = null; tKey = null; refresh(); };
   const play = $('#stPlay'); if (play) play.onclick = () => playCard(G.turn, G.pend.idx, G.pend.opts[0]);
 }
 function renderBar(el, side) {
@@ -878,6 +1074,42 @@ function renderFields() {
   if (G.mode === 'ai' && G.terr.some(t => t && t.k === 'mine' && t.s === 'b')) chips.push('<span class="chip warn"><b>Careful</b>: the Baron has buried a landmine somewhere</span>');
   el.innerHTML = chips.join('');
   el.hidden = !chips.length;
+}
+function renderRot() {
+  const el = $('#rot'); if (!el) return;
+  const on = G.chaos !== 'calm'; el.hidden = !on; if (!on) return;
+  const t = M.TIERS[tier()], v = Math.round(G.rot || 0);
+  el.querySelector('i').style.width = v + '%';
+  el.querySelector('.rot-act').textContent = `${t.act}: ${t.name}`;
+  el.querySelector('.rot-n').textContent = v >= 100 ? 'MAX' : v + '%';
+  el.classList.toggle('hot', v >= 75);
+}
+function renderSpecials() {
+  const el = $('#specials'); if (!el) return;
+  const side = G.turn, myTurn = humanTurn() && !G.lock && !G.recycle;
+  const p = G.sel >= 0 ? G.board[G.sel] : null;
+  if (!myTurn || !p || p.s !== side || G.chaos === 'calm') {
+    const nxt = M.SPECIALS.filter(s => s.tier > tier() && s.tier < 6);
+    el.innerHTML = G.chaos === 'calm' || !myTurn ? '' : `<p class="hint">Tap one of your pieces to see its <b>special moves</b>.${nxt.length && tier() < 5 ? ` More unlock as the Brainrot meter fills.` : ''}${G.spcd[side] ? ` Specials recharge in ${G.spcd[side]} turn${G.spcd[side] > 1 ? 's' : ''}.` : ''}</p>`;
+    el.hidden = !el.innerHTML; return;
+  }
+  const list = M.specialsFor(G, G.sel, side);
+  const locked = M.SPECIALS.filter(s => s.who(p.t) && (s.tier > tier() || (s.tier >= 5 && !G.finale)));
+  const cd = G.spcd[side];
+  let html = `<div class="sp-head">Special moves: ${U[p.t].name}${cd ? ` <span class="sp-cd">recharging, ${cd} turn${cd > 1 ? 's' : ''}</span>` : ''}</div><div class="sp-list">`;
+  for (const { sp, opts } of list) html += `<button type="button" class="sp-btn${G.spec && G.spec.key === sp.key ? ' on' : ''}" data-k="${sp.key}" ${cd ? 'disabled' : ''}><b>${sp.name}</b>${sp.free ? '<span class="sp-free">free</span>' : ''}<span>${opts[0] < 0 ? 'no target' : opts.length + ' target' + (opts.length > 1 ? 's' : '')}</span></button>`;
+  for (const sp of locked.slice(0, 3)) html += `<span class="sp-lock">🔒 ${sp.name} <i>(${sp.tier >= 5 ? 'finale' : M.TIERS[sp.tier].act})</i></span>`;
+  if (!list.length && !locked.length) html += '<span class="sp-lock">Nothing it can do right now</span>';
+  else if (!list.length) html += '<span class="sp-lock">No specials it can use from here</span>';
+  html += '</div>';
+  el.innerHTML = html; el.hidden = false;
+  el.querySelectorAll('.sp-btn').forEach(b => b.onclick = () => {
+    const it = list.find(x => x.sp.key === b.dataset.k); if (!it || G.lock) return;
+    unlockAudio();
+    if (it.opts[0] < 0) { doSpecial(side, G.sel, it.sp.key, -1); return; }
+    G.spec = G.spec && G.spec.key === it.sp.key ? null : { at: G.sel, key: it.sp.key, opts: it.opts };
+    G.pend = null; tKey = null; snd('pick'); refresh();
+  });
 }
 function renderShop() {
   const side = viewer(), myTurn = humanTurn() && !G.lock;
@@ -898,7 +1130,7 @@ function renderShop() {
 }
 function renderHand() {
   const side = viewer(), myTurn = humanTurn() && !G.lock;
-  $('#handTitle').textContent = (G.mode === 'ai' ? 'Your hand' : `${who(side)}'s hand`) + ` (${G.hand[side].length}/${I.HAND_MAX})`;
+  $('#handTitle').textContent = (G.mode === 'ai' ? 'Your hand' : `${poss(side)} hand`) + ` (${G.hand[side].length}/${I.HAND_MAX})`;
   const rb = $('#btnRecycle'); rb.disabled = !myTurn || (!G.hand[side].length && !G.recycle); rb.textContent = G.recycle ? 'Done recycling' : 'Recycle cards';
   rb.setAttribute('aria-pressed', String(!!G.recycle));
   const hand = $('#hand'), picked = G.recycle ? G.recycle.picked : null;
@@ -931,7 +1163,7 @@ function refresh() {
   if (!G) return;
   renderBar($('#oppBar'), G.mode === 'ai' ? 'b' : other(G.turn));
   renderBar($('#meBar'), G.mode === 'ai' ? 'w' : G.turn);
-  renderFields(); renderShop(); renderHand();
+  renderFields(); renderShop(); renderHand(); renderSpecials(); renderRot();
   $('#log').innerHTML = G.log.slice(0, 16).map(l => `<li class="${l.cls}">${l.text}</li>`).join('');
   setStatus();
   tKey = null;
@@ -944,7 +1176,7 @@ function selectCard(idx) {
   const opts = I.legalCardOptions(G, side, key);
   I.setEnv(G);
   if (!opts.length) { toast(I.inCheck(G.board, side) ? 'That card can\'t get you out of check' : `No way to play ${CARDS[key].name} right now`); return; }
-  G.sel = -1; G.pend = { idx, key, opts, first: null };
+  G.sel = -1; G.spec = null; G.pend = { idx, key, opts, first: null };
   snd('pick'); tKey = null; refresh();
 }
 function togglePick(idx) { const p = G.recycle.picked; p.has(idx) ? p.delete(idx) : p.add(idx); snd('pick'); refresh(); }
@@ -1031,6 +1263,9 @@ function buildGuide() {
   const START = ['K', 'Q', 'R', 'B', 'N', 'A', 'P'];
   const nukeBtn = document.createElement('button'); nukeBtn.type = 'button'; nukeBtn.className = 'btn'; nukeBtn.textContent = 'Watch the NUKE cutscene';
   nukeBtn.onclick = () => { unlockAudio(); nukeCutscene(); }; grid.appendChild(nukeBtn);
+  { const h = document.createElement('h3'); h.textContent = 'Special moves (unlocked by the Brainrot meter)'; grid.appendChild(h);
+    const ul = document.createElement('ul'); ul.className = 'sp-guide'; grid.appendChild(ul);
+    for (const sp of M.SPECIALS) { const li = document.createElement('li'); li.innerHTML = `<b>${sp.name}</b> <i>(${sp.tier >= 5 ? 'Finale' : M.TIERS[sp.tier].act})</i>: ${sp.desc}`; ul.appendChild(li); } }
   const unitBlock = (title, list) => {
     const h = document.createElement('h3'); h.textContent = title; grid.appendChild(h);
     const wrap = document.createElement('div'); wrap.className = 'unit-list'; grid.appendChild(wrap);
@@ -1162,6 +1397,15 @@ function snd(type) {
     case 'rumble': noise(3.5, .12, 120); tone('sine', 45, 38, 3.5, .08); break;
     case 'whistle': tone('sine', 2200, 420, 1.3, .05); tone('triangle', 1100, 210, 1.3, .03); break;
     case 'tinnitus': tone('sine', 4100, 4000, 4.5, .025); break;
+    case 'vboom': { // deep dramatic boom with a fake echo
+      for (const [at, v] of [[0, .32], [.16, .12], [.34, .05]]) { tone('sine', 120, 38, 1.1, v, at); noise(.5, v * .8, 220, at); }
+      break; }
+    case 'airhorn': for (let k = 0; k < 3; k++) { const at = k * .2, d = k === 2 ? .55 : .14; for (const f of [466, 587, 698]) tone('sawtooth', f, f * .985, d, .025, at); } break;
+    case 'trombone': [392, 370, 349].forEach((f, i) => tone('sawtooth', f, f * .99, .32, .035, i * .36)); { const g = AC.createGain(), o = AC.createOscillator(), l = AC.createOscillator(), lg = AC.createGain(); o.type = 'sawtooth'; o.frequency.value = 330; l.frequency.value = 6; lg.gain.value = 9; l.connect(lg); lg.connect(o.frequency); g.gain.setValueAtTime(.035, now + 1.08); g.gain.exponentialRampToValueAtTime(.0001, now + 2.2); o.connect(g); g.connect(AC.destination); o.start(now + 1.08); l.start(now + 1.08); o.stop(now + 2.25); l.stop(now + 2.25); } break;
+    case 'dun': tone('sawtooth', 196, 194, .22, .05); tone('sawtooth', 185, 183, .22, .05, .3); tone('sawtooth', 156, 150, 1.1, .06, .62); tone('sine', 78, 70, 1.2, .12, .62); break;
+    case 'scratch': noise(.09, .3, 1400, 0, 'bandpass'); noise(.12, .3, 800, .1, 'bandpass'); break;
+    case 'boing': tone('sine', 180, 520, .09, .08); tone('sine', 520, 260, .3, .06, .09); break;
+    case 'brilliant': [784, 988, 1175, 1568].forEach((f, i) => tone('triangle', f, f, .18, .045, i * .06)); break;
     case 'win': [392, 523, 659, 784].forEach((f, i) => tone('triangle', f, f, .4, .06, i * .14)); break;
   }
 }
@@ -1212,7 +1456,7 @@ $('#musicFile').addEventListener('change', async e => {
 $('#rcTrade').addEventListener('click', tradePicked);
 for (const ov of ['#packOverlay', '#unitsOverlay']) $(ov).addEventListener('pointerdown', e => { if (e.target === $(ov) && (ov === '#unitsOverlay' || !$('#packDone').hidden)) closeOverlays(); });
 
-window.__inkmate = { get G() { return G; }, playMove, playCard, newGame, refresh, I, cast: () => (castCache = castCache || cutsceneCast()), lines: () => NUKE_LINES };
+window.__inkmate = { get G() { return G; }, playMove, playCard, doSpecial, newGame, refresh, addRot, meme, slam, I, cast: () => (castCache = castCache || cutsceneCast()), lines: () => NUKE_LINES };
 window.addEventListener('resize', sizeBoard);
 sizeBoard();
 newGame('ai');

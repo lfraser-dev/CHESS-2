@@ -23,6 +23,31 @@ Pick a **chaos level** on the start screen:
 
 **Chaos events** spin up on a slot machine and then happen, including: Gravity Turned On, Gravity Reversed, The Board Tilts, The Board Spins, Sideways, Mirror World, Kings Swap Places, Traitors!, It's Raining Ducks, Chicken Stampede, Glow-Up, Budget Cuts, Cloning Accident, Tornado, The Floor Is Lava, The Board Is Crumbling, Portals Open, Everything Is a Knight, Australia Mode, Big Head Mode, Honey I Shrunk the Pieces, Mutation Season, Pawn Storm, Gust of Wind, Musical Chairs, Bomb Squad, Meteor Shower, The Kings Do a Little Dance, Inflation, Market Crash, Lottery Winner, Free Cards, Hands Swapped, and Nothing Happened (suspicious).
 
+## Brainrot meter and special moves
+
+The **Brainrot meter** above the board fills every turn (faster with captures, specials and chaos). Each time it crosses a line, a title card announces the next act and crazier **special moves** unlock:
+
+| Meter | Act |
+| --- | --- |
+| 0% | ACT I: A Normal Game of Chess |
+| 15% | ACT II: Something Is Off |
+| 35% | ACT III: Chess in Ohio |
+| 55% | ACT IV: Total Brainrot (chaos speeds up) |
+| 75% | ACT V: Completely Unhinged |
+| 100% | THE FINALE: both kings get a NUKE card, a meteor lands every turn, and anything can self-destruct |
+
+Tap one of your pieces to see its special moves. Using one takes your turn (except the queen's Steal the Next Turn), and then specials recharge for a couple of turns. The Ink Baron uses them too.
+
+- **Pawn:** Google en passant · Call in an airstrike
+- **Knight:** Walk off the board (into another dimension, and back 2 turns later in enemy territory) · Double horsey
+- **Bishop:** Turn 90 degrees · Convert an enemy
+- **Rook:** Castle with anything · Roll across the board
+- **Queen:** Steal the next turn · Throw a tantrum
+- **King:** Eat his own piece (for coins) · Call his mum (Grandma turns up)
+- **Anything but the king:** Hit the griddy (freezes enemies next to it) · Go get snacks · Eat the piece next to it · Self-destruct (finale only)
+
+Every move gets a meme caption ("White: *googles en passant*"), with reaction text, dramatic zoom-ins, move annotations (!!, ??, ?!) and synthesised sound stings. On **Calm** there's no meter and no specials.
+
 **Mutations:** a piece that captures may mutate and gain a power: jumping like a knight, stepping like a king, sliding straight or diagonally, flying over pieces, zooming 6 squares, or growing a gun. Mutated pieces show a green star with the number of mutations.
 
 **Shuffled armies:** the back row is shuffled and three pieces are swapped for random weird units (both sides get the same lineup).
@@ -73,6 +98,7 @@ Open **Units & cards** in the game for every card, a move diagram for every unit
 - `game.js` – board, turns, shop, recycling, pack opening
 - `battle.js` – the battle cam close-ups
 - `chaos.js` – the chaos events
+- `memes.js` – the Brainrot meter, the acts, special moves, and meme captions
 - `cinema3d.js` – the NUKE cinematic's real-time 3D: raymarched chess set, metal bomb, volumetric clouds, fireball, mushroom cloud and shockwave (WebGL)
 - `cinema.js` – the cinematic's timeline, titles, captions, letterbox, grain and flashes (plus a 2D fallback if WebGL isn't available)
 - `assets/` – drop `nuke-theme.mp3` here

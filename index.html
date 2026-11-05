@@ -6,7 +6,7 @@
 <title>Chess 2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Patrick+Hand&family=Permanent+Marker&family=Special+Elite&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Cinzel:wght@600&family=Patrick+Hand&family=Permanent+Marker&family=Special+Elite&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -39,8 +39,9 @@
   <main class="layout">
     <section class="board-col" aria-label="Board">
       <div class="bar" id="oppBar"></div>
+      <div class="rot" id="rot" hidden><span class="rot-lbl">Brainrot</span><div class="rot-bar" role="presentation"><i></i></div><span class="rot-n">0%</span><span class="rot-act"></span></div>
       <div class="fields" id="fields" aria-live="polite" hidden></div>
-      <div class="board-wrap" id="boardWrap"><div class="board-frame"><div class="chaos" id="chaos" hidden role="status" aria-live="assertive"><div class="chaos-head">CHAOS EVENT</div><div class="reel"></div><div class="desc"></div></div><canvas id="duel" aria-label="Battle close-up. Click to skip." hidden></canvas><canvas id="board" aria-label="15 by 15 board. Scroll or pinch to zoom, drag to move around."></canvas>
+      <div class="board-wrap" id="boardWrap"><div class="board-frame"><div class="chaos" id="chaos" hidden role="status" aria-live="assertive"><div class="chaos-head">CHAOS EVENT</div><div class="reel"></div><div class="desc"></div></div><div class="act" id="act" hidden role="status" aria-live="assertive"><div class="act-n"></div><div class="act-name"></div><div class="act-sub"></div></div><div class="meme-cap" id="memeCap" hidden aria-live="polite"></div><div class="meme-react" id="memeReact" hidden aria-hidden="true"></div><canvas id="duel" aria-label="Battle close-up. Click to skip." hidden></canvas><canvas id="board" aria-label="15 by 15 board. Scroll or pinch to zoom, drag to move around."></canvas>
         <div class="zoom" role="group" aria-label="Board view">
           <button class="btn small" id="zIn" type="button" aria-label="Zoom in">+</button>
           <button class="btn small" id="zOut" type="button" aria-label="Zoom out">−</button>
@@ -52,6 +53,7 @@
     </section>
     <aside class="panel">
       <p class="status" id="status" aria-live="polite"></p>
+      <div class="specials" id="specials" hidden></div>
       <section class="shop-wrap" aria-labelledby="shopTitle">
         <div class="row-head"><h2 id="shopTitle">Packs</h2><span class="purse-count"><span class="coin-ico" aria-hidden="true"></span><b id="coins">5</b> coins</span></div>
         <p class="hint">+1 coin a turn, more for captures. Opening a pack doesn't use your turn.</p>
@@ -82,10 +84,11 @@
       <li>Each turn, move a piece <i>or</i> play a card. Coins buy packs of 127 ridiculous cards.</li>
       <li>Every round a <b>chaos event</b> spins up and changes everything.</li>
       <li>Armies start shuffled, with a few weird units mixed in. Capturing can make a piece <b>mutate</b>.</li>
+      <li>Every piece has <b>special moves</b>: tap a piece to see them. The <b>Brainrot meter</b> fills every turn and unlocks crazier ones, act by act, up to <b>the Finale</b>.</li>
     </ul>
     <label class="chaos-pick" for="chaosQ">Chaos level
       <select id="chaosQ">
-        <option value="calm">Calm (normal start, no events)</option>
+        <option value="calm">Calm (normal chess and cards, no specials)</option>
         <option value="mild">Mild (an event every 3 rounds)</option>
         <option value="wild" selected>Wild (an event every round)</option>
         <option value="unhinged">Unhinged (an event every turn, lots of mutations)</option>
@@ -124,6 +127,7 @@
 <script src="cinema.js"></script>
 <script src="battle.js"></script>
 <script src="chaos.js"></script>
+<script src="memes.js"></script>
 <script src="game.js"></script>
 </body>
 </html>
