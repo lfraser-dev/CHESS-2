@@ -263,5 +263,8 @@ button.card:disabled { cursor: default; }
 
 .board-frame { position: relative; }
 #board { touch-action: none; cursor: grab; }
-.zoom { position: absolute; left: 8px; bottom: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+.zoom { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
 .zoom .btn { background: rgba(242,238,226,.92); }
+
+.qsel { display: inline-flex; align-items: center; gap: 6px; font-size: 16px; }
+.qsel select { font: inherit; font-size: 16px; color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-radius: 8px 6px 9px 7px; padding: 4px 6px; }

@@ -952,13 +952,16 @@ function cutsceneCast() {
 }
 let castCache = null;
 const NUKE_T = 22;
+function cineQuality() { try { return localStorage.getItem('inkmate.cine.quality') || 'auto'; } catch (e) { return 'auto'; } }
 function nukeCutscene() {
   const ov = $('#cutscene'), cv = $('#cutscene2D');
   ov.hidden = false;
   castCache = castCache || cutsceneCast();
   const music = startNukeMusic();
   let skip = null;
-  const p = I.runNukeCinematic(cv, { glCanvas: $('#cutsceneGL'), music, sfx: snd, lines: NUKE_LINES, cast: castCache, onSkip: fn => { skip = fn; } });
+  const quality = cineQuality();
+  const p = I.runNukeCinematic(cv, { glCanvas: $('#cutsceneGL'), quality, music, sfx: snd, lines: NUKE_LINES, cast: castCache, onSkip: fn => { skip = fn; },
+    onFallback: () => toast('Your device was struggling, so the cutscene switched to the simple version') });
   const finish = () => { if (skip) skip(); };
   ov.onclick = finish; $('#cutSkip').onclick = e => { e.stopPropagation(); finish(); };
   return p.then(() => { music.stop(); ov.hidden = true; ov.onclick = null; });
@@ -1015,6 +1018,15 @@ $('#btnRecycle').addEventListener('click', () => { if (!humanTurn() || G.lock) r
 $('#rcScrap').addEventListener('click', scrapPicked);
 $('#btnMusic').addEventListener('click', () => $('#musicFile').click());
 $('#btnNukeTest').addEventListener('click', () => { unlockAudio(); nukeCutscene(); });
+{
+  const sel = $('#cineQ');
+  sel.value = cineQuality();
+  sel.addEventListener('change', () => {
+    try { localStorage.setItem('inkmate.cine.quality', sel.value); } catch (e) {}
+    if (sel.value === 'auto' && I.cinematicInfo) I.cinematicInfo.clearFallback();
+    toast(sel.value === 'full' ? 'Full 3D needs a strong graphics card. It will still drop to simple if it lags.' : 'Cutscene quality saved');
+  });
+}
 $('#zIn').addEventListener('click', () => zoomAt(BS / 2, BS / 2, 1.3));
 $('#zOut').addEventListener('click', () => zoomAt(BS / 2, BS / 2, 1 / 1.3));
 $('#zFit').addEventListener('click', () => { cam.cell = MINZOOM(); clampCam(); cam.tx = null; });

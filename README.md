@@ -23,6 +23,15 @@ Scribble · Sketch · Inked · Masterpiece · Legendary
 
 Flying units can only attack a king along a clear line, so nothing gives unblockable check from across the board.
 
+## Cutscene quality
+
+The **Cutscene** menu at the top sets how the NUKE cinematic is drawn:
+
+- **Auto (safe)**, the default: tests your device with a tiny frame first and only uses 3D if it can keep up. Chromebooks get Light 3D at most. If it starts lagging, it switches to the simple version and remembers.
+- **Light 3D**: fewer effects, lower resolution.
+- **Full 3D**: needs a strong graphics card (still drops to simple if it lags).
+- **Simple 2D**: the hand-drawn version, runs anywhere.
+
 ## Nuke music
 
 The song in `assets/nuke-theme.mp3` plays during the cutscene. You can also click **Nuke music** to pick a different file. The captions beside the falling bomb are in `NUKE_LINES` near the top of the cutscene section in `game.js`; write your own there.

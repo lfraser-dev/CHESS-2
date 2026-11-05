@@ -10,6 +10,9 @@ const VERT = `attribute vec2 aPos; void main(){ gl_Position = vec4(aPos, 0.0, 1.
 
 const FRAG = `
 precision highp float;
+#ifndef Q
+#define Q 1
+#endif
 uniform vec2 uRes; uniform float uTime;
 uniform vec3 uRo; uniform vec3 uTa; uniform float uFov; uniform float uRoll;
 uniform float uK;          // seconds since the flash (negative before)
@@ -33,7 +36,7 @@ float noise(vec3 x){
   return mix(mix(mix(hash(n), hash(n + 1.0), f.x), mix(hash(n + 57.0), hash(n + 58.0), f.x), f.y),
              mix(mix(hash(n + 113.0), hash(n + 114.0), f.x), mix(hash(n + 170.0), hash(n + 171.0), f.x), f.y), f.z);
 }
-float fbm(vec3 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 4; i++){ s += a * noise(p); p = p * 2.03 + vec3(1.7, 9.2, 3.1); a *= 0.5; } return s; }
+float fbm(vec3 p){ float s = 0.0, a = 0.5; for (int i = 0; i < N_OCT; i++){ s += a * noise(p); p = p * 2.03 + vec3(1.7, 9.2, 3.1); a *= 0.5; } return s; }
 float fbm3(vec3 p){ float s = 0.0, a = 0.5; for (int i = 0; i < 3; i++){ s += a * noise(p); p = p * 2.03 + vec3(1.7, 9.2, 3.1); a *= 0.5; } return s; }
 float smin(float a, float b, float k){ float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0); return mix(b, a, h) - k * h * (1.0 - h); }
 float sdBox(vec3 p, vec3 b){ vec3 q = abs(p) - b; return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0); }
@@ -143,7 +146,7 @@ vec3 calcNormal(vec3 p){
 }
 float softShadow(vec3 ro, vec3 rd, float tmax){
   float res = 1.0, t = 0.03;
-  for (int i = 0; i < 26; i++){
+  for (int i = 0; i < N_SHADOW; i++){
     float h = map(ro + rd * t).x;
     res = min(res, 9.0 * h / t);
     t += clamp(h, 0.03, 0.45);
@@ -153,7 +156,7 @@ float softShadow(vec3 ro, vec3 rd, float tmax){
 }
 float calcAO(vec3 p, vec3 n){
   float o = 0.0, s = 1.0;
-  for (int i = 1; i <= 4; i++){ float h = 0.03 + 0.08 * float(i); o += (h - map(p + n * h).x) * s; s *= 0.7; }
+  for (int i = 1; i <= N_AO; i++){ float h = 0.03 + 0.08 * float(i); o += (h - map(p + n * h).x) * s; s *= 0.7; }
   return clamp(1.0 - 2.2 * o, 0.0, 1.0);
 }
 
@@ -285,10 +288,10 @@ vec4 marchFire(vec3 ro, vec3 rd, float tEnd, float jit){
   if (b.x < 0.0) return vec4(0.0, 0.0, 0.0, 1.0);
   float t0 = b.x, t1 = min(b.y, tEnd);
   if (t1 <= t0) return vec4(0.0, 0.0, 0.0, 1.0);
-  float dt = (t1 - t0) / 40.0, t = t0 + dt * jit;
+  float dt = (t1 - t0) / float(N_FIRE), t = t0 + dt * jit;
   vec3 acc = vec3(0.0); float T = 1.0;
   vec3 C = vec3(0.0, uFire.x, 0.0);
-  for (int i = 0; i < 40; i++){
+  for (int i = 0; i < N_FIRE; i++){
     if (t > t1) break;
     vec3 p = ro + rd * t;
     vec4 d = fireDens(p);
@@ -297,9 +300,17 @@ vec4 marchFire(vec3 ro, vec3 rd, float tEnd, float jit){
       float a = 1.0 - exp(-dd * dt * 1.7);
       float dl = length(p - C);
       float under = clamp(1.0 - (p.y - C.y) / (uFire.w + 0.5), 0.15, 1.0);
+#if Q == 1
       float occ = fireDens(p + vec3(0.0, 0.55, 0.0)).x;
+#else
+      float occ = d.x * 0.8;
+#endif
       float sky = exp(-occ * 2.2);
+#if Q == 1
       float toward = fireDens(p + (C - p) * 0.18).x;
+#else
+      float toward = d.x * 0.5;
+#endif
       vec3 lit = vec3(0.3, 0.24, 0.21) * (uFireI * 0.03 * under * exp(-toward * 1.4) / (1.0 + dl * dl * 0.1) * fireCol())
                + vec3(0.22, 0.17, 0.24) * 0.55 * sky + vec3(0.9, 0.4, 0.15) * 0.12 * sky * max(uSun.y + 0.3, 0.0);
       vec3 cond = vec3(0.9, 0.86, 0.84) * (0.35 + uFireI * 0.012);
@@ -320,10 +331,10 @@ vec4 marchDust(vec3 ro, vec3 rd, float tEnd, float jit){
   if (b.x < 0.0) return vec4(0.0, 0.0, 0.0, 1.0);
   float t0 = b.x, t1 = min(b.y, tEnd);
   if (t1 <= t0) return vec4(0.0, 0.0, 0.0, 1.0);
-  float dt = (t1 - t0) / 34.0, t = t0 + dt * jit;
+  float dt = (t1 - t0) / float(N_DUST), t = t0 + dt * jit;
   vec3 acc = vec3(0.0); float T = 1.0;
   vec3 C = vec3(0.0, uFire.x, 0.0);
-  for (int i = 0; i < 34; i++){
+  for (int i = 0; i < N_DUST; i++){
     if (t > t1) break;
     vec3 p = ro + rd * t;
     float r = length(p.xz), x = r - uRing;
@@ -356,10 +367,10 @@ vec4 marchClouds(vec3 ro, vec3 rd, float tEnd, float jit){
   if (s0 > s1){ float tmp = s0; s0 = s1; s1 = tmp; }
   float t0 = max(s0, 0.0), t1 = min(min(s1, tEnd), t0 + 160.0);
   if (t1 <= t0) return vec4(0.0, 0.0, 0.0, 1.0);
-  float dt = (t1 - t0) / 30.0, t = t0 + dt * jit;
+  float dt = (t1 - t0) / float(N_CLOUD), t = t0 + dt * jit;
   vec3 acc = vec3(0.0); float T = 1.0;
   float fw = pow(max(dot(rd, uSun), 0.0), 5.0);
-  for (int i = 0; i < 30; i++){
+  for (int i = 0; i < N_CLOUD; i++){
     if (t > t1) break;
     vec3 p = ro + rd * t;
     float hh = (p.y - y0) / (y1 - y0);
@@ -370,7 +381,11 @@ vec4 marchClouds(vec3 ro, vec3 rd, float tEnd, float jit){
       float a = 1.0 - exp(-dd * dt * 0.35);
       vec3 ps = p + uSun * 3.0;
       float hs = clamp((ps.y - y0) / (y1 - y0), 0.0, 1.0);
+#if Q == 1
       float occ = clamp((fbm(ps * 0.07 + vec3(uTime * 0.02, 0.0, 0.0)) - 0.56 + (1.0 - pow(abs(hs * 2.0 - 1.0), 2.0)) * 0.14) * 5.0, 0.0, 1.0);
+#else
+      float occ = dd * 0.9 + (1.0 - hh) * 0.3;
+#endif
       float light = exp(-occ * 2.5);
       vec3 col = mix(vec3(0.05, 0.04, 0.09), vec3(1.4, 0.62, 0.3) * (1.0 + fw * 2.0), light * (0.35 + 0.65 * hh));
       acc += T * a * col;
@@ -429,7 +444,7 @@ void main(){
   vec3 col; float tHit = 1e5; float m = -1.0;
   if (tE > tS){
     float t = max(tS, 0.01);
-    for (int i = 0; i < 120; i++){
+    for (int i = 0; i < N_MARCH; i++){
       vec2 h = map(ro + rd * t);
       if (h.x < 0.0012 * t + 0.0005){ m = h.y; break; }
       t += h.x * 0.85;
@@ -590,31 +605,50 @@ function compile(gl, type, src) {
   if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { const log = gl.getShaderInfoLog(s); gl.deleteShader(s); throw new Error(log); }
   return s;
 }
-function create(canvas) {
-  let gl = null;
-  try { gl = canvas.getContext('webgl', { antialias: false, alpha: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' }); } catch (e) { gl = null; }
-  if (!gl) return null;
-  let prog;
-  try {
-    prog = gl.createProgram();
-    gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VERT));
-    gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, FRAG));
-    gl.linkProgram(prog);
-    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
-  } catch (e) { console.warn('Nuke cinematic: WebGL shader failed, using the 2D version.', e); return null; }
-  gl.useProgram(prog);
+const DEFS = { 1: '#define Q 1\n#define N_MARCH 120\n#define N_SHADOW 26\n#define N_AO 4\n#define N_FIRE 40\n#define N_DUST 34\n#define N_CLOUD 30\n#define N_OCT 4\n', 0: '#define Q 0\n#define N_MARCH 72\n#define N_SHADOW 12\n#define N_AO 2\n#define N_FIRE 24\n#define N_DUST 18\n#define N_CLOUD 16\n#define N_OCT 3\n' };
+const MAX_PX = { 1: 800 * 450, 0: 560 * 315 };   // hard caps on internal resolution
+function getGL(canvas) {
+  try { return canvas.getContext('webgl', { antialias: false, alpha: false, preserveDrawingBuffer: false, powerPreference: 'high-performance', failIfMajorPerformanceCaveat: true }); } catch (e) { return null; }
+}
+// start compiling; with KHR_parallel_shader_compile this doesn't block the page
+function startCompile(canvas, q) {
+  const gl = getGL(canvas);
+  if (!gl || gl.isContextLost()) return null;
+  const ext = gl.getExtension('KHR_parallel_shader_compile');
+  const prog = gl.createProgram();
+  const vs = gl.createShader(gl.VERTEX_SHADER); gl.shaderSource(vs, VERT); gl.compileShader(vs);
+  const fs = gl.createShader(gl.FRAGMENT_SHADER); gl.shaderSource(fs, FRAG.replace('precision highp float;', 'precision highp float;\n' + DEFS[q])); gl.compileShader(fs);
+  gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+  return { gl, prog, q, ext, ready: () => !ext || gl.getProgramParameter(prog, ext.COMPLETION_STATUS_KHR) };
+}
+function create(canvas, q = 1, startScale = .5, pending = null) {
+  const job = pending || startCompile(canvas, q);
+  if (!job) return null;
+  const { gl, prog } = job;
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { console.warn('Nuke cinematic: WebGL shader failed, using the 2D version.', gl.getProgramInfoLog(prog)); return null; }
   const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-  const aPos = gl.getAttribLocation(prog, 'aPos'); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+  const aPos = gl.getAttribLocation(prog, 'aPos');
   const U = {}; for (const n of ['uRes', 'uTime', 'uRo', 'uTa', 'uFov', 'uRoll', 'uK', 'uRing', 'uBomb', 'uBombRot', 'uDesat', 'uClouds', 'uPin', 'uTrail', 'uExposure', 'uFireI', 'uFire', 'uFire2', 'uSun', 'uHero', 'uHeroRot']) U[n] = gl.getUniformLocation(prog, n);
   const sun = [-.62, .16, -.77]; const sl = Math.hypot(...sun); sun.forEach((v, i) => sun[i] = v / sl);
   const emptyH = new Float32Array(64), emptyR = new Float32Array(64).map((_, i) => i % 4 === 1 ? 1 : 0);
-  let scale = .62;
-  return {
-    get scale() { return scale; }, set scale(v) { scale = clamp(v, .3, 1); },
-    draw(t, cssW, cssH) {
-      const w = Math.max(160, Math.round(cssW * scale)), h = Math.max(90, Math.round(cssH * scale));
+  let scale = startScale;
+  const r = {
+    q, gl,
+    get scale() { return scale; }, set scale(v) { scale = clamp(v, .15, 1); },
+    // draw at an exact pixel size (used by the probe) or at a fraction of the screen
+    draw(t, cssW, cssH, exact) {
+      let w, h;
+      if (exact) { w = cssW; h = cssH; }
+      else {
+        w = Math.round(cssW * scale); h = Math.round(cssH * scale);
+        const px = w * h, cap = MAX_PX[q];
+        if (px > cap) { const f = Math.sqrt(cap / px); w = Math.round(w * f); h = Math.round(h * f); }
+        w = Math.max(96, w); h = Math.max(54, h);
+      }
       if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+      gl.useProgram(prog);
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
       gl.viewport(0, 0, w, h);
       const P = params(t);
       gl.uniform2f(U.uRes, w, h); gl.uniform1f(U.uTime, t);
@@ -628,7 +662,65 @@ function create(canvas) {
       gl.uniform4fv(U.uHeroRot, P.heroes ? new Float32Array(P.heroes[1]) : emptyR);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     },
+    // wait for the GPU and time one frame (ms)
+    timeFrame(t, w, h) {
+      const px = new Uint8Array(4);
+      gl.finish(); gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      const t0 = performance.now();
+      r.draw(t, w, h, true);
+      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      return performance.now() - t0;
+    },
   };
+  return r;
 }
-I.NukeGL = { create, params };
+// Test this device with tiny frames before committing to anything. Runs in steps so the page never stalls:
+// startProbe(...).step() returns null until it has an answer, then { tier, renderer, scale }.
+// tier: 2 full 3D, 1 light 3D, 0 use the 2D version
+function startProbe(canvas, cssW, cssH, maxTier = 2, opts_noBlock = false) {
+  const BUDGET = 28, PW = 128, PH = 72, PPX = PW * PH, screenPx = cssW * cssH;
+  const minPx = { 1: 300 * 169, 2: 420 * 236 };
+  let jobs = null, result = null, lite = null, litePx = 0;
+  try {
+    const gl0 = getGL(canvas);
+    if (!gl0) return { step: () => ({ tier: 0, why: 'no-webgl' }), parallel: false };
+    const parallel = !!gl0.getExtension('KHR_parallel_shader_compile');
+    if (!parallel && opts_noBlock) return { step: () => ({ tier: 0, why: 'no-parallel' }), parallel: false };
+    jobs = { lite: startCompile(canvas, 0), full: maxTier >= 2 ? startCompile(canvas, 1) : null };
+    return {
+      parallel,
+      step() {
+        if (result) return result;
+        try {
+          if (!jobs.lite) return (result = { tier: 0, why: 'no-webgl' });
+          if (!lite) {
+            if (!jobs.lite.ready()) return null;
+            lite = create(canvas, 0, .5, jobs.lite);
+            if (!lite) return (result = { tier: 0, why: 'shader' });
+            lite.timeFrame(19, 8, 8);
+            const ms = Math.max(.05, lite.timeFrame(19, PW, PH));
+            litePx = BUDGET / ms * PPX;
+            if (lite.gl.isContextLost() || litePx < minPx[1]) return (result = { tier: 0, why: 'slow', ms });
+            if (!jobs.full || litePx < minPx[2] * 3) { lite.scale = Math.min(1, Math.sqrt(litePx / screenPx)); return (result = { tier: 1, renderer: lite, scale: lite.scale, ms }); }
+          }
+          if (!jobs.full.ready()) return null;
+          const full = create(canvas, 1, .5, jobs.full);
+          if (full) {
+            full.timeFrame(19, 8, 8);
+            const fms = Math.max(.05, full.timeFrame(19, PW, PH)), fullPx = BUDGET / fms * PPX;
+            if (!full.gl.isContextLost() && fullPx >= minPx[2]) { full.scale = Math.min(1, Math.sqrt(fullPx / screenPx)); return (result = { tier: 2, renderer: full, scale: full.scale, ms: fms }); }
+          }
+          lite.scale = Math.min(1, Math.sqrt(litePx / screenPx));
+          return (result = { tier: 1, renderer: lite, scale: lite.scale });
+        } catch (e) { console.warn('Nuke cinematic probe failed', e); return (result = { tier: 0, why: 'error' }); }
+      },
+    };
+  } catch (e) { return { step: () => ({ tier: 0, why: 'error' }), parallel: false }; }
+}
+function probe(canvas, cssW, cssH, maxTier = 2) {
+  const p = startProbe(canvas, cssW, cssH, maxTier);
+  let r = null; while (!(r = p.step())) {}
+  return r;
+}
+I.NukeGL = { create, params, probe, startProbe };
 })();

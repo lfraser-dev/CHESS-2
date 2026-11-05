@@ -499,12 +499,22 @@ function overlays(c, W, H, S, t, gl) {
   }
 }
 
+// quality: 'auto' | 'full' | 'light' | '2d'
+const FALLBACK_KEY = 'inkmate.cine.fallback';
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+const isChromeOS = /\bCrOS\b/.test(navigator.userAgent || '');
+function startChoice(quality, glCanvas, W, H) {
+  if (!glCanvas || !I.NukeGL || quality === '2d') return null;
+  if (quality === 'auto' && store.get(FALLBACK_KEY)) return null;
+  const maxTier = quality === 'light' ? 1 : quality === 'full' ? 2 : (isChromeOS ? 1 : 2);
+  const p = I.NukeGL.startProbe(glCanvas, W, H, maxTier, quality === 'auto');
+  // without background compiling, building the shader would freeze the page, so Auto doesn't risk it
+  if (!p.parallel && quality === 'auto') return null;
+  return p;
+}
+I.cinematicInfo = { isChromeOS, clearFallback: () => store.set(FALLBACK_KEY, '') };
 I.runNukeCinematic = function (canvas, opts) {
   assets();
-  let gl = null;
-  if (opts.glCanvas && I.NukeGL) { gl = I.NukeGL.create(opts.glCanvas); opts.glCanvas.hidden = !gl; }
-  opts.gl = !!gl;
-  let avg = 30;
   const cues = [
     [.2, () => opts.sfx('rumble')],
     [14.6, () => opts.sfx('whistle')],
@@ -521,28 +531,66 @@ I.runNukeCinematic = function (canvas, opts) {
     canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
     const c = canvas.getContext('2d');
     c.lineJoin = 'round'; c.lineCap = 'round';
-    let done = false;
+    c.fillStyle = '#000'; c.fillRect(0, 0, canvas.width, canvas.height);
+    let done = false, gl = null, strikes = 0, frames = 0, last = 0, avg = 30;
     const saved = I.boil;
-    const t0 = performance.now();
-    const stop = () => { if (done) return; done = true; I.boil = saved; if (opts.glCanvas) opts.glCanvas.hidden = true; resolve(); };
-    const frame = now => {
-      if (done) return;
-      const t = (now - t0) / 1000 + (opts.startAt || 0);
-      if (gl) {
-        const dt = frame.last ? now - frame.last : 30; frame.last = now;
-        avg = avg * .9 + dt * .1;
-        if (frame.n = (frame.n || 0) + 1, frame.n % 20 === 0) { if (avg > 42) gl.scale *= .85; else if (avg < 24) gl.scale *= 1.07; }
-        if (t >= 4.4 && t < 22.2) gl.draw(t, W, H);
-      }
-      while (cues.length && t >= cues[0][0]) cues.shift()[1]();
-      if (t >= DUR) { stop(); return; }
-      I.boil = Math.floor(t * 6) % 4;
-      c.setTransform(dpr, 0, 0, dpr, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; c.filter = 'none';
-      render(c, W, H, t, opts);
-      requestAnimationFrame(frame);
+    const glCanvas = opts.glCanvas;
+    const fallBack = why => {
+      if (!gl) return;
+      gl = null; opts.gl = false;
+      if (glCanvas) glCanvas.hidden = true;
+      store.set(FALLBACK_KEY, '1');
+      if (opts.onFallback) opts.onFallback(why);
     };
-    requestAnimationFrame(frame);
+    const onLost = e => { e.preventDefault(); fallBack('lost'); };
+    if (glCanvas) glCanvas.addEventListener('webglcontextlost', onLost);
+    const stop = () => {
+      if (done) return; done = true; I.boil = saved;
+      if (glCanvas) { glCanvas.hidden = true; glCanvas.removeEventListener('webglcontextlost', onLost); }
+      resolve();
+    };
     opts.onSkip(stop);
+    // start the film straight away; the 3D renderer gets built in the background during the title card
+    let probe = null, decided = false;
+    const decide = res => {
+      decided = true;
+      gl = res && res.tier > 0 ? res.renderer : null;
+      opts.gl = !!gl; opts.tier = gl ? res.tier : 0;
+      if (glCanvas) glCanvas.hidden = !gl;
+      if (opts.onTier) opts.onTier(opts.tier);
+    };
+    opts.gl = false;
+    setTimeout(() => { if (done) return; probe = startChoice(opts.quality || 'auto', glCanvas, W, H); if (!probe) decide(null); }, 120);
+    const t0 = performance.now();
+    {
+      const frame = now => {
+        if (done) return;
+        const t = (now - t0) / 1000 + (opts.startAt || 0);
+        const dt = last ? now - last : 16; last = now; frames++;
+        if (!decided && probe) {
+          if (t >= 4.3) decide(null);                      // not ready in time: play the 2D version
+          else { const r = probe.step(); if (r) decide(r); }
+        }
+        if (gl) {
+          // safety net: if frames start taking too long, drop to the 2D version for good
+          if (t > 4.6) {
+            if (dt > 900) fallBack('slow');
+            else if (dt > 250) { if (++strikes >= 2) fallBack('slow'); }
+            else strikes = Math.max(0, strikes - .25);
+          }
+          avg = avg * .9 + dt * .1;
+          if (gl && frames % 15 === 0 && t > 4.6) { if (avg > 40) gl.scale *= .82; else if (avg < 22) gl.scale *= 1.05; }
+          if (gl && t >= 4.4 && t < 22.2) gl.draw(t, W, H);
+        }
+        while (cues.length && t >= cues[0][0]) cues.shift()[1]();
+        if (t >= DUR) { stop(); return; }
+        I.boil = Math.floor(t * 6) % 4;
+        c.setTransform(dpr, 0, 0, dpr, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; c.filter = 'none';
+        render(c, W, H, t, opts);
+        requestAnimationFrame(frame);
+      };
+      requestAnimationFrame(frame);
+    }
   });
 };
 // for checking single frames

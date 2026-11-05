@@ -17,6 +17,14 @@
       <button class="btn" id="btnUnits" type="button">Units &amp; cards</button>
       <button class="btn" id="btnNew" type="button">New game</button>
       <button class="btn" id="btnNukeTest" type="button">Test nuke cutscene</button>
+      <label class="qsel" for="cineQ">Cutscene
+        <select id="cineQ">
+          <option value="auto">Auto (safe)</option>
+          <option value="light">Light 3D</option>
+          <option value="full">Full 3D (strong PC)</option>
+          <option value="2d">Simple 2D</option>
+        </select>
+      </label>
       <button class="btn" id="btnMusic" type="button" title="Pick the song that plays during the NUKE">Nuke music</button>
       <input type="file" id="musicFile" accept="audio/*" hidden>
       <button class="btn ghost" id="btnMute" type="button" aria-pressed="true">Sound on</button>
