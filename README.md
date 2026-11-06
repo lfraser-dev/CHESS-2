@@ -10,29 +10,36 @@ There is **one pack with all 127 cards** in it: units, rule-bending spells, coin
 
 **Play:** open `index.html` in a browser. No build step, no dependencies. Play the computer (the Ink Baron) or two players on one device.
 
-## Chaos
+## Randomness
 
-Pick a **chaos level** on the start screen:
+Pick **how random** on the start screen:
 
 | Level | What happens |
 | --- | --- |
 | Calm | Normal starting armies, no events |
-| Mild | Shuffled armies, a chaos event every 3 rounds |
-| Wild (default) | Shuffled armies, a chaos event every round |
-| Unhinged | A chaos event every single turn, and lots of mutations |
+| Mild | Shuffled armies, a random thing every 3 rounds |
+| Wild (default) | Shuffled armies, random things all the time |
+| Unhinged | The board fills up with stuff, and lots of mutations |
 
-**Chaos events** spin up on a slot machine and then happen, including: Gravity Turned On, Gravity Reversed, The Board Tilts, The Board Spins, Sideways, Mirror World, Kings Swap Places, Traitors!, It's Raining Ducks, Chicken Stampede, Glow-Up, Budget Cuts, Cloning Accident, Tornado, The Floor Is Lava, The Board Is Crumbling, Portals Open, Everything Is a Knight, Australia Mode, Big Head Mode, Honey I Shrunk the Pieces, Mutation Season, Pawn Storm, Gust of Wind, Musical Chairs, Bomb Squad, Meteor Shower, The Kings Do a Little Dance, Inflation, Market Crash, Lottery Winner, Free Cards, Hands Swapped, and Nothing Happened (suspicious).
+**Random things** keep turning up on the board. Walk a piece onto one and:
+
+- **Pomegranate:** it eats it and sprays seeds everywhere. Enemies next to it are too sticky to move next turn.
+- **Marker:** it draws a new piece next to itself (a horse, a chicken, Grandma...) and the drawing comes to life.
+- **Gem:** +3 coins. Whoever grabs your side's third gem ascends into a Queen (a Queen becomes a fighter jet).
+- **Wedding ring:** it marries the nearest piece on its side. Both get +1 armour and a baby is born. A king's royal wedding turns his partner into a Queen.
+- **Disco ball:** dance party. Every enemy within 2 squares dances instead of moving next turn.
+- **Birthday cake:** it grows up: Pawn to Knight to Bishop to Rook to Queen.
 
 ## Brainrot meter and special moves
 
-The **Brainrot meter** above the board fills every turn (faster with captures, specials and chaos). Each time it crosses a line, a short popup names the next act and crazier **special moves** unlock:
+The **Brainrot meter** above the board fills every turn (faster with captures, specials and random things). Each time it crosses a line, a short popup names the next act and crazier **special moves** unlock:
 
 | Meter | Act |
 | --- | --- |
 | 0% | ACT I: A Normal Game of Chess |
 | 15% | ACT II: Something Is Off |
 | 35% | ACT III: Chess in Ohio |
-| 55% | ACT IV: Total Brainrot (chaos speeds up) |
+| 55% | ACT IV: Total Brainrot (more random things) |
 | 75% | ACT V: Completely Unhinged |
 | 100% | THE FINALE: both kings get a NUKE card, a meteor lands every turn, and anything can self-destruct |
 
@@ -97,7 +104,7 @@ Open **Units & cards** in the game for every card, a move diagram for every unit
 - `art.js` – all the hand-drawn art, drawn live on canvas
 - `game.js` – board, turns, shop, recycling, pack opening
 - `battle.js` – the battle cam close-ups
-- `chaos.js` – the chaos events
+- `items.js` – the random things on the board and their drawings
 - `memes.js` – the Brainrot meter, the acts, special moves, and meme captions
 - `cinema3d.js` – the NUKE cinematic's real-time 3D: raymarched chess set, metal bomb, volumetric clouds, fireball, mushroom cloud and shockwave (WebGL)
 - `cinema.js` – the cinematic's timeline, titles, captions, letterbox, grain and flashes (plus a 2D fallback if WebGL isn't available)

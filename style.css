@@ -345,3 +345,4 @@ button.card:disabled { cursor: default; }
 @media (prefers-reduced-motion: reduce) { .meme-react.show, .meme-cap.show, .board-frame.fried #board { animation: none; } }
 .sp-guide { margin: 0 0 12px; padding-left: 20px; font: 17px/1.35 var(--hand); }
 .sp-guide i { color: #7a3fb8; font-style: normal; }
+.log li.itemlog, .log li.itemlog:first-child { color: #1a7f7a; }

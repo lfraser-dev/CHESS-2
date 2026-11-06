@@ -30,7 +30,7 @@ const FIELD_INFO = {
 
 function snap() { G.snaps.push({ board: G.board.slice(), terr: G.terr.slice(), side: G.turn }); if (G.snaps.length > 12) G.snaps.shift(); }
 function chaosLevel() { try { return localStorage.getItem('chess2.chaos') || 'wild'; } catch (e) { return 'wild'; } }
-const CHAOS_EVERY = { calm: 0, mild: 6, wild: 2, unhinged: 1 };
+const ITEM_EVERY = { calm: 0, mild: 6, wild: 3, unhinged: 2 };
 const MUTATE_CHANCE = { calm: 0, mild: .15, wild: .3, unhinged: .55 };
 const M = I.MEMES;
 const SPECIAL_CD = { calm: 99, mild: 3, wild: 2, unhinged: 1 };
@@ -40,8 +40,9 @@ function newGame(mode) {
   const level = chaosLevel();
   G = I.newState(mode, { chaosStart: level !== 'calm' });
   G.chaos = level;
-  Object.assign(G, { sel: -1, pend: null, spec: null, lock: false, recycle: null, rot: level === 'unhinged' ? 20 : 0, limbo: [], spcd: { w: 0, b: 0 }, finale: false });
+  Object.assign(G, { sel: -1, pend: null, spec: null, lock: false, recycle: null, rot: level === 'unhinged' ? 20 : 0, limbo: [], items: new Array(N * N).fill(null), gems: { w: 0, b: 0 }, spcd: { w: 0, b: 0 }, finale: false });
   G.actShown = level === 'calm' ? 0 : M.tierOf(G.rot);
+  if (level !== 'calm') for (let k = 0; k < (level === 'unhinged' ? 5 : 3); k++) IT.spawn(G);
   anims.length = 0; fx.length = 0;
   if (sizeBoard.done) { cam.cell = MINZOOM(); clampCam(); }
   snap();
@@ -216,8 +217,10 @@ async function playMove(side, m) {
     }
   }
   addLog(line);
+  const got = !m.r && !m.arm && !m.sw ? pickUpItem(side, m.t) : null;
   { I.setEnv(G); const chk = I.inCheck(G.board, other(side)), atk = G.board[m.t] || mover;
-    const mc = M.moveCaption(side, atk, cap && !m.sw ? cap : null, tier(), chk);
+    const mc = got ? { ...got, annot: null } : M.moveCaption(side, atk, cap && !m.sw ? cap : null, tier(), chk);
+    if (got) punch(m.t, .8, 1200);
     meme(mc.text, { react: mc.react, sq: m.t, big: !!(cap && U[cap.t].val >= 5) || (chk && tier() >= 2) });
     if (mc.annot) addFx({ kind: 'annot', sq: m.t, a: mc.annot, delay: 250, dur: 1800 });
     if (cap && !m.arm && !m.sw) addRot(4); }
@@ -318,11 +321,11 @@ function finishTurn(side) {
   snap();
   addRot(2.5);
   returnFromLimbo();
-  let every = CHAOS_EVERY[G.chaos] || 0;
+  let every = ITEM_EVERY[G.chaos] || 0;
   if (every > 1 && tier() >= 3) every = Math.max(1, every - 1);
   const steps = [];
   if (G.finale && !G.over) steps.push(finaleMeteor);
-  if (every && G.ply % every === 0 && !G.over) steps.push(runChaos);
+  if (every && G.ply % every === 0 && !G.over) steps.push(spawnItems);
   if (G.chaos !== 'calm' && tier() > (G.actShown || 0) && !G.over) steps.push(nextAct);
   if (!steps.length) { startTurn(); return; }
   G.lock = true; refresh();
@@ -391,55 +394,39 @@ function startTurn() {
   if (G.mode === 'ai' && G.turn === 'b') { G.lock = true; refresh(); setTimeout(aiTurn, 450); }
 }
 
-// ---- chaos events
-let lastChaos = null;
-function chaosBanner(name, text) {
-  return new Promise(resolve => {
-    const el = $('#chaos'), reel = el.querySelector('.reel'), desc = el.querySelector('.desc');
-    el.hidden = false; el.classList.remove('land'); desc.textContent = '';
-    const names = I.CHAOS.EVENTS.map(e => e.name);
-    let i = 0, delay = 45, done = false;
-    snd('spin');
-    const finish = () => { if (done) return; done = true; el.hidden = true; el.onclick = null; resolve(); };
-    el.onclick = finish;
-    const tick = () => {
-      if (done) return;
-      if (delay < 230) { reel.textContent = names[(i++ * 7 + Math.floor(Math.random() * names.length)) % names.length]; delay *= 1.16; snd('tick'); setTimeout(tick, delay); return; }
-      reel.textContent = name; desc.textContent = text; el.classList.add('land'); snd('ding');
-      setTimeout(finish, 1700);
-    };
-    tick();
-  });
-}
-async function runChaos() {
-  const side = G.turn;
-  const { ev, st } = I.CHAOS.roll(G, side, lastChaos);
-  lastChaos = ev.key;
-  await chaosBanner(ev.name, ev.text);
-  // animate: pieces that moved slide, pieces that vanished go flying, new ones pop in, changed ones sparkle
-  const before = new Map(); G.board.forEach((p, i) => { if (p) before.set(p.id, { p, i }); });
-  const after = new Map(); st.board.forEach((p, i) => { if (p) after.set(p.id, { p, i }); });
-  Object.assign(G, { board: st.board, terr: st.terr, fields: st.fields, coins: st.coins, hand: st.hand, grave: st.grave });
-  let moved = 0;
-  for (const [id, a] of after) {
-    const b = before.get(id);
-    if (!b) addFx({ kind: 'summon', sq: a.i, dur: 600, delay: Math.random() * 250, big: true });
-    else {
-      if (b.i !== a.i) { addAnim({ kind: 'move', p: a.p, f: b.i, t: a.i, dur: 520 + Math.random() * 200, fly: true }); moved++; }
-      if (b.p.t !== a.p.t || b.p.s !== a.p.s || (a.p.mut || []).length !== (b.p.mut || []).length || a.p.bomb !== b.p.bomb) addFx({ kind: 'spell', key: 'mutate', sq: a.i, dur: 800, delay: 300 });
-    }
+// ---- random things on the board (pomegranates, markers, gems, rings, disco balls, cakes)
+const IT = I.ITEMS;
+async function spawnItems() {
+  if (G.items.filter(Boolean).length >= 6) return;
+  const n = G.chaos === 'unhinged' && Math.random() < .4 ? 2 : 1;
+  for (let k = 0; k < n; k++) {
+    const at = IT.spawn(G); if (at < 0) return;
+    const it = IT.ITEMS[G.items[at].k];
+    addFx({ kind: 'drop', sq: at, dur: 700 });
+    addLog(`A ${it.name} appears on ${sqName(at)}. Walk a piece onto it.`, 'itemlog');
+    if (k === 0) meme(`The board: *spawns a ${it.name.toLowerCase()}*`, { sq: at });
+    setTimeout(() => snd('boing'), 450);
   }
-  for (const [id, b] of before) if (!after.has(id)) { const a = Math.random() * Math.PI * 2; addFx({ kind: 'fling', p: b.p, sq: b.i, dir: [Math.cos(a), Math.sin(a) - .6], delay: 150, dur: 900, s: id }); }
-  if (st._marks) for (const sq of st._marks) addFx({ kind: 'boom', sq, delay: Math.random() * 400, dur: 700 });
-  if (moved > 3) shakeT = performance.now() + 500;
-  addFx({ kind: 'field', key: 'quake', dur: 900 });
-  let line = `CHAOS: ${ev.name}. ${ev.text}`;
-  if (st._winner) line += ` (${who(st._winner)}!)`;
-  addLog(line, 'chaoslog');
-  addRot(3);
-  if (ev.key !== 'nothing' && Math.random() < .55) setTimeout(() => slam(M.pick(M.REACT.chaos)), 250);
-  refresh();
-  await waitAnims();
+  refresh(); await sleep(500);
+}
+// a piece just landed on an item: use it. Returns the meme caption, or null
+function pickUpItem(side, at) {
+  const item = G.items[at], p = G.board[at];
+  if (!item || !p || p.s !== side) return null;
+  G.items[at] = null;
+  const it = IT.ITEMS[item.k];
+  const h = {
+    fx: f => addFx(f),
+    summon: j => addFx({ kind: 'summon', sq: j, dur: 900, big: true, delay: 300 }),
+    slam: (t, big) => setTimeout(() => slam(t, big), 900),
+    coins: (s2, n, j) => { G.coins[s2] += n; addFx({ kind: 'text', sq: j, str: `+${n}`, col: GOLD, delay: 400, dur: 1200 }); },
+  };
+  const text = it.use(G, side, at, h);
+  addFx({ kind: 'spell', key: 'mutate', sq: at, dur: 700 });
+  addLog(`${poss(side)} ${U[p.t].name} ${text}.`, 'itemlog');
+  addRot(5);
+  snd(item.k === 'disco' ? 'airhorn' : item.k === 'ring' ? 'brilliant' : 'vboom');
+  return { text: `${M.SIDE(side)}: *${U[p.t].name} ${it.verb}*`, react: M.pick(it.react) };
 }
 
 // ---- special moves
@@ -548,6 +535,11 @@ async function aiTurn() {
   if (G.chaos !== 'calm' && !G.spcd.b && tier() >= 1 && Math.random() < .45) {
     const sp = aiSpecial();
     if (sp) { await sleep(250); await doSpecial('b', sp.at, sp.key, sp.tg); return; }
+  }
+  if (G.items && Math.random() < .5) {
+    I.setEnv(G);
+    const grab = I.legalMoves(G.board, 'b').filter(m => G.items[m.t] && !m.r && !m.arm && !m.sw && G.board[m.f].t !== 'K');
+    if (grab.length) { await playMove('b', grab[Math.floor(Math.random() * grab.length)]); return; }
   }
   const plan = I.aiDecide(G, 'b');
   I.setEnv(G);
@@ -724,6 +716,7 @@ function drawBoard(now) {
   }
   const showMine = s => G.mode === 'pvp' || s === 'w';
   for (let i = 0; i < N * N; i++) { const t = G.terr[i]; if (!t || !visible(i)) continue; const [x, y] = sqXY(i); I.drawTerrain(c, t, x, y, CELL, i, t.k !== 'mine' || showMine(t.s)); }
+  if (G.items) for (let i = 0; i < N * N; i++) { const it = G.items[i]; if (!it || !visible(i) || G.board[i]) continue; const [x, y] = sqXY(i); const dk = fx.find(f => f.kind === 'drop' && f.sq === i); let yo = 0; if (dk) { const k = Math.max(0, Math.min(1, (now - dk.start) / dk.dur)); yo = -(1 - k * k) * CELL * 3; } IT.drawItem(c, it.k, x, y + yo, CELL, now, i); }
   for (const f of fx) if (f.kind === 'splat' && now >= f.start) {
     const k = (now - f.start) / f.dur, [x, y] = sqXY(f.sq);
     c.globalAlpha = Math.min(1, (1 - k) * 3) * 0.5; c.fillStyle = RED; c.beginPath();
@@ -879,7 +872,11 @@ function drawBoard(now) {
       c.lineWidth = 4; c.strokeStyle = PAPER; c.strokeText(f.str, x, y - CELL * .55 - k * CELL * .5);
       c.fillStyle = f.col === GOLD ? '#9a6f0c' : f.col; c.fillText(f.str, x, y - CELL * .55 - k * CELL * .5); c.globalAlpha = 1;
     } else if (f.kind === 'spell') drawSpellFx(c, f, k);
-    else if (f.kind === 'annot') {
+    else if (f.kind === 'dance') {
+      const [x, y] = sqXY(f.sq); c.font = `${Math.round(CELL * .32)}px serif`; c.textAlign = 'center'; c.fillStyle = ['#7a3fb8', '#c0392b', '#1aa7a1'][f.sq % 3];
+      for (let n = 0; n < 2; n++) { const kk = (k * 2 + n * .5) % 1; c.globalAlpha = 1 - kk; c.fillText(n ? '♫' : '♪', x + Math.sin((kk + n) * 6) * CELL * .25, y - CELL * .3 - kk * CELL * .5); }
+      c.globalAlpha = 1;
+    } else if (f.kind === 'annot') {
       const [x, y] = sqXY(f.sq), R = Math.max(9, CELL * .24), pop = k < .1 ? k / .1 : 1, bx = x + CELL * .38, by = y - CELL * .38;
       c.globalAlpha = k > .8 ? (1 - k) / .2 : 1;
       c.save(); c.translate(bx, by); c.scale(pop * (1 + .25 * Math.sin(Math.min(1, k * 6) * Math.PI)), pop);

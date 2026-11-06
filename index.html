@@ -41,7 +41,7 @@
       <div class="bar" id="oppBar"></div>
       <div class="rot" id="rot" hidden><span class="rot-lbl">Brainrot</span><div class="rot-bar" role="presentation"><i></i></div><span class="rot-n">0%</span><span class="rot-act"></span></div>
       <div class="fields" id="fields" aria-live="polite" hidden></div>
-      <div class="board-wrap" id="boardWrap"><div class="board-frame"><div class="chaos" id="chaos" hidden role="status" aria-live="assertive"><div class="chaos-head">CHAOS EVENT</div><div class="reel"></div><div class="desc"></div></div><div class="meme-cap" id="memeCap" hidden aria-live="polite"></div><div class="meme-react" id="memeReact" hidden aria-hidden="true"></div><canvas id="duel" aria-label="Battle close-up. Click to skip." hidden></canvas><canvas id="board" aria-label="15 by 15 board. Scroll or pinch to zoom, drag to move around."></canvas>
+      <div class="board-wrap" id="boardWrap"><div class="board-frame"><div class="meme-cap" id="memeCap" hidden aria-live="polite"></div><div class="meme-react" id="memeReact" hidden aria-hidden="true"></div><canvas id="duel" aria-label="Battle close-up. Click to skip." hidden></canvas><canvas id="board" aria-label="15 by 15 board. Scroll or pinch to zoom, drag to move around."></canvas>
         <div class="zoom" role="group" aria-label="Board view">
           <button class="btn small" id="zIn" type="button" aria-label="Zoom in">+</button>
           <button class="btn small" id="zOut" type="button" aria-label="Zoom out">−</button>
@@ -78,20 +78,20 @@
   <div class="sheet start">
     <h2 id="startTitle" class="big-title">Chess 2</h2>
     <p class="sub-title">the sequel nobody asked for</p>
-    <p class="lede">Chess, but nothing is safe. Gravity flips, the board spins, it rains ducks, kings swap places, pieces mutate, and somebody might drop a nuke.</p>
+    <p class="lede">Chess, but completely unhinged. Pomegranates, markers, gems, wedding rings, dance parties, pieces walking off the board, and somebody might drop a nuke.</p>
     <ul class="rules">
       <li>Checkmate the enemy king. That's the only rule that stays put.</li>
       <li>Each turn, move a piece <i>or</i> play a card. Coins buy packs of 127 ridiculous cards.</li>
-      <li>Every round a <b>chaos event</b> spins up and changes everything.</li>
+      <li><b>Random things</b> keep turning up on the board: a pomegranate, a marker, gems, a wedding ring, a disco ball, a birthday cake. Walk a piece onto one and see what happens.</li>
       <li>Armies start shuffled, with a few weird units mixed in. Capturing can make a piece <b>mutate</b>.</li>
       <li>Every piece has <b>special moves</b>: tap a piece to see them. The <b>Brainrot meter</b> fills every turn and unlocks crazier ones, act by act, up to <b>the Finale</b>.</li>
     </ul>
-    <label class="chaos-pick" for="chaosQ">Chaos level
+    <label class="chaos-pick" for="chaosQ">How random
       <select id="chaosQ">
-        <option value="calm">Calm (normal chess and cards, no specials)</option>
-        <option value="mild">Mild (an event every 3 rounds)</option>
-        <option value="wild" selected>Wild (an event every round)</option>
-        <option value="unhinged">Unhinged (an event every turn, lots of mutations)</option>
+        <option value="calm">Calm (normal chess and cards, nothing random)</option>
+        <option value="mild">Mild (a random thing every 3 rounds)</option>
+        <option value="wild" selected>Wild (random things all the time)</option>
+        <option value="unhinged">Unhinged (the board is full of stuff, lots of mutations)</option>
       </select>
     </label>
     <div class="start-btns">
@@ -126,7 +126,7 @@
 <script src="cinema3d.js"></script>
 <script src="cinema.js"></script>
 <script src="battle.js"></script>
-<script src="chaos.js"></script>
+<script src="items.js"></script>
 <script src="memes.js"></script>
 <script src="game.js"></script>
 </body>
