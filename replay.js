@@ -38,7 +38,7 @@ function analyse(clip) {
   let hit = clip.t;
   if ((hit == null || hit < 0) && victims.length) hit = victims[0].i;
   const kind = clip.kind || (victims.length ? 'capture' : 'move');
-  const word = clip.mate != null ? 'CHECKMATE' : kind === 'bossatk' ? ({ laser: 'ZZZAP!', stomp: 'STOMP!', roar: 'NEEEIGH!', charge: 'CHARGE!' }[clip.attack] || 'NEEEIGH!') : (WORDS[kind] || WORDS.capture)[Math.floor(hash(clip.t + clip.before.length) * (WORDS[kind] || WORDS.capture).length)];
+  const word = clip.mate != null ? 'CHECKMATE' : kind === 'bossatk' ? ({ laser: 'ZZZAP!', laserCol: 'AAAAAAA!', stomp: 'STOMP!', roar: 'NEEEIGH!', charge: 'CHARGE!', scream: 'AAAAAAA!', peck: 'PECK PECK!', feathers: 'FLOOF!', seeds: 'PEW PEW PEW!', juice: 'SPLOOSH!', roll: 'ROLLING!' }[clip.attack] || 'BOOM!') : (WORDS[kind] || WORDS.capture)[Math.floor(hash(clip.t + clip.before.length) * (WORDS[kind] || WORDS.capture).length)];
   const shot = kind === 'shot' || (kind === 'capture' && !movers.length && clip.f >= 0 && clip.f !== clip.t);
   return (clip._a = { movers, victims, born, changed, hit, kind, word, shot, before, after });
 }
@@ -158,9 +158,10 @@ function drawClip(c, W, H, clip, k, idx, n, now) {
     if (I.drawNukeBomb) I.drawNukeBomb(c, 0, 0, cell * 2.2, Math.PI / 2, INK, '#3b3a42', 3); else { c.fillStyle = '#333'; c.beginPath(); c.ellipse(0, 0, cell * .3, cell * .7, 0, 0, 7); c.fill(); }
     c.restore();
   }
-  if (kind === 'bossatk' && clip.attack === 'laser' && clip.row != null && s > T_ACT && s < T_SLOW + .1 && clip.bossBefore) {
-    const [bx, by] = xy(clip.bossBefore.at), [, ly] = xy(clip.row * N), w = cell * .35 * Math.sin(clamp((s - T_ACT) / (T_SLOW + .1 - T_ACT), 0, 1) * Math.PI);
-    c.fillStyle = '#ff3b2e'; c.fillRect(-W, ly - w / 2, W * 2, w); c.fillStyle = '#fff3ea'; c.fillRect(-W, ly - w / 6, W * 2, w / 3);
+  if (kind === 'bossatk' && (clip.row != null || clip.col != null) && s > T_ACT && s < T_SLOW + .1 && clip.bossBefore) {
+    const [bx, by] = xy(clip.bossBefore.at), w = cell * .35 * Math.sin(clamp((s - T_ACT) / (T_SLOW + .1 - T_ACT), 0, 1) * Math.PI);
+    if (clip.col != null) { const [lx] = xy(clip.col); c.fillStyle = '#ff3b2e'; c.fillRect(lx - w / 2, -H, w, H * 2); c.fillStyle = '#fff3ea'; c.fillRect(lx - w / 6, -H, w / 3, H * 2); }
+    else { const [, ly] = xy(clip.row * N); c.fillStyle = '#ff3b2e'; c.fillRect(-W, ly - w / 2, W * 2, w); c.fillStyle = '#fff3ea'; c.fillRect(-W, ly - w / 6, W * 2, w / 3); }
     c.fillStyle = 'rgba(255,59,46,.5)'; c.beginPath(); c.arc(bx + cell * .5, by + cell * .1, w, 0, 7); c.fill();
   }
   if (kind === 'bosshit' && clip.f >= 0 && clip.bossBefore && s < T_HIT) {

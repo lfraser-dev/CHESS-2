@@ -69,9 +69,22 @@ The host plays Paper (moves first) and picks how random the game is. The board i
 - **From GitHub (or any copy of the game):** both of you open the game with the internet on. It connects you directly using [PeerJS](https://peerjs.com) (free, loaded automatically, no account needed). The easiest way to share one link is GitHub Pages: in the repo go to **Settings → Pages**, pick **Deploy from a branch**, choose `main` and `/ (root)`, then use the link it gives you. (GitHub Pages on a private repo needs a paid GitHub plan; on a free plan, make the repo public, or each download the repo and open `index.html`.) Some school or work networks block these direct connections.
 - **On the Chess 2 page in Claude:** share it with your friend from the page's **Share** menu (invite their email; they need to be signed in to Claude), and you both open it. It uses Claude's own live connection.
 
-## Boss fight
+## Boss fights
 
-At **THE FINALE**, **MEGA HORSEY** lands in the middle of the board: a giant crowned horse that takes up 2×2 squares, has 18 health and belongs to nobody. To hit it, select a piece next to it (or a shooter within 3 squares) and click the boss. That uses your turn and deals damage based on the piece's value. Every round it attacks whoever is near: it **stomps** (destroys up to 2 pieces next to it), fires **eye lasers** along a row, **neighs** so loud everything nearby freezes, or **charges** towards the biggest crowd. Spells that hit it hurt it too, and a NUKE does 12. Whoever lands the final blow gets 15 coins, and that piece gets 2 armour and super speed. To summon it any time, press **Summon boss** at the top.
+At **THE FINALE** a random boss lands in the middle of the board. Each one takes up 2×2 squares, belongs to nobody, and has its own attacks:
+
+| Boss | Health | Attacks |
+| --- | --- | --- |
+| **MEGA HORSEY**, a giant crowned horse | 18 | Stomps pieces next to it, fires eye lasers along a row, neighs so loud everything nearby freezes, charges at the biggest crowd |
+| **THE SCREAMING PAWN**, a pawn the size of a house | 14 | Screams so hard nearby pieces freeze and get blown back a square, screams a beam down a column, falls on people, waddles forward |
+| **KING CLUCK**, a king made of about 100 chickens | 16 | Sends the pecking squad after pieces within 2 squares, explodes into a feather storm that freezes everything within 3, stampedes |
+| **THE SENTIENT POMEGRANATE** | 20 | Fires a seed barrage at up to 3 pieces within 4 squares, squirts sticky juice that freezes everything within 3, rolls 2 squares |
+
+To hit a boss, select a piece next to it (or a shooter within 3 squares) and click the boss. That uses your turn, and stronger pieces hit harder. Spells that hit it hurt it too, and a NUKE does 12. Whoever lands the final blow gets 15 coins, and that piece gets 2 armour and super speed. Press **Summon boss** at the top to summon a random one any time.
+
+## Music and sound
+
+The soundtrack is generated live (no files) and builds act by act: a plucky tune in ACT I, then bass, drums, a lead melody and more speed in each act, and heavy boss music with brass stabs while a boss is on the board. It goes quiet for the NUKE cutscene. Turn it off with **Music on/off** at the top (remembered), or turn off everything with **Sound on/off**. Sound effects include air horns, vine-style booms, record scratches, a crowd "ooooh", bonks, clucks, neighs and splats.
 
 ## Talking pieces and the highlights reel
 
@@ -131,7 +144,8 @@ Open **Units & cards** in the game for every card, a move diagram for every unit
 - `items.js` – the random things on the board and their drawings
 - `talk.js` – what the pieces say, and the speech bubbles
 - `replay.js` – the end-of-game highlights reel
-- `boss.js` – MEGA HORSEY, the finale boss
+- `boss.js` – the finale bosses: their art, health and attacks
+- `music.js` – the generated soundtrack
 - `netpeer.js` – online play outside Claude (PeerJS); the rest of online play is in the "online" section of `game.js`
 - `memes.js` – the Brainrot meter, the acts, special moves, and meme captions
 - `cinema3d.js` – the NUKE cinematic's real-time 3D: raymarched chess set, metal bomb, volumetric clouds, fireball, mushroom cloud and shockwave (WebGL)

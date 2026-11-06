@@ -265,7 +265,7 @@ async function playCard(side, idx, o) {
     if (G.boss && BO.ensure(G)) {
       const r = BO.hit(G, side, -1, key === 'nuke' ? 12 : 4);
       addFx({ kind: 'text', sq: G.boss.at, str: `-${r.dmg}`, col: RED, delay: 300, dur: 1400 });
-      addLog(`The ${card.name} hits ${BO.NAME} for ${r.dmg}!`, 'special');
+      addLog(`The ${card.name} hits ${bossName()} for ${r.dmg}!`, 'special');
       if (r.dead) await bossDefeated(side, null);
     }
     const extra = evToFx(ev, key);
@@ -473,18 +473,22 @@ function bossHittable(side, sq) {
   return !I.inCheck(G.board, side) && BO.canHit(G, sq) && G.board[sq] && G.board[sq].s === side;
 }
 const humanTurnFor = side => G.turn === side;
+const bossName = () => G && G.boss ? BO.nameOf(G.boss) : 'the boss';
+let lastBossType = null;
 const bossCentre = () => { const [x1, y1] = sqXY(G.boss.at), [x2, y2] = sqXY(G.boss.at + N + 1); return [(x1 + x2) / 2, (y1 + y2) / 2]; };
-async function spawnBoss() {
-  const at = BO.spawnSpot(G, G.turn); if (at < 0) { addLog(`${BO.NAME} looked for somewhere to land but the board is too full.`, 'chaoslog'); return; }
-  const squashed = BO.place(G, at);
+async function spawnBoss(type) {
+  if (!type) { const opts = BO.TYPE_KEYS.filter(k => k !== lastBossType); type = opts[Math.floor(Math.random() * opts.length)]; }
+  lastBossType = type;
+  const at = BO.spawnSpot(G, G.turn); if (at < 0) { addLog(`${bossName()} looked for somewhere to land but the board is too full.`, 'chaoslog'); return; }
+  const squashed = BO.place(G, at, type);
   for (const { sq, p } of squashed) addFx({ kind: 'fling', p, sq, dir: [Math.random() - .5, -1], delay: 100, dur: 900, s: p.id });
   focusOn(at); refresh();
   shakeT = performance.now() + 1400; addFx({ kind: 'flash', dur: 500 });
   for (const b of BO.squares(at)) addFx({ kind: 'boom', sq: b, delay: 100, dur: 900 });
-  snd('nukeboom'); setTimeout(() => snd('vboom'), 500);
+  snd('nukeboom'); setTimeout(() => snd('vboom'), 500); setTimeout(() => snd(G.boss && G.boss.type === 'chicken' ? 'cluck' : G.boss && G.boss.type === 'pawn' ? 'scream' : 'dun'), 900);
   punch(at, .9, 1800);
-  meme(`${BO.NAME}: *has entered the chat*`, { react: 'BOSS FIGHT', big: true, sq: at });
-  addLog(`BOSS FIGHT! ${BO.NAME} lands in the middle of the board with ${BO.MAX_HP} health. Both sides can hit it: select a piece next to it (or a shooter within 3) and click the boss. Whoever lands the final blow gets 15 coins.`, 'actlog');
+  meme(`${bossName()}: *has entered the chat*`, { react: 'BOSS FIGHT', big: true, sq: at });
+  addLog(`BOSS FIGHT! ${bossName()} (${BO.typeOf(G.boss).blurb}) lands in the middle of the board with ${G.boss.max} health. Both sides can hit it: select a piece next to it (or a shooter within 3) and click the boss. Whoever lands the final blow gets 15 coins.`, 'actlog');
   const near = BO.ring(at, 3).filter(i => G.board[i]).slice(0, 3);
   near.forEach((i, n) => say(i, 'boss', { delay: 900 + n * 500, loud: n === 0 }));
   await sleep(1800);
@@ -502,10 +506,10 @@ async function bossAttack(side, sq) {
   setTimeout(() => { snd('hit'); shakeT = performance.now() + 300; if (G.boss) G.boss.hitT = performance.now(); }, ranged ? 360 : 280);
   addFx({ kind: 'impact', sq: near, from: sq, delay: ranged ? 360 : 280, dur: 380, big: true });
   addFx({ kind: 'text', sq: near, str: `-${r.dmg}`, col: RED, delay: 300, dur: 1300 });
-  const cap = `${M.SIDE(side)}: *${U[p.t].name} ${M.pick(['bonks', 'slaps', 'punches', 'pokes', 'roundhouse kicks', 'headbutts'])} ${BO.NAME}*`;
+  const cap = `${M.SIDE(side)}: *${U[p.t].name} ${M.pick(['bonks', 'slaps', 'punches', 'pokes', 'roundhouse kicks', 'headbutts'])} ${bossName()}*`;
   meme(cap, { react: r.dead ? null : M.pick(['DAMAGE', 'it felt that', 'GET HIM', 'crit!!']), sq: near });
   say(sq, 'special', { delay: 100 });
-  addLog(`${poss(side)} ${U[p.t].name} hits ${BO.NAME} for ${r.dmg} (${G.boss.hp} health left).`, 'special');
+  addLog(`${poss(side)} ${U[p.t].name} hits ${bossName()} for ${r.dmg} (${G.boss.hp} health left).`, 'special');
   addRot(3);
   refresh(); await waitAnims();
   clip(r.dead ? 15 : 3 + r.dmg, hb, hi, sq, near, cap, r.dead ? 'BOSS DEFEATED' : 'DAMAGE', 'BOSS FIGHT', 'bosshit', { dmg: r.dmg, dead: r.dead });
@@ -513,16 +517,16 @@ async function bossAttack(side, sq) {
   finishTurn(side);
 }
 async function bossDefeated(side, sq) {
-  const at = G.boss.at, dmg = G.boss.dmg;
+  const at = G.boss.at, dmg = G.boss.dmg, bname = bossName();
   for (const b of BO.squares(at)) addFx({ kind: 'boom', sq: b, delay: Math.random() * 300, dur: 900 });
   addFx({ kind: 'flash', dur: 700 }); shakeT = performance.now() + 1500; snd('nukeboom'); setTimeout(() => snd('airhorn'), 600);
   BO.remove(G);
   G.coins[side] += 15;
   if (sq != null && G.board[sq] && G.board[sq].s === side) { const q = G.board[sq]; G.board[sq] = { ...q, ar: (q.ar || 0) + 2, mut: [...(q.mut || []), 'zoom'] }; addFx({ kind: 'spell', key: 'mutate', sq, delay: 500, dur: 1000 }); }
   for (const b of BO.squares(at)) addFx({ kind: 'confetti', sq: b, dur: 1800, s: b });
-  meme(`${M.SIDE(side)}: *defeats ${BO.NAME}*`, { react: 'BOSS DEFEATED', big: true, sq: at });
+  meme(`${M.SIDE(side)}: *defeats ${bname}*`, { react: 'BOSS DEFEATED', big: true, sq: at });
   const mvp = dmg.w === dmg.b ? 'a tie' : dmg.w > dmg.b ? who('w') : who('b');
-  addLog(`${BO.NAME} IS DEFEATED! ${who(side)} landed the final blow: +15 coins, and the hero gets 2 armour and super speed. Damage dealt: ${who('w')} ${dmg.w}, ${who('b')} ${dmg.b} (MVP: ${mvp}).`, 'actlog');
+  addLog(`${bname} IS DEFEATED! ${who(side)} landed the final blow: +15 coins, and the hero gets 2 armour and super speed. Damage dealt: ${who('w')} ${dmg.w}, ${who('b')} ${dmg.b} (MVP: ${mvp}).`, 'actlog');
   refresh(); await waitAnims(); await sleep(400);
 }
 async function bossTurn() {
@@ -532,20 +536,26 @@ async function bossTurn() {
   focusOn(G.boss.at);
   const res = BO.act(G, toMove); if (!res) return;
   const [bx, by] = bossCentre();
-  const cap = `${BO.NAME}: *${res.verb}*`;
+  const cap = `${bossName()}: *${res.verb}*`;
   meme(cap, { react: res.react, big: res.killed.length > 0, sq: G.boss.at });
   if (res.kind === 'stomp') { shakeT = performance.now() + 700; snd('rumble'); for (const b of BO.ring(G.boss.at, 1)) addFx({ kind: 'dust', sq: b, dur: 600, s: b }); }
-  if (res.kind === 'laser') { addFx({ kind: 'laser', row: res.row, sqs: res.laser, from: G.boss.at, dur: 900 }); snd('laser'); }
-  if (res.kind === 'roar') { addFx({ kind: 'scream', sq: G.boss.at, dur: 900 }); addFx({ kind: 'scream', sq: G.boss.at + N + 1, dur: 900, delay: 150 }); snd('scream'); for (const i of res.frozen.slice(0, 2)) say(i, 'boss', { delay: 400 }); }
+  if (res.kind === 'laser' || res.kind === 'laserCol') { addFx({ kind: 'laser', row: res.row, col: res.col, sqs: res.laser, from: G.boss.at, dur: 900 }); snd(res.kind === 'laserCol' ? 'scream' : 'laser'); }
+  if (res.kind === 'roar' || res.kind === 'scream') { addFx({ kind: 'scream', sq: G.boss.at, dur: 900 }); addFx({ kind: 'scream', sq: G.boss.at + N + 1, dur: 900, delay: 150 }); snd(res.kind === 'scream' ? 'scream' : 'neigh'); for (const i of res.frozen.slice(0, 2)) say(i, 'boss', { delay: 400 }); }
+  if (res.kind === 'feathers') { for (const i of BO.ring(G.boss.at, 3)) if (Math.random() < .5) addFx({ kind: 'confetti', sq: i, dur: 1400, s: i }); snd('cluck'); setTimeout(() => snd('whoosh'), 200); }
+  if (res.kind === 'peck') { snd('cluck'); for (const k of res.killed) addFx({ kind: 'impact', sq: k.sq, dur: 300, delay: 150 }); }
+  if (res.kind === 'juice') { for (const i of BO.ring(G.boss.at, 3)) if (Math.random() < .6) addFx({ kind: 'splat', sq: i, dur: 9000, s: i * 3 }); snd('splat'); }
+  if (res.kind === 'seeds') { res.shots.forEach((t, n) => { addAnim({ kind: 'shot', f: G.boss.at, t, dur: 380, delay: n * 120, proj: 'bullet' }); addFx({ kind: 'splat', sq: t, dur: 9000, s: t, delay: 350 + n * 120 }); }); snd('pew'); }
+  for (const pu of res.pushed) addAnim({ kind: 'move', p: pu.p, f: pu.f, t: pu.t, dur: 300, fly: true });
+  if (res.moved && G.boss.type === 'pom') snd('rumble');
   if (res.moved) { shakeT = performance.now() + 600; snd('rumble'); }
   for (const { sq, p } of res.killed) {
     const a = Math.atan2(sqXY(sq)[1] - by, sqXY(sq)[0] - bx);
     addFx({ kind: 'fling', p, sq, dir: [Math.cos(a), Math.sin(a) - .5], delay: 250, dur: 900, s: p.id });
     say(sq, 'dying', { p, dead: true, delay: 300 });
   }
-  if (res.killed.length) { setTimeout(() => snd('hit'), 250); clip(4 + res.killed.length * 2, hb, hi, -1, res.killed[0].sq, cap, res.react, 'BOSS ATTACK', 'bossatk', { attack: res.kind, row: res.row }); }
+  if (res.killed.length) { setTimeout(() => snd('bonk'), 250); clip(4 + res.killed.length * 2, hb, hi, -1, res.killed[0].sq, cap, res.react, 'BOSS ATTACK', 'bossatk', { attack: res.kind, row: res.row, col: res.col }); }
   const lost = res.killed.map(k => `${poss(k.p.s)} ${U[k.p.t].name}`);
-  addLog(`${BO.NAME} ${res.verb}${lost.length ? `, destroying ${lost.join(', ')}` : ''}${res.frozen.length ? ` (${res.frozen.length} pieces frozen)` : ''}.`, 'chaoslog');
+  addLog(`${bossName()} ${res.verb}${lost.length ? `, destroying ${lost.join(', ')}` : ''}${res.frozen.length ? ` (${res.frozen.length} pieces frozen)` : ''}.`, 'chaoslog');
   refresh(); await waitAnims(); await sleep(250);
 }
 
@@ -655,7 +665,7 @@ function slam(text, big) {
   el.classList.toggle('big', !!big);
   el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); el.hidden = false;
   if (big) { const fr = bc.parentElement; fr.classList.remove('fried'); void fr.offsetWidth; fr.classList.add('fried'); shakeT = performance.now() + 350; }
-  snd(big ? 'vboom' : M.pick(['scratch', 'boing', 'brilliant']));
+  snd(big ? M.pick(['vboom', 'vboom', 'ooh']) : M.pick(['scratch', 'boing', 'brilliant', 'bonk', 'pew']));
   clearTimeout(slamT); slamT = setTimeout(() => { el.hidden = true; }, 1500);
 }
 // act changes no longer cover the board: just a quick toast and a sting
@@ -1057,11 +1067,17 @@ function drawBoard(now) {
       c.fillStyle = f.col === GOLD ? '#9a6f0c' : f.col; c.fillText(f.str, x, y - CELL * .55 - k * CELL * .5); c.globalAlpha = 1;
     } else if (f.kind === 'spell') drawSpellFx(c, f, k);
     else if (f.kind === 'laser') {
-      const [bx, by] = sqXY(f.from), ey = sqXY(f.row * N)[1], ex = bx + CELL * .5, w = (1 - k) * CELL * .28 + 2;
-      const xs = f.sqs.map(i => sqXY(i)[0]), lo = Math.min(...xs, ex), hi = Math.max(...xs, ex);
+      const [bx, by] = G.boss ? bossCentre() : sqXY(f.from), w = (1 - k) * CELL * .28 + 2;
       c.globalAlpha = Math.min(1, (1 - k) * 2);
-      c.fillStyle = '#ff3b2e'; c.fillRect(lo - CELL / 2, ey - w / 2, hi - lo + CELL, w);
-      c.fillStyle = '#fff3ea'; c.fillRect(lo - CELL / 2, ey - w / 6, hi - lo + CELL, w / 3);
+      if (f.col != null) {
+        const ex = sqXY(f.col)[0], ys = f.sqs.map(i => sqXY(i)[1]), lo = Math.min(...ys, by), hi = Math.max(...ys, by);
+        c.fillStyle = '#ff3b2e'; c.fillRect(ex - w / 2, lo - CELL / 2, w, hi - lo + CELL);
+        c.fillStyle = '#fff3ea'; c.fillRect(ex - w / 6, lo - CELL / 2, w / 3, hi - lo + CELL);
+      } else {
+        const ey = sqXY(f.row * N)[1], xs = f.sqs.map(i => sqXY(i)[0]), lo = Math.min(...xs, bx), hi = Math.max(...xs, bx);
+        c.fillStyle = '#ff3b2e'; c.fillRect(lo - CELL / 2, ey - w / 2, hi - lo + CELL, w);
+        c.fillStyle = '#fff3ea'; c.fillRect(lo - CELL / 2, ey - w / 6, hi - lo + CELL, w / 3);
+      }
       c.globalAlpha = 1;
     } else if (f.kind === 'dust') {
       const [x, y] = sqXY(f.sq); c.fillStyle = 'rgba(120,110,95,.5)'; c.globalAlpha = 1 - k;
@@ -1370,6 +1386,7 @@ function refresh() {
   renderBar($('#oppBar'), G.mode === 'pvp' ? other(G.turn) : other(viewer()));
   renderBar($('#meBar'), G.mode === 'pvp' ? G.turn : viewer());
   renderFields(); renderShop(); renderHand(); renderSpecials(); renderRot();
+  if (I.Music) I.Music.setLevel(G.over ? 0 : tier(), !!G.boss && !G.over);
   $('#log').innerHTML = G.log.slice(0, 16).map(l => `<li class="${l.cls}">${l.text}</li>`).join('');
   setStatus();
   tKey = null;
@@ -1643,12 +1660,12 @@ $('#onlineCode').addEventListener('keydown', e => { if (e.key === 'Enter') joinO
 async function summonBossNow() {
     unlockAudio();
     $('#unitsOverlay').hidden = true;
-    if (G.boss) { toast(`${BO.NAME} is already here`); focusOn(G.boss.at); return; }
+    if (G.boss) { toast(`${bossName()} is already here`); focusOn(G.boss.at); return; }
     if (G.over) { toast('Start a new game first'); return; }
-    if (G.mode === 'online' && !humanTurn()) { toast(`${BO.NAME} can only be summoned on your turn`); return; }
-    if (G.lock) { toast(`${BO.NAME} will land when it's your turn`); bossQueued = true; return; }
+    if (G.mode === 'online' && !humanTurn()) { toast(`${bossName()} can only be summoned on your turn`); return; }
+    if (G.lock) { toast(`${bossName()} will land when it's your turn`); bossQueued = true; return; }
     G.lock = true; await spawnBoss(); G.lock = false; refresh();
-    if (!G.boss) toast(`${BO.NAME} couldn't find anywhere to land`);
+    if (!G.boss) toast(`${bossName()} couldn't find anywhere to land`);
     if (G.mode === 'ai' && G.turn === 'b') aiTurn();
 }
 // ---- units & cards guide
@@ -1658,7 +1675,7 @@ function buildGuide() {
   const nukeBtn = document.createElement('button'); nukeBtn.type = 'button'; nukeBtn.className = 'btn'; nukeBtn.textContent = 'Watch the NUKE cutscene';
   nukeBtn.onclick = () => { unlockAudio(); nukeCutscene(); }; grid.appendChild(nukeBtn);
   const bossBtn = document.createElement('button'); bossBtn.className = 'btn'; bossBtn.type = 'button'; bossBtn.style.marginLeft = '8px';
-  bossBtn.textContent = `Summon ${BO.NAME} now`;
+  bossBtn.textContent = 'Summon a boss now';
   bossBtn.onclick = () => summonBossNow();
   grid.appendChild(bossBtn);
   { const h = document.createElement('h3'); h.textContent = 'Special moves (unlocked by the Brainrot meter)'; grid.appendChild(h);
@@ -1748,6 +1765,7 @@ function nukeCutscene() {
   const ov = $('#cutscene'), cv = $('#cutscene2D');
   ov.hidden = false;
   castCache = castCache || cutsceneCast();
+  if (I.Music) I.Music.duck(true);
   const music = startNukeMusic();
   let skip = null;
   const quality = cineQuality();
@@ -1755,14 +1773,18 @@ function nukeCutscene() {
     onFallback: why => toast(why === 'movie' ? 'The cutscene movie couldn\'t load, so the simple version played' : 'Your device was struggling, so the cutscene switched to the simple version') });
   const finish = () => { if (skip) skip(); };
   ov.onclick = finish; $('#cutSkip').onclick = e => { e.stopPropagation(); finish(); };
-  return p.then(() => { music.stop(); ov.hidden = true; ov.onclick = null; });
+  return p.then(() => { music.stop(); ov.hidden = true; ov.onclick = null; if (I.Music) setTimeout(() => I.Music.duck(false), 1200); });
 }
 // ===================================================================== audio
 let AC = null, muted = false, noiseBuf = null;
 function unlockAudio() {
   if (AC) { if (AC.state === 'suspended') AC.resume(); return; }
   try { AC = new (window.AudioContext || window.webkitAudioContext)(); noiseBuf = AC.createBuffer(1, AC.sampleRate * .6, AC.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } catch (e) { AC = null; }
+  if (AC && I.Music) { I.Music.start(AC); I.Music.setOn(musicOn && !muted); }
 }
+// background music: on unless you turned it off (remembered)
+let musicOn = true; try { musicOn = localStorage.getItem('chess2.music') !== 'off'; } catch (e) { /* default on */ }
+function renderMusicBtn() { const b = $('#btnMusicOn'); if (!b) return; b.textContent = musicOn ? 'Music on' : 'Music off'; b.setAttribute('aria-pressed', String(musicOn)); }
 function snd(type) {
   if (!AC || muted) return;
   const now = AC.currentTime;
@@ -1806,6 +1828,14 @@ function snd(type) {
     case 'boing': tone('sine', 180, 520, .09, .08); tone('sine', 520, 260, .3, .06, .09); break;
     case 'brilliant': [784, 988, 1175, 1568].forEach((f, i) => tone('triangle', f, f, .18, .045, i * .06)); break;
     case 'win': [392, 523, 659, 784].forEach((f, i) => tone('triangle', f, f, .4, .06, i * .14)); break;
+    case 'cluck': for (let k = 0; k < 3; k++) { tone('square', 700 + k * 60, 380, .07, .05, k * .11); noise(.05, .12, 2200, k * .11, 'bandpass'); } tone('square', 900, 500, .2, .05, .36); break;
+    case 'neigh': { const g = AC.createGain(), o = AC.createOscillator(), l = AC.createOscillator(), lg = AC.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(900, now); o.frequency.exponentialRampToValueAtTime(420, now + .9); l.frequency.value = 18; lg.gain.value = 60; l.connect(lg); lg.connect(o.frequency); g.gain.setValueAtTime(.0001, now); g.gain.exponentialRampToValueAtTime(.05, now + .05); g.gain.exponentialRampToValueAtTime(.0001, now + 1); o.connect(g); g.connect(AC.destination); o.start(now); l.start(now); o.stop(now + 1.05); l.stop(now + 1.05); } break;
+    case 'splat': noise(.25, .4, 600); tone('sine', 220, 60, .2, .1); noise(.15, .15, 2500, .05, 'bandpass'); break;
+    case 'pew': for (let k = 0; k < 3; k++) tone('square', 1600, 300, .12, .035, k * .12); break;
+    case 'bonk': tone('triangle', 700, 340, .09, .14); noise(.03, .3, 3000, 0, 'highpass'); tone('sine', 160, 120, .12, .08); break;
+    case 'ooh': { // a cheesy crowd "ooooh": a few detuned voices swooping down through a vowel filter
+      for (const [f, d] of [[220, 0], [262, .01], [330, .02], [196, .015]]) { const g = AC.createGain(), o = AC.createOscillator(), fl = AC.createBiquadFilter(); o.type = 'sawtooth'; o.frequency.setValueAtTime(f * 1.05, now + d); o.frequency.exponentialRampToValueAtTime(f * .85, now + 1.1); fl.type = 'bandpass'; fl.Q.value = 6; fl.frequency.setValueAtTime(700, now); fl.frequency.exponentialRampToValueAtTime(400, now + 1.1); g.gain.setValueAtTime(.0001, now); g.gain.exponentialRampToValueAtTime(.05, now + .15); g.gain.exponentialRampToValueAtTime(.0001, now + 1.2); o.connect(fl); fl.connect(g); g.connect(AC.destination); o.start(now + d); o.stop(now + 1.25); }
+      noise(1.1, .04, 900, 0, 'bandpass'); break; }
   }
 }
 
@@ -1817,7 +1847,9 @@ $('#startUnits').addEventListener('click', openGuide);
 $('#unitsClose').addEventListener('click', () => { $('#unitsOverlay').hidden = true; });
 $('#btnNew').addEventListener('click', () => { if (G && G.mode === 'online' && NET.room && !G.over && !confirmLeave()) return; openStart(); });
 function confirmLeave() { toast('You\'re in an online game. Pick a mode on the start screen to leave it.'); return true; }
-$('#btnMute').addEventListener('click', () => { muted = !muted; $('#btnMute').textContent = muted ? 'Sound off' : 'Sound on'; $('#btnMute').setAttribute('aria-pressed', String(!muted)); });
+$('#btnMute').addEventListener('click', () => { muted = !muted; $('#btnMute').textContent = muted ? 'Sound off' : 'Sound on'; $('#btnMute').setAttribute('aria-pressed', String(!muted)); if (I.Music) I.Music.setOn(musicOn && !muted); });
+$('#btnMusicOn').addEventListener('click', () => { unlockAudio(); musicOn = !musicOn; try { localStorage.setItem('chess2.music', musicOn ? 'on' : 'off'); } catch (e) { /* not saved */ } renderMusicBtn(); if (I.Music) I.Music.setOn(musicOn && !muted); });
+renderMusicBtn();
 {
   const cs = $('#chaosQ'); cs.value = chaosLevel();
   cs.addEventListener('change', () => { try { localStorage.setItem('chess2.chaos', cs.value); } catch (e) {} });
