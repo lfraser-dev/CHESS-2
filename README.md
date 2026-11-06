@@ -55,6 +55,15 @@ Tap one of your pieces to see its special moves. Using one takes your turn (exce
 
 Every move gets a meme caption ("White: *googles en passant*"), with reaction text, dramatic zoom-ins, move annotations (!!, ??, ?!) and synthesised sound stings. On **Calm** there's no meter and no specials.
 
+## Online
+
+Press **Play online** on the start screen to play a friend on their own computer. This works on the Chess 2 page in Claude: share it with your friend from the page's **Share** menu (invite their email; they need to be signed in to Claude), and you both open it.
+
+1. One of you presses **Host a game** and gets a 5-letter code.
+2. The other presses **Play online**, types the code and presses **Join**.
+
+The host plays Paper (moves first) and picks how random the game is. At the end of each turn the whole game is sent across, so the other screen animates what happened, with the captions, and it's their turn. If someone reloads, they rejoin with the same code and take their seat back. Anyone else who joins with the code watches. Online play doesn't work in a downloaded copy of the game (`index.html` opened on its own).
+
 ## Boss fight
 
 At **THE FINALE**, **MEGA HORSEY** lands in the middle of the board: a giant crowned horse that takes up 2×2 squares, has 18 health and belongs to nobody. To hit it, select a piece next to it (or a shooter within 3 squares) and click the boss. That uses your turn and deals damage based on the piece's value. Every round it attacks whoever is near: it **stomps** (destroys up to 2 pieces next to it), fires **eye lasers** along a row, **neighs** so loud everything nearby freezes, or **charges** towards the biggest crowd. Spells that hit it hurt it too, and a NUKE does 12. Whoever lands the final blow gets 15 coins, and that piece gets 2 armour and super speed. To summon it any time, press **Summon boss** at the top.
@@ -118,6 +127,7 @@ Open **Units & cards** in the game for every card, a move diagram for every unit
 - `talk.js` – what the pieces say, and the speech bubbles
 - `replay.js` – the end-of-game highlights reel
 - `boss.js` – MEGA HORSEY, the finale boss
+- online play is in the "online" section of `game.js`
 - `memes.js` – the Brainrot meter, the acts, special moves, and meme captions
 - `cinema3d.js` – the NUKE cinematic's real-time 3D: raymarched chess set, metal bomb, volumetric clouds, fireball, mushroom cloud and shockwave (WebGL)
 - `cinema.js` – the cinematic's timeline, titles, captions, letterbox, grain and flashes (plus a 2D fallback if WebGL isn't available)

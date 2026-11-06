@@ -98,7 +98,23 @@
     <div class="start-btns">
       <button class="btn primary" id="startAi" type="button">Play the computer</button>
       <button class="btn" id="startPvp" type="button">Two players, one device</button>
+      <button class="btn" id="btnOnline" type="button">Play online</button>
       <button class="btn ghost" id="startUnits" type="button">Meet the units</button>
+    </div>
+    <div class="online-panel" id="onlinePanel" hidden>
+      <div id="onlineOn">
+        <p class="hint">Play a friend on their own computer. You both need this game page open: share it with them from the <b>Share</b> menu at the top (invite their email). One of you hosts and the other joins with the code.</p>
+        <div class="online-row">
+          <button class="btn primary" id="onlineHost" type="button">Host a game</button>
+          <span class="online-or">or</span>
+          <label class="online-join" for="onlineCode">Join with a code
+            <input id="onlineCode" type="text" inputmode="text" autocomplete="off" spellcheck="false" maxlength="8" placeholder="e.g. k7xq2">
+          </label>
+          <button class="btn" id="onlineJoin" type="button">Join</button>
+        </div>
+        <p class="online-status" id="onlineStatus" role="status" aria-live="polite"></p>
+      </div>
+      <p class="hint" id="onlineOff">Online play works on the Chess 2 page in Claude (share it with your friend from the Share menu and you both open it). It isn't available in this copy of the game.</p>
     </div>
   </div>
 </div>

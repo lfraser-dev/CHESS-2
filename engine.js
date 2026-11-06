@@ -232,6 +232,7 @@ function legalMoves(bd, side) {
 
 // ===================================================================== state
 let pid = 1;
+function bumpPid(n) { if (n >= pid) pid = n + 1; }
 function mkPiece(t, s) {
   const u = U[t];
   return { t, s, id: pid++, fz: 0, sh: 0, ar: u.armor || 0, reb: u.reborn ? 1 : 0, hatch: u.hatch || 0, curse: 0, bomb: 0, bounty: 0 };
@@ -690,7 +691,7 @@ function aiDecide(st, side) {
 }
 
 Object.assign(INK, {
-  N, solid, DIR8, ORTH, DIAG, KN, U, VAL, ENV, setEnv, genMoves, makeMove, unmake, kingSq, inCheck, legalMoves, other, rc, inB,
+  N, solid, bumpPid, DIR8, ORTH, DIAG, KN, U, VAL, ENV, setEnv, genMoves, makeMove, unmake, kingSq, inCheck, legalMoves, other, rc, inB,
   BACK, PAWN, CENTRE_COLS, MID, MUTATIONS, WEIRD_START, halfRows, mkPiece, newState, cloneState, homeRows, SETS, CARDS, RARITIES, RARITY_LABEL, SCRAP, PACKS, HAND_MAX, rollPack, rollCard, tradeUp,
   addToHand, coinValue, cardOptions, applyCard, legalCardOptions, stateLegal, aiDecide, area, kill, lastSnap,
 });

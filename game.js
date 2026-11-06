@@ -11,12 +11,16 @@ const lerp = (a, b, k) => a + (b - a) * k;
 
 let G = null;
 const NAMES = { ai: { w: 'You', b: 'The Ink Baron' }, pvp: { w: 'Paper', b: 'Ink' } };
-const who = s => NAMES[G.mode][s];
+// online: you are G.me, the other side is your friend (spectators see Paper and Ink)
+const namesNow = () => G.mode === 'online' ? (G.me ? { [G.me]: 'You', [other(G.me)]: 'Your friend' } : NAMES.pvp) : NAMES[G.mode];
+const who = s => namesNow()[s];
+const winText = w => who(w) === 'You' ? 'You win!' : `${who(w)} wins!`;
+const solo = () => G.mode !== 'pvp';   // there's a "you" (vs the Baron, or online)
 const poss = s => who(s) === 'You' ? 'Your' : who(s) + '\'s';
 const colName = c => c < 26 ? 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[c] : 'A' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[c - 26];
 const sqName = i => { const [r, c] = rc(i); return colName(c) + (N - r); };
-const viewer = () => G.mode === 'ai' ? 'w' : G.turn;
-const humanTurn = () => G && !G.over && (G.mode === 'pvp' || G.turn === 'w');
+const viewer = () => G.mode === 'ai' ? 'w' : G.mode === 'online' ? (G.me || 'w') : G.turn;
+const humanTurn = () => G && !G.over && (G.mode === 'pvp' || G.turn === (G.mode === 'online' ? G.me : 'w'));
 const FIELD_INFO = {
   wrap: ['Ouroboros', 'the left and right edges are joined'],
   truce: ['White Flag', 'nobody can capture'],
@@ -51,7 +55,8 @@ function newGame(mode) {
   
   newGame.started = true;
 }
-function addLog(text, cls = '') { G.log.unshift({ text, cls }); if (G.log.length > 50) G.log.pop(); }
+let logN = 0;
+function addLog(text, cls = '') { G.log.unshift({ text, cls, n: ++logN }); if (G.log.length > 50) G.log.pop(); }
 
 // ===================================================================== effects & turn flow
 function evToFx(ev, cardKey) {
@@ -59,7 +64,7 @@ function evToFx(ev, cardKey) {
   for (const e of ev) {
     if (e.type === 'destroy') { const a = Math.random() * Math.PI * 2; addFx({ kind: 'fling', p: e.p, sq: e.sq, dir: [Math.cos(a), Math.sin(a) - .6], delay: 300, dur: 850, s: e.sq }); addFx({ kind: 'impact', sq: e.sq, delay: 280, dur: 320 }); addFx({ kind: 'splat', sq: e.sq, delay: 300, dur: 9000, s: e.sq * 7 }); }
     else if (e.type === 'summon') addFx({ kind: 'summon', sq: e.sq, dur: e.big ? 900 : 700, big: e.big });
-    else if (e.type === 'spell') { if (!(e.hidden && G.mode === 'ai' && G.turn === 'b')) addFx({ kind: 'spell', key: cardKey, sq: e.sq, sq2: e.sq2, dur: 900 }); }
+    else if (e.type === 'spell') { if (!(e.hidden && G.mode !== 'pvp' && G.turn !== viewer())) addFx({ kind: 'spell', key: cardKey, sq: e.sq, sq2: e.sq2, dur: 900 }); }
     else if (e.type === 'shell') { addFx({ kind: 'boom', sq: e.sq, delay: Math.random() * 500, dur: 700 }); shakeT = performance.now() + 900; }
     else if (e.type === 'nuke') { addFx({ kind: 'boom', sq: e.sq, dur: 1400, big: true }); addFx({ kind: 'mushroom', sq: e.sq, dur: 3200 }); }
     else if (e.type === 'field') { addFx({ kind: 'field', key: e.key, dur: 1100 }); if (e.key === 'quake' || e.key === 'mirror') shakeT = performance.now() + 600; }
@@ -111,7 +116,7 @@ async function playMove(side, m) {
     focusOn(m.t); refresh();
     let est = U[cap.t].val ? Math.max(1, Math.ceil(U[cap.t].val / 2)) : 0;
     if (cap.bounty) est += 5; if (U[cap.t].cow) est += 4; if (mu.plunder) est += mu.plunder;
-    await I.Battle.play($('#duel'), { att: mover, def: cap, armour: !!m.arm, ranged: rangedHit, gain: m.arm ? 0 : est, snd, names: NAMES[G.mode] });
+    await I.Battle.play($('#duel'), { att: mover, def: cap, armour: !!m.arm, ranged: rangedHit, gain: m.arm ? 0 : est, snd, names: namesNow() });
   }
   const swapped = m.sw ? G.board[m.t] : null;
   I.makeMove(G.board, m);
@@ -265,7 +270,7 @@ async function playCard(side, idx, o) {
     }
     const extra = evToFx(ev, key);
     let line = `${who(side)} played ${card.name}`;
-    const hidden = key === 'mine' && G.mode === 'ai' && side === 'b';
+    const hidden = key === 'mine' && G.mode !== 'pvp' && side !== viewer();
     if (card.kind === 'unit') line += ` on ${sqName(o.a)}`;
     else if (o.a >= 0 && !hidden) line += ` on ${sqName(o.a)}${o.b != null ? ' → ' + sqName(o.b) : ''}`;
     if (extra.length) line += ` and ${extra.join(', ')}`;
@@ -330,7 +335,7 @@ function canAct(side) {
 function finishTurn(side) {
   endOfTurnEffects(side);
   G.sel = -1; G.pend = null; G.ply++;
-  if (G.extra) { G.extra = false; addLog(`${who(side)} take${G.mode === 'ai' && side === 'w' ? '' : 's'} another turn.`, 'played'); }
+  if (G.extra) { G.extra = false; addLog(`${who(side)} take${who(side) === 'You' ? '' : 's'} another turn.`, 'played'); }
   else {
     G.turn = other(side);
     G.coins[G.turn] += 1;
@@ -407,8 +412,8 @@ function startTurn() {
   if (bossQueued && !G.boss && humanTurn()) { bossQueued = false; setTimeout(summonBossNow, 300); }
   if (G.spcd && G.spcd[t] > 0) G.spcd[t]--;
   if (!canAct(t)) {
-    if (I.inCheck(G.board, t)) { G.over = { winner: other(t), why: 'checkmate' }; addLog(`Checkmate! ${G.mode === 'ai' ? (other(t) === 'w' ? 'You win.' : 'The Ink Baron wins.') : who(other(t)) + ' wins.'}`, 'big');
-      const lost = G.mode === 'ai' && other(t) === 'b'; snd(lost ? 'trombone' : 'win');
+    if (I.inCheck(G.board, t)) { G.over = { winner: other(t), why: 'checkmate' }; addLog(`Checkmate! ${winText(other(t))}`, 'big');
+      const lost = solo() && other(t) !== viewer(); snd(lost ? 'trombone' : 'win');
       const mateReact = lost ? 'it\'s so over' : M.pick(['GG EZ', 'WE\'RE SO BACK', 'absolute cinema']);
       meme(`${M.SIDE(other(t))}: *checkmates*`, { react: mateReact, big: true, sq: I.kingSq(G.board, t) });
       say(I.kingSq(G.board, t), 'lose', { loud: true, delay: 500, dur: 4000 });
@@ -417,11 +422,12 @@ function startTurn() {
       setTimeout(offerReplay, 3800); }
     else { G.over = { winner: null, why: 'stalemate' }; addLog('Stalemate. Nobody can move, so it\'s a draw.', 'big'); }
   } else if (G.quiet >= 120) { G.over = { winner: null, why: 'quiet' }; addLog('Sixty moves each with nothing captured. It\'s a draw.', 'big'); }
-  else if (I.inCheck(G.board, t)) { addLog(`${who(t)} ${G.mode === 'ai' && t === 'w' ? 'are' : 'is'} in check!`, 'warn'); snd('check'); }
+  else if (I.inCheck(G.board, t)) { addLog(`${who(t)} ${who(t) === 'You' ? 'are' : 'is'} in check!`, 'warn'); snd('check'); }
   G.lock = false;
   refresh();
-  if (G.over) { const ov = G.over, msg = ov.winner ? (G.mode === 'ai' ? (ov.winner === 'w' ? 'Checkmate. You win!' : 'Checkmate. The Ink Baron wins.') : `Checkmate. ${who(ov.winner)} wins!`) : 'Draw'; setTimeout(() => toast(msg), 900); return; }
+  if (G.over) { const ov = G.over, msg = ov.winner ? `Checkmate. ${winText(ov.winner)}` : 'Draw'; setTimeout(() => toast(msg), 900); return; }
   if (G.mode === 'ai' && G.turn === 'b') { G.lock = true; refresh(); setTimeout(aiTurn, 450); }
+  if (G.mode === 'online' && G.me && !NET.applying) netPublish();
 }
 
 // ---- random things on the board (pomegranates, markers, gems, rings, disco balls, cakes)
@@ -633,6 +639,7 @@ function aiSpecial() {
 // ---- meme presentation
 let memeT = 0;
 function meme(text, o = {}) {
+  if (G && G.mode === 'online' && G.me && !NET.applying && !o.remote) { NET.caps.push({ text, react: o.react || null, sq: o.sq != null ? o.sq : -1, big: !!o.big }); if (NET.caps.length > 5) NET.caps.shift(); }
   const el = $('#memeCap');
   el.textContent = text; el.classList.remove('show'); void el.offsetWidth; el.classList.add('show'); el.hidden = false;
   clearTimeout(memeT); memeT = setTimeout(() => { el.hidden = true; }, 2300);
@@ -878,7 +885,7 @@ function drawBoard(now) {
     for (const x of [bx0 - 3, bx1 + 3]) { c.beginPath(); c.moveTo(x, by0); c.lineTo(x, by1); c.stroke(); }
     c.setLineDash([]);
   }
-  const showMine = s => G.mode === 'pvp' || s === 'w';
+  const showMine = s => G.mode === 'pvp' || s === viewer();
   for (let i = 0; i < N * N; i++) { const t = G.terr[i]; if (!t || !visible(i)) continue; const [x, y] = sqXY(i); I.drawTerrain(c, t, x, y, CELL, i, t.k !== 'mine' || showMine(t.s)); }
   if (G.items) for (let i = 0; i < N * N; i++) { const it = G.items[i]; if (!it || !visible(i) || G.board[i]) continue; const [x, y] = sqXY(i); const dk = fx.find(f => f.kind === 'drop' && f.sq === i); let yo = 0; if (dk) { const k = Math.max(0, Math.min(1, (now - dk.start) / dk.dur)); yo = -(1 - k * k) * CELL * 3; } IT.drawItem(c, it.k, x, y + yo, CELL, now, i); }
   for (const f of fx) if (f.kind === 'splat' && now >= f.start) {
@@ -1227,9 +1234,10 @@ function setStatus() {
   const st = $('#status');
   let html = '';
   if (G.over) {
-    html = G.over.winner ? `<b>${G.over.why === 'checkmate' ? 'Checkmate.' : ''} ${G.mode === 'ai' ? (G.over.winner === 'w' ? 'You win!' : 'The Ink Baron wins.') : who(G.over.winner) + ' wins!'}</b>` : '<b>Draw.</b>';
+    html = G.over.winner ? `<b>${G.over.why === 'checkmate' ? 'Checkmate.' : ''} ${winText(G.over.winner)}</b>` : '<b>Draw.</b>';
     html += ' <button class="btn small" id="stAgain" type="button">Play again</button>';
   } else if (G.mode === 'ai' && G.turn === 'b') html = '<span class="thinking">The Ink Baron is thinking</span>';
+  else if (G.mode === 'online' && G.turn !== G.me) html = G.me ? `<span class="thinking">Your friend is playing</span>${NET.friendHere ? '' : ' <b class="warn">(your friend has left: they can rejoin with code <code>' + NET.code + '</code>)</b>'}` : `<span class="thinking">Watching: ${who(G.turn)} to move</span>`;
   else if (G.lock) html = '…';
   else if (G.spec) html = `<b class="spx">${M.BY_KEY[G.spec.key].name}</b>: pick a purple square. <button class="btn small ghost" id="stCancel" type="button">Cancel</button>`;
   else if (G.recycle) html = 'Recycling: tap cards in your hand to pick them, then scrap them for coins or trade 3 of the same rarity up.';
@@ -1243,7 +1251,7 @@ function setStatus() {
     html = ins + (T.t === 'none' ? ' <button class="btn small" id="stPlay" type="button">Play it</button>' : '') + ' <button class="btn small ghost" id="stCancel" type="button">Cancel</button>';
   } else {
     I.setEnv(G);
-    const chk = I.inCheck(G.board, G.turn), name = G.mode === 'ai' ? 'Your' : who(G.turn) + '\'s';
+    const chk = I.inCheck(G.board, G.turn), name = G.mode === 'pvp' ? who(G.turn) + '\'s' : 'Your';
     html = chk ? `<b class="warn">Check!</b> ${name} king is under attack. Move it, block, capture, or play a card that helps.` : `${name} move. Move a piece or play a card.`;
   }
   st.innerHTML = html;
@@ -1320,7 +1328,7 @@ function renderShop() {
 }
 function renderHand() {
   const side = viewer(), myTurn = humanTurn() && !G.lock;
-  $('#handTitle').textContent = (G.mode === 'ai' ? 'Your hand' : `${poss(side)} hand`) + ` (${G.hand[side].length}/${I.HAND_MAX})`;
+  $('#handTitle').textContent = (G.mode !== 'pvp' ? 'Your hand' : `${poss(side)} hand`) + ` (${G.hand[side].length}/${I.HAND_MAX})`;
   const rb = $('#btnRecycle'); rb.disabled = !myTurn || (!G.hand[side].length && !G.recycle); rb.textContent = G.recycle ? 'Done recycling' : 'Recycle cards';
   rb.setAttribute('aria-pressed', String(!!G.recycle));
   const hand = $('#hand'), picked = G.recycle ? G.recycle.picked : null;
@@ -1351,8 +1359,9 @@ function renderHand() {
 }
 function refresh() {
   if (!G) return;
-  renderBar($('#oppBar'), G.mode === 'ai' ? 'b' : other(G.turn));
-  renderBar($('#meBar'), G.mode === 'ai' ? 'w' : G.turn);
+  // online: the bars sit next to their army (Ink at the top, Paper at the bottom)
+  renderBar($('#oppBar'), G.mode === 'pvp' ? other(G.turn) : G.mode === 'online' ? 'b' : other(viewer()));
+  renderBar($('#meBar'), G.mode === 'pvp' ? G.turn : G.mode === 'online' ? 'w' : viewer());
   renderFields(); renderShop(); renderHand(); renderSpecials(); renderRot();
   $('#log').innerHTML = G.log.slice(0, 16).map(l => `<li class="${l.cls}">${l.text}</li>`).join('');
   setStatus();
@@ -1447,11 +1456,181 @@ function finishReveal(side, keys, title) {
 }
 function closeOverlays() { $('#packOverlay').hidden = true; $('#unitsOverlay').hidden = true; refresh(); }
 
+// ===================================================================== online
+// Two Chromebooks, one game: both open this game page (shared through Claude's Share menu) and use the same code.
+// At the end of each turn the player who moved sends the whole game (compressed, ~1 KB) as their "presence" in a
+// named room; the other page animates the difference and carries on. Presence is re-sent automatically if the
+// connection blips, and late joiners get it straight away, so reloading or spectating just works.
+const NET = { api: null, room: null, code: null, seq: 0, applied: 0, caps: [], logSent: 0, applying: false, friendHere: false, started: false, unsub: null, queue: Promise.resolve() };
+const CODE_CHARS = 'abcdefghjkmnpqrstuvwxyz23456789';
+(async () => {
+  try { NET.api = window.claude && window.claude.use ? await window.claude.use('room') : null; } catch (e) { NET.api = null; }
+  renderOnlinePanel();
+})();
+async function packState(extra) {
+  const keep = ['board', 'terr', 'items', 'coins', 'hand', 'grave', 'fields', 'extra', 'turn', 'ply', 'quiet', 'over', 'rot', 'actShown', 'limbo', 'spcd', 'finale', 'gems', 'boss', 'chaos', 'last'];
+  const st = {}; for (const k of keep) st[k] = G[k];
+  const body = JSON.stringify({ st, ...extra });
+  const cs = new Blob([body]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+  const buf = new Uint8Array(await new Response(cs).arrayBuffer());
+  let bin = ''; for (let i = 0; i < buf.length; i += 4096) bin += String.fromCharCode.apply(null, buf.subarray(i, i + 4096));
+  return btoa(bin);
+}
+async function unpackState(z) {
+  const bin = atob(z), buf = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  const ds = new Blob([buf]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return JSON.parse(await new Response(ds).text());
+}
+async function netPublish(kind = 'turn') {
+  if (!NET.room || !G.me) return;
+  NET.seq = Math.max(NET.seq, NET.applied) + 1;
+  const logs = G.log.filter(l => l.n > NET.logSent).slice(0, 10).reverse().map(l => ({ text: l.text.slice(0, 220), cls: l.cls }));
+  NET.logSent = logN;
+  const caps = NET.caps.splice(0);
+  let z = await packState({ seq: NET.seq, kind, caps, logs, by: G.me });
+  if (z.length > 3600) z = await packState({ seq: NET.seq, kind, caps: caps.slice(-1), logs: logs.slice(-2), by: G.me });
+  if (z.length > 3800) { toast('The game got too big to send. Try a new game.'); return; }
+  try { await NET.room.presence({ side: G.me, seq: NET.seq, z }); } catch (e) { toast('Couldn\'t reach your friend. Retrying...'); setTimeout(() => NET.room && NET.room.presence({ side: G.me, seq: NET.seq, z }).catch(() => {}), 2000); }
+  refresh();
+}
+function onlineSides(peers) { const taken = new Set(); for (const p of peers) if (!p.sameTab && p.presence && p.presence.side) taken.add(p.presence.side); return taken; }
+async function joinRoom(code) {
+  if (!NET.api) return null;
+  if (NET.room) { try { NET.unsub && NET.unsub(); await NET.room.leave(); } catch (e) { /* already gone */ } }
+  NET.room = await NET.api.join('chess2-' + code);
+  NET.code = code;
+  NET.unsub = NET.room.onPeers(ch => { NET.queue = NET.queue.then(() => onPeersChange(ch)).catch(err => console.warn('[chess2] online', err)); });
+  return NET.room;
+}
+async function onPeersChange(ch) {
+  const others = ch.peers.filter(p => !p.sameTab);
+  const mine = NET.mySide, friend = mine ? others.find(p => p.presence && p.presence.side === other(mine)) : null;
+  const was = NET.friendHere; NET.friendHere = !!friend;
+  if (G && G.mode === 'online' && G.me && was !== NET.friendHere) { toast(NET.friendHere ? 'Your friend is here' : 'Your friend left the game'); refresh(); }
+  // host: a friend took the other seat and no game has started yet -> start one
+  if (NET.role === 'host' && !NET.started && friend) { NET.started = true; startOnlineGame(); return; }
+  // anybody: apply the newest game state someone else is showing
+  let best = null;
+  for (const p of others) { const pr = p.presence || {}; if (typeof pr.seq === 'number' && typeof pr.z === 'string' && pr.seq > NET.applied && (!best || pr.seq > best.presence.seq)) best = p; }
+  if (best) await applyRemote(best.presence);
+  renderOnlinePanel();
+}
+function startOnlineGame() {
+  const keepMe = G && G.me;
+  newGame('online');
+  G.me = NET.mySide || 'w';
+  NET.applied = NET.seq; NET.caps.length = 0; NET.logSent = logN;
+  addLog(`Online game started with code ${NET.code}. You play ${G.me === 'w' ? 'Paper (you move first)' : 'Ink'}.`, 'actlog');
+  $('#startOverlay').hidden = true; closeReplay();
+  focusOn(I.kingSq(G.board, G.me));
+  refresh(); netPublish('start');
+}
+function onlineRematch() {
+  if (NET.role !== 'host') { toast('Ask whoever hosted to start the rematch'); return; }
+  startOnlineGame();
+}
+async function applyRemote(pr) {
+  let data; try { data = await unpackState(pr.z); } catch (e) { console.warn('[chess2] bad state', e); return; }
+  if (data.seq <= NET.applied) return;
+  NET.applying = true;
+  try {
+    const fresh = !G || G.mode !== 'online' || data.kind === 'start';
+    const before = fresh ? null : G.board.slice(), beforeItems = fresh ? null : (G.items || []).slice();
+    if (fresh) {
+      newGame('online');
+      G.me = NET.mySide || null;
+      $('#startOverlay').hidden = true; closeReplay();
+      if (G.me) addLog(`Joined online game ${NET.code}. You play ${G.me === 'w' ? 'Paper' : 'Ink'}.`, 'actlog');
+      else addLog(`Watching online game ${NET.code}.`, 'actlog');
+    }
+    // the NUKE gets its cutscene on both screens
+    if (!fresh && data.caps && data.caps.some(c => /plays NUKE/.test(c.text))) { refresh(); await nukeCutscene(); }
+    Object.assign(G, data.st);
+    G.sel = -1; G.pend = null; G.spec = null; G.recycle = null; G.lock = false; tKey = null;
+    let maxId = 0; for (const p of G.board) if (p && p.id > maxId) maxId = p.id; for (const e of G.limbo || []) if (e.p && e.p.id > maxId) maxId = e.p.id; I.bumpPid(maxId);
+    NET.applied = data.seq; NET.seq = Math.max(NET.seq, data.seq);
+    for (const l of data.logs || []) addLog(G.me ? flipYou(l.text) : l.text.replace(/\bYour friend's\b/g, 'X\'s').replace(/\bYour friend\b/g, 'X').replace(/\bYour\b/g, `${data.by === 'w' ? 'Paper' : 'Ink'}'s`).replace(/\bYou\b/g, data.by === 'w' ? 'Paper' : 'Ink').replace(/\bX('s)?\b/g, (m, a) => (data.by === 'w' ? 'Ink' : 'Paper') + (a || '')), l.cls);
+    NET.logSent = logN;
+    I.setEnv(G);
+    if (before) animateDiff(before);
+    // replay their captions one after another
+    (data.caps || []).forEach((c, i) => setTimeout(() => { meme(c.text, { react: c.react, sq: c.sq, big: c.big, remote: true }); }, i * 1300));
+    const last = (data.caps || [])[data.caps.length - 1];
+    if (before && last) clip((last.big ? 5 : 2) + (last.react ? 1 : 0), before, beforeItems, -1, last.sq >= 0 ? last.sq : (G.last ? G.last.t : 112), last.text, last.react, 'FRIEND');
+    if (G.last) focusOn(G.last.t);
+    refresh();
+    if (G.over) { snd(G.over.winner && G.over.winner === G.me ? 'win' : 'trombone'); setTimeout(offerReplay, 3200); }
+    else if (G.me && G.turn === G.me) { snd('ding'); toast('Your turn'); if (I.inCheck(G.board, G.me)) { addLog('You are in check!', 'warn'); snd('check'); } }
+  } finally { NET.applying = false; }
+}
+// the sender wrote the log from their side: swap "You" and "Your friend"
+function flipYou(t) {
+  return t.replace(/Your friend's/g, '\u0001').replace(/Your friend/g, '\u0002')
+    .replace(/\bYour\b/g, 'Your friend\'s').replace(/\bYou are\b/g, 'Your friend is').replace(/\bYou take\b/g, 'Your friend takes').replace(/\bYou win\b/g, 'Your friend wins').replace(/\bYou\b/g, 'Your friend')
+    .replace(/\u0001/g, 'Your').replace(/\u0002 is\b/g, 'You are').replace(/\u0002 takes\b/g, 'You take').replace(/\u0002 wins\b/g, 'You win').replace(/\u0002/g, 'You');
+}
+// slide pieces that moved, knock away pieces that vanished, pop in new ones
+function animateDiff(beforeBoard) {
+  const before = new Map(); beforeBoard.forEach((p, i) => { if (p) before.set(p.id, { p, i }); });
+  const after = new Map(); G.board.forEach((p, i) => { if (p) after.set(p.id, { p, i }); });
+  for (const [id, a] of after) {
+    const b = before.get(id);
+    if (!b) addFx({ kind: 'summon', sq: a.i, dur: 700, big: true });
+    else if (b.i !== a.i) addAnim({ kind: 'move', p: a.p, f: b.i, t: a.i, dur: 420, fly: true });
+    else if (b.p.t !== a.p.t || b.p.s !== a.p.s) addFx({ kind: 'spell', key: 'mutate', sq: a.i, dur: 800 });
+  }
+  let n = 0;
+  for (const [id, b] of before) if (!after.has(id)) { const a = Math.random() * Math.PI * 2; addFx({ kind: 'fling', p: b.p, sq: b.i, dir: [Math.cos(a), Math.sin(a) - .6], delay: 300, dur: 850, s: id }); if (n++ < 1) say(b.i, 'dying', { p: b.p, dead: true, delay: 350 }); }
+  if (n) setTimeout(() => snd('hit'), 300); else snd('tap');
+}
+// ---- online panel on the start screen
+function renderOnlinePanel() {
+  const el = $('#onlinePanel'); if (!el) return;
+  const avail = !!NET.api;
+  $('#onlineOff').hidden = avail; $('#onlineOn').hidden = !avail;
+  const st = $('#onlineStatus');
+  if (!avail || !st) return;
+  if (!NET.room) st.textContent = '';
+  else if (NET.role === 'host' && !NET.started) st.innerHTML = `Your code is <b class="code">${NET.code}</b>. Send it to your friend: they open this same game page, press <b>Play online</b> and type it in. Waiting for them to join...`;
+  else if (NET.mySide === null && NET.role === 'join') st.textContent = 'Both seats are taken, so you\'re watching.';
+}
+async function hostOnline() {
+  unlockAudio();
+  let code = ''; for (let i = 0; i < 5; i++) code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  NET.role = 'host'; NET.mySide = 'w'; NET.started = false; NET.seq = 0; NET.applied = 0;
+  try { await joinRoom(code); await NET.room.presence({ side: 'w', seq: 0 }); }
+  catch (e) { $('#onlineStatus').textContent = 'Couldn\'t open an online room. Check your connection and try again.'; return; }
+  renderOnlinePanel();
+}
+async function joinOnline() {
+  unlockAudio();
+  const code = ($('#onlineCode').value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (code.length < 4) { $('#onlineStatus').textContent = 'Type the code your friend gave you.'; return; }
+  NET.role = 'join'; NET.seq = 0; NET.applied = 0; NET.started = true;
+  $('#onlineStatus').textContent = 'Joining...';
+  try { await joinRoom(code); } catch (e) { $('#onlineStatus').textContent = 'Couldn\'t join that room. Check the code and try again.'; return; }
+  // wait a moment for everyone already there to show up, then take a free seat
+  await sleep(1600);
+  const taken = onlineSides(NET.room.peers());
+  if (!taken.size) { $('#onlineStatus').textContent = `Nobody is in game ${code} yet. Check the code, or ask your friend to press Host a game first.`; await NET.room.leave(); NET.room = null; return; }
+  NET.mySide = !taken.has('b') ? 'b' : !taken.has('w') ? 'w' : null;
+  await NET.room.presence({ side: NET.mySide, seq: 0 });
+  if (G && G.mode === 'online') G.me = NET.mySide;
+  renderOnlinePanel();
+  // pick up the current game from whoever is there
+  NET.queue = NET.queue.then(() => onPeersChange({ peers: NET.room.peers() }));
+}
+$('#btnOnline').addEventListener('click', () => { const p = $('#onlinePanel'); p.hidden = !p.hidden; renderOnlinePanel(); if (!p.hidden && NET.api) $('#onlineCode').focus(); });
+$('#onlineHost').addEventListener('click', hostOnline);
+$('#onlineJoin').addEventListener('click', joinOnline);
+$('#onlineCode').addEventListener('keydown', e => { if (e.key === 'Enter') joinOnline(); });
+
 async function summonBossNow() {
     unlockAudio();
     $('#unitsOverlay').hidden = true;
     if (G.boss) { toast(`${BO.NAME} is already here`); focusOn(G.boss.at); return; }
     if (G.over) { toast('Start a new game first'); return; }
+    if (G.mode === 'online' && !humanTurn()) { toast(`${BO.NAME} can only be summoned on your turn`); return; }
     if (G.lock) { toast(`${BO.NAME} will land when it's your turn`); bossQueued = true; return; }
     G.lock = true; await spawnBoss(); G.lock = false; refresh();
     if (!G.boss) toast(`${BO.NAME} couldn't find anywhere to land`);
@@ -1621,14 +1800,16 @@ const openGuide = () => { buildGuide(); $('#unitsOverlay').hidden = false; $('#u
 $('#btnUnits').addEventListener('click', openGuide);
 $('#startUnits').addEventListener('click', openGuide);
 $('#unitsClose').addEventListener('click', () => { $('#unitsOverlay').hidden = true; });
-$('#btnNew').addEventListener('click', openStart);
+$('#btnNew').addEventListener('click', () => { if (G && G.mode === 'online' && NET.room && !G.over && !confirmLeave()) return; openStart(); });
+function confirmLeave() { toast('You\'re in an online game. Pick a mode on the start screen to leave it.'); return true; }
 $('#btnMute').addEventListener('click', () => { muted = !muted; $('#btnMute').textContent = muted ? 'Sound off' : 'Sound on'; $('#btnMute').setAttribute('aria-pressed', String(!muted)); });
 {
   const cs = $('#chaosQ'); cs.value = chaosLevel();
   cs.addEventListener('change', () => { try { localStorage.setItem('chess2.chaos', cs.value); } catch (e) {} });
 }
-$('#startAi').addEventListener('click', () => { unlockAudio(); $('#startOverlay').hidden = true; newGame('ai'); });
-$('#startPvp').addEventListener('click', () => { unlockAudio(); $('#startOverlay').hidden = true; newGame('pvp'); });
+async function leaveOnline() { if (!NET.room) return; try { NET.unsub && NET.unsub(); await NET.room.leave(); } catch (e) { /* gone */ } NET.room = null; NET.role = null; NET.mySide = null; NET.started = false; renderOnlinePanel(); }
+$('#startAi').addEventListener('click', () => { unlockAudio(); leaveOnline(); $('#startOverlay').hidden = true; newGame('ai'); });
+$('#startPvp').addEventListener('click', () => { unlockAudio(); leaveOnline(); $('#startOverlay').hidden = true; newGame('pvp'); });
 $('#btnRecycle').addEventListener('click', () => { if (!humanTurn() || G.lock) return; G.recycle = G.recycle ? null : { picked: new Set() }; G.pend = null; G.sel = -1; refresh(); });
 $('#rcScrap').addEventListener('click', scrapPicked);
 $('#btnMusic').addEventListener('click', () => $('#musicFile').click());
@@ -1662,7 +1843,7 @@ $('#musicFile').addEventListener('change', async e => {
 $('#rcTrade').addEventListener('click', tradePicked);
 for (const ov of ['#packOverlay', '#unitsOverlay']) $(ov).addEventListener('pointerdown', e => { if (e.target === $(ov) && (ov === '#unitsOverlay' || !$('#packDone').hidden)) closeOverlays(); });
 
-window.__inkmate = { get G() { return G; }, playMove, playCard, doSpecial, newGame, refresh, addRot, meme, slam, offerReplay, watchReplay, spawnBoss, bossAttack, I, cast: () => (castCache = castCache || cutsceneCast()), lines: () => NUKE_LINES };
+window.__inkmate = { get G() { return G; }, playMove, playCard, doSpecial, newGame, refresh, addRot, meme, slam, offerReplay, watchReplay, spawnBoss, bossAttack, NET, hostOnline, joinOnline, I, cast: () => (castCache = castCache || cutsceneCast()), lines: () => NUKE_LINES };
 window.addEventListener('resize', sizeBoard);
 sizeBoard();
 newGame('ai');
@@ -1674,7 +1855,7 @@ function offerReplay() {
   if (!G.over || !G.hl.length || !$('#replayOverlay').hidden) return;
   const ov = $('#replayOverlay');
   ov.hidden = false; $('#replayStart').hidden = false; $('#replayCanvas').hidden = true;
-  const win = G.over.winner, tit = win ? (G.mode === 'ai' ? (win === 'w' ? 'You won!' : 'The Ink Baron won') : `${who(win)} won!`) : 'It\'s a draw';
+  const win = G.over.winner, tit = win ? (who(win) === 'You' ? 'You won!' : `${who(win)} won`) : 'It\'s a draw';
   $('#replayTitle').textContent = tit;
   $('#replayCount').textContent = `${Math.min(6, G.hl.length)} big moment${G.hl.length > 1 ? 's' : ''} this game`;
   $('#replayWatch').focus();
@@ -1685,7 +1866,7 @@ function watchReplay() {
   const win = G.over && G.over.winner;
   if (replayRun) replayRun.stop();
   snd('dun');
-  replayRun = I.Replay.play(cv, clips, { title: win ? (G.mode === 'ai' ? (win === 'w' ? 'YOU WIN' : 'BARON WINS') : (win === 'w' ? 'WHITE WINS' : 'BLACK WINS')) : 'DRAW', sub: `${G.ply} moves of pure chaos` });
+  replayRun = I.Replay.play(cv, clips, { title: win ? (who(win) === 'You' ? 'YOU WIN' : G.mode === 'ai' ? 'BARON WINS' : G.mode === 'online' && G.me ? 'FRIEND WINS' : (win === 'w' ? 'WHITE WINS' : 'BLACK WINS')) : 'DRAW', sub: `${G.ply} moves of pure chaos` });
   // sound for each clip: a whoosh as the action starts, then the impact
   const HIT_SND = { nuke: 'nukeboom', meteor: 'boom', capture: 'hit', shot: 'twang', special: 'vboom', item: 'brilliant', card: 'spell', bosshit: 'hit', bossatk: 'boom', check: 'check', move: 'whoosh' };
   let n = -1; const tick = setInterval(() => { const i = Math.floor((performance.now() - t0) / I.Replay.CLIP); if (i !== n && i < clips.length) { n = i; const cl = clips[i], kd = cl.kind || 'move';
@@ -1695,7 +1876,7 @@ function watchReplay() {
 }
 function closeReplay() { if (replayRun) replayRun.stop(); $('#replayOverlay').hidden = true; }
 $('#replayWatch').onclick = () => { unlockAudio(); watchReplay(); };
-$('#replayNew').onclick = () => { closeReplay(); newGame(G.mode); };
+$('#replayNew').onclick = () => { closeReplay(); if (G.mode === 'online') onlineRematch(); else newGame(G.mode); };
 $('#replayClose').onclick = closeReplay;
 $('#replayCanvas').onclick = () => { if (replayRun) replayRun.stop(); };
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#replayOverlay').hidden) closeReplay(); });
