@@ -1470,8 +1470,13 @@ function closeOverlays() { $('#packOverlay').hidden = true; $('#unitsOverlay').h
 // connection blips, and late joiners get it straight away, so reloading or spectating just works.
 const NET = { api: null, room: null, code: null, seq: 0, applied: 0, caps: [], logSent: 0, applying: false, friendHere: false, started: false, unsub: null, queue: Promise.resolve() };
 const CODE_CHARS = 'abcdefghjkmnpqrstuvwxyz23456789';
+// inside Claude: the page's live room. Anywhere else (GitHub Pages, a downloaded copy): PeerJS (netpeer.js)
+const PEER_API = { kind: 'peer', join: name => I.PeerRoom.join(name) };
+NET.api = window.claude && window.claude.use ? null : PEER_API;
 (async () => {
-  try { NET.api = window.claude && window.claude.use ? await window.claude.use('room') : null; } catch (e) { NET.api = null; }
+  if (!window.claude || !window.claude.use) { renderOnlinePanel(); return; }
+  let room = null; try { room = await window.claude.use('room'); } catch (e) { room = null; }
+  NET.api = room || PEER_API;
   renderOnlinePanel();
 })();
 async function packState(extra) {
@@ -1533,7 +1538,7 @@ function startOnlineGame() {
   refresh(); netPublish('start');
 }
 function onlineRematch() {
-  if (NET.role !== 'host') { toast('Ask whoever hosted to start the rematch'); return; }
+  if (NET.mySide !== 'w') { toast('Ask whoever plays Paper to start the rematch'); return; }
   startOnlineGame();
 }
 async function applyRemote(pr) {
@@ -1593,8 +1598,9 @@ function animateDiff(beforeBoard) {
 // ---- online panel on the start screen
 function renderOnlinePanel() {
   const el = $('#onlinePanel'); if (!el) return;
-  const avail = !!NET.api;
+  const avail = !!NET.api, peer = NET.api === PEER_API;
   $('#onlineOff').hidden = avail; $('#onlineOn').hidden = !avail;
+  $('#onlineHintClaude').hidden = peer; $('#onlineHintWeb').hidden = !peer;
   const st = $('#onlineStatus');
   if (!avail || !st) return;
   if (!NET.room) st.textContent = '';
@@ -1605,8 +1611,9 @@ async function hostOnline() {
   unlockAudio();
   let code = ''; for (let i = 0; i < 5; i++) code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
   NET.role = 'host'; NET.mySide = 'w'; NET.started = false; NET.seq = 0; NET.applied = 0;
+  $('#onlineStatus').textContent = 'Setting up the game...';
   try { await joinRoom(code); await NET.room.presence({ side: 'w', seq: 0 }); }
-  catch (e) { $('#onlineStatus').textContent = 'Couldn\'t open an online room. Check your connection and try again.'; return; }
+  catch (e) { console.warn('[chess2] host', e); $('#onlineStatus').textContent = (e && e.message && /library/.test(e.message)) ? e.message : 'Couldn\'t open an online game. Check your internet connection and try again.'; return; }
   renderOnlinePanel();
 }
 async function joinOnline() {
@@ -1615,9 +1622,10 @@ async function joinOnline() {
   if (code.length < 4) { $('#onlineStatus').textContent = 'Type the code your friend gave you.'; return; }
   NET.role = 'join'; NET.seq = 0; NET.applied = 0; NET.started = true;
   $('#onlineStatus').textContent = 'Joining...';
-  try { await joinRoom(code); } catch (e) { $('#onlineStatus').textContent = 'Couldn\'t join that room. Check the code and try again.'; return; }
+  try { await joinRoom(code); } catch (e) { console.warn('[chess2] join', e); $('#onlineStatus').textContent = (e && e.message && /library/.test(e.message)) ? e.message : 'Couldn\'t join that game. Check the code and your internet connection, then try again.'; return; }
   // wait a moment for everyone already there to show up, then take a free seat
-  await sleep(1600);
+  for (let t = 0; t < 30 && onlineSides(NET.room.peers()).size === 0; t++) await sleep(t < 8 ? 200 : 300);
+  await sleep(300);
   const taken = onlineSides(NET.room.peers());
   if (!taken.size) { $('#onlineStatus').textContent = `Nobody is in game ${code} yet. Check the code, or ask your friend to press Host a game first.`; await NET.room.leave(); NET.room = null; return; }
   NET.mySide = !taken.has('b') ? 'b' : !taken.has('w') ? 'w' : null;

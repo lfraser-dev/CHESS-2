@@ -57,12 +57,17 @@ Every move gets a meme caption ("White: *googles en passant*"), with reaction te
 
 ## Online
 
-Press **Play online** on the start screen to play a friend on their own computer. This works on the Chess 2 page in Claude: share it with your friend from the page's **Share** menu (invite their email; they need to be signed in to Claude), and you both open it.
+Press **Play online** on the start screen to play a friend on their own computer.
 
 1. One of you presses **Host a game** and gets a 5-letter code.
 2. The other presses **Play online**, types the code and presses **Join**.
 
-The host plays Paper (moves first) and picks how random the game is. The board is turned round for whoever plays Ink, so everyone sees their own army at the bottom. At the end of each turn the whole game is sent across, so the other screen animates what happened, with the captions, and it's their turn. If someone reloads, they rejoin with the same code and take their seat back. Anyone else who joins with the code watches. Online play doesn't work in a downloaded copy of the game (`index.html` opened on its own).
+The host plays Paper (moves first) and picks how random the game is. The board is turned round for whoever plays Ink, so everyone sees their own army at the bottom. At the end of each turn the whole game is sent across, so the other screen animates what happened, with the captions, and it's their turn. If someone reloads or drops out, they press **Play online** and type the same code again to take their seat back. Anyone else who joins with the code watches.
+
+**Where it works:**
+
+- **From GitHub (or any copy of the game):** both of you open the game with the internet on. It connects you directly using [PeerJS](https://peerjs.com) (free, loaded automatically, no account needed). The easiest way to share one link is GitHub Pages: in the repo go to **Settings → Pages**, pick **Deploy from a branch**, choose `main` and `/ (root)`, then use the link it gives you. (GitHub Pages on a private repo needs a paid GitHub plan; on a free plan, make the repo public, or each download the repo and open `index.html`.) Some school or work networks block these direct connections.
+- **On the Chess 2 page in Claude:** share it with your friend from the page's **Share** menu (invite their email; they need to be signed in to Claude), and you both open it. It uses Claude's own live connection.
 
 ## Boss fight
 
@@ -127,7 +132,7 @@ Open **Units & cards** in the game for every card, a move diagram for every unit
 - `talk.js` – what the pieces say, and the speech bubbles
 - `replay.js` – the end-of-game highlights reel
 - `boss.js` – MEGA HORSEY, the finale boss
-- online play is in the "online" section of `game.js`
+- `netpeer.js` – online play outside Claude (PeerJS); the rest of online play is in the "online" section of `game.js`
 - `memes.js` – the Brainrot meter, the acts, special moves, and meme captions
 - `cinema3d.js` – the NUKE cinematic's real-time 3D: raymarched chess set, metal bomb, volumetric clouds, fireball, mushroom cloud and shockwave (WebGL)
 - `cinema.js` – the cinematic's timeline, titles, captions, letterbox, grain and flashes (plus a 2D fallback if WebGL isn't available)
