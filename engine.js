@@ -97,7 +97,9 @@ const ENV = { terr: new Array(N * N).fill(null), wrap: false, truce: false, km: 
 function setEnv(st) {
   ENV.terr = st.terr; ENV.wrap = st.fields.wrap > 0; ENV.truce = st.fields.truce > 0; ENV.km = st.fields.km > 0 || st.fields.allkn > 0; ENV.bp = st.fields.bp > 0; ENV.allkn = st.fields.allkn > 0;
 }
-const blockedSq = i => { const t = ENV.terr[i]; return !!t && (t.k === 'pit' || t.k === 'fire'); };
+const SOLID = new Set(['pit', 'fire', 'boss']);
+const solid = t => !!t && SOLID.has(t.k);
+const blockedSq = i => solid(ENV.terr[i]);
 
 function canCap(p, u, q, qsq) {
   if (!q || q.s === p.s || q.sh > 0 || ENV.truce || u.noCap) return false;
@@ -287,7 +289,7 @@ function kill(st, sq, ev) {
 function area(sq, rad = 1) { const [r, c] = rc(sq), out = []; for (let dr = -rad; dr <= rad; dr++) for (let dc = -rad; dc <= rad; dc++) if (inB(r + dr, c + dc)) out.push((r + dr) * N + c + dc); return out; }
 function plus(sq) { const [r, c] = rc(sq), out = [sq]; for (const [dr, dc] of ORTH) if (inB(r + dr, c + dc)) out.push((r + dr) * N + c + dc); return out; }
 const randOf = a => a[Math.floor(Math.random() * a.length)];
-const emptyOk = (st, i) => !st.board[i] && !(st.terr[i] && (st.terr[i].k === 'pit' || st.terr[i].k === 'fire'));
+const emptyOk = (st, i) => !st.board[i] && !solid(st.terr[i]);
 
 // target types: home | empty | square | enemy | own | none | pair
 const CARDS = {
@@ -688,7 +690,7 @@ function aiDecide(st, side) {
 }
 
 Object.assign(INK, {
-  N, DIR8, ORTH, DIAG, KN, U, VAL, ENV, setEnv, genMoves, makeMove, unmake, kingSq, inCheck, legalMoves, other, rc, inB,
+  N, solid, DIR8, ORTH, DIAG, KN, U, VAL, ENV, setEnv, genMoves, makeMove, unmake, kingSq, inCheck, legalMoves, other, rc, inB,
   BACK, PAWN, CENTRE_COLS, MID, MUTATIONS, WEIRD_START, halfRows, mkPiece, newState, cloneState, homeRows, SETS, CARDS, RARITIES, RARITY_LABEL, SCRAP, PACKS, HAND_MAX, rollPack, rollCard, tradeUp,
   addToHand, coinValue, cardOptions, applyCard, legalCardOptions, stateLegal, aiDecide, area, kill, lastSnap,
 });

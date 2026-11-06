@@ -9,7 +9,7 @@ const I = window.INK;
 const { N, U, DIR8, ORTH, KN, rc, inB, other } = I;
 const rnd = n => Math.floor(Math.random() * n);
 const pick = a => a[rnd(a.length)];
-const blocked = (st, i) => { const t = st.terr[i]; return !!t && (t.k === 'pit' || t.k === 'fire'); };
+const blocked = (st, i) => I.solid(st.terr[i]);
 const sq = (r, c) => inB(r, c) ? r * N + c : -1;
 const hittable = p => p && p.t !== 'K' && !(p.sh > 0) && !U[p.t].untouchable;
 const kill = (st, i, ev) => { const p = st.board[i]; if (!p || p.t === 'K') return null; st.board[i] = null; st.grave[p.s].push(p.t); ev.push({ type: 'destroy', sq: i, p }); return p; };

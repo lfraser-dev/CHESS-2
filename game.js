@@ -40,7 +40,7 @@ function newGame(mode) {
   const level = chaosLevel();
   G = I.newState(mode, { chaosStart: level !== 'calm' });
   G.chaos = level;
-  Object.assign(G, { sel: -1, pend: null, spec: null, lock: false, recycle: null, rot: level === 'unhinged' ? 20 : 0, limbo: [], items: new Array(N * N).fill(null), gems: { w: 0, b: 0 }, hl: [], lastClip: null, spcd: { w: 0, b: 0 }, finale: false });
+  Object.assign(G, { sel: -1, pend: null, spec: null, lock: false, recycle: null, rot: level === 'unhinged' ? 20 : 0, limbo: [], items: new Array(N * N).fill(null), gems: { w: 0, b: 0 }, hl: [], lastClip: null, boss: null, spcd: { w: 0, b: 0 }, finale: false });
   G.actShown = level === 'calm' ? 0 : M.tierOf(G.rot);
   if (level !== 'calm') for (let k = 0; k < (level === 'unhinged' ? 5 : 3); k++) IT.spawn(G);
   anims.length = 0; fx.length = 0;
@@ -85,7 +85,7 @@ function explode(center, delay) {
 function reborn(p) {
   for (const r of I.homeRows(p.s)) for (const c of I.CENTRE_COLS) {
     const i = r * N + c;
-    if (!G.board[i] && !(G.terr[i] && (G.terr[i].k === 'pit' || G.terr[i].k === 'fire'))) {
+    if (!G.board[i] && !I.solid(G.terr[i])) {
       G.board[i] = { ...I.mkPiece(p.t, p.s), reb: 0 }; G.grave[p.s].pop();
       addFx({ kind: 'summon', sq: i, delay: 700, dur: 900, big: true });
       return i;
@@ -205,7 +205,7 @@ async function playMove(side, m) {
       if (near && G.coins[other(side)] > 0) { G.coins[other(side)]--; G.coins[side]++; line += ', and nicks a coin'; addFx({ kind: 'text', sq: m.t, str: '+1', col: GOLD, delay: 250, dur: 1000 }); }
     }
     const pt = G.terr[m.t];
-    if (pt && pt.k === 'portal' && G.board[m.t] && !G.board[pt.to] && !(G.terr[pt.to] && G.terr[pt.to].k === 'pit')) {
+    if (pt && pt.k === 'portal' && G.board[m.t] && !G.board[pt.to] && !I.solid(G.terr[pt.to])) {
       const pc = G.board[m.t]; G.board[pt.to] = pc; G.board[m.t] = null;
       addAnim({ kind: 'move', p: pc, f: m.t, t: pt.to, dur: 380, delay: 300, fly: true });
       addFx({ kind: 'spell', key: 'teleport', sq: m.t, sq2: pt.to, dur: 700, delay: 250 });
@@ -257,6 +257,12 @@ async function playCard(side, idx, o) {
   if (!sim) addLog(`${who(side)} played ${card.name}, but nothing happened.`, 'played');
   else {
     Object.assign(G, { board: sim.board, terr: sim.terr, fields: sim.fields, coins: sim.coins, hand: sim.hand, grave: sim.grave, extra: sim.extra });
+    if (G.boss && BO.ensure(G)) {
+      const r = BO.hit(G, side, -1, key === 'nuke' ? 12 : 4);
+      addFx({ kind: 'text', sq: G.boss.at, str: `-${r.dmg}`, col: RED, delay: 300, dur: 1400 });
+      addLog(`The ${card.name} hits ${BO.NAME} for ${r.dmg}!`, 'special');
+      if (r.dead) await bossDefeated(side, null);
+    }
     const extra = evToFx(ev, key);
     let line = `${who(side)} played ${card.name}`;
     const hidden = key === 'mine' && G.mode === 'ai' && side === 'b';
@@ -292,7 +298,7 @@ function endOfTurnEffects(side) {
     const pc = G.board[i]; if (!pc || pc.s !== side) continue;
     if (U[pc.t].medic) for (const j of I.area(i)) { const q = G.board[j]; if (j !== i && q && q.s === side && (q.fz > 0 || q.curse)) { G.board[j] = { ...q, fz: 0, curse: 0 }; notes.push(`The Field Medic patches up a ${U[q.t].name}`); } }
     if (U[pc.t].raise && G.grave[side].length) {
-      const spot = I.area(i).find(j => !G.board[j] && !(G.terr[j] && (G.terr[j].k === 'pit' || G.terr[j].k === 'fire')));
+      const spot = I.area(i).find(j => !G.board[j] && !I.solid(G.terr[j]));
       if (spot != null) { G.grave[side].pop(); G.board[spot] = I.mkPiece('skeleton', side); addFx({ kind: 'summon', sq: spot, dur: 800 }); notes.push('A Skeleton claws its way out of the ground'); }
     }
   }
@@ -306,7 +312,7 @@ function endOfTurnEffects(side) {
       hits++;
       const r2 = r1 + dr, c2 = c1 + dc, k = r2 * N + c2;
       const tk = inB(r2, c2) ? G.terr[k] : null;
-      if (inB(r2, c2) && !G.board[k] && !(tk && (tk.k === 'pit' || tk.k === 'fire'))) { G.board[k] = q; G.board[j] = null; addAnim({ kind: 'move', p: q, f: j, t: k, dur: 300 }); }
+      if (inB(r2, c2) && !G.board[k] && !I.solid(tk)) { G.board[k] = q; G.board[j] = null; addAnim({ kind: 'move', p: q, f: j, t: k, dur: 300 }); }
       else killReal(j, 200);
     }
     addFx({ kind: 'scream', sq: i, dur: 900 });
@@ -338,6 +344,7 @@ function finishTurn(side) {
   if (every > 1 && tier() >= 3) every = Math.max(1, every - 1);
   const steps = [];
   if (G.finale && !G.over) steps.push(finaleMeteor);
+  if (G.boss && !G.over && G.ply % 2 === 0) steps.push(bossTurn);
   if (every && G.ply % every === 0 && !G.over) steps.push(spawnItems);
   if (G.chaos !== 'calm' && tier() > (G.actShown || 0) && !G.over) steps.push(nextAct);
   if (!steps.length) { startTurn(); return; }
@@ -351,7 +358,7 @@ function returnFromLimbo() {
     if (G.ply < e.back || G.turn === e.p.s) continue;
     const rows = e.why === 'snacks' ? I.homeRows(e.p.s) : I.halfRows(other(e.p.s));
     let at = -1; const opts = [];
-    for (let i = 0; i < N * N; i++) { const r = i / N | 0; const t = G.terr[i]; if (rows.includes(r) && !G.board[i] && !(t && (t.k === 'pit' || t.k === 'fire' || t.k === 'portal'))) opts.push(i); }
+    for (let i = 0; i < N * N; i++) { const r = i / N | 0; const t = G.terr[i]; if (rows.includes(r) && !G.board[i] && !(t && (I.solid(t) || t.k === 'portal'))) opts.push(i); }
     if (!opts.length) continue;
     at = opts[Math.floor(Math.random() * opts.length)];
     G.board[at] = { ...e.p, fz: 0 };
@@ -377,6 +384,7 @@ async function runFinale() {
   addLog('THE FINALE: both sides get a NUKE card, a meteor lands every turn, and anything can self-destruct.', 'actlog');
   snd('airhorn'); slam('FINAL BOSS MUSIC', true);
   refresh(); await sleep(900);
+  await spawnBoss();
 }
 async function finaleMeteor() {
   const hit = M.meteor(G, G.turn);
@@ -447,6 +455,87 @@ function pickUpItem(side, at) {
   addRot(5);
   snd(item.k === 'disco' ? 'airhorn' : item.k === 'ring' ? 'brilliant' : 'vboom');
   return { text: `${M.SIDE(side)}: *${U[p.t].name} ${it.verb}*`, react: M.pick(it.react) };
+}
+
+// ---- the finale boss
+const BO = I.BOSS;
+function bossHittable(side, sq) {
+  if (!G.boss || !humanTurnFor(side)) return false;
+  I.setEnv(G);
+  return !I.inCheck(G.board, side) && BO.canHit(G, sq) && G.board[sq] && G.board[sq].s === side;
+}
+const humanTurnFor = side => G.turn === side;
+const bossCentre = () => { const [x, y] = sqXY(G.boss.at); return [x + CELL / 2, y + CELL / 2]; };
+async function spawnBoss() {
+  const at = BO.spawnSpot(G); if (at < 0) return;
+  BO.place(G, at);
+  focusOn(at); refresh();
+  shakeT = performance.now() + 1400; addFx({ kind: 'flash', dur: 500 });
+  for (const b of BO.squares(at)) addFx({ kind: 'boom', sq: b, delay: 100, dur: 900 });
+  snd('nukeboom'); setTimeout(() => snd('vboom'), 500);
+  punch(at, .9, 1800);
+  meme(`${BO.NAME}: *has entered the chat*`, { react: 'BOSS FIGHT', big: true, sq: at });
+  addLog(`BOSS FIGHT! ${BO.NAME} lands in the middle of the board with ${BO.MAX_HP} health. Both sides can hit it: select a piece next to it (or a shooter within 3) and click the boss. Whoever lands the final blow gets 15 coins.`, 'actlog');
+  const near = BO.ring(at, 3).filter(i => G.board[i]).slice(0, 3);
+  near.forEach((i, n) => say(i, 'boss', { delay: 900 + n * 500, loud: n === 0 }));
+  await sleep(1800);
+}
+async function bossAttack(side, sq) {
+  G.lock = true; G.sel = -1; tKey = null;
+  const p = G.board[sq], hb = G.board.slice(), hi = G.items.slice();
+  const [bx, by] = bossCentre(), [px, py] = sqXY(sq);
+  const near = BO.squares(G.boss.at).sort((a, b) => { const [ax, ay] = sqXY(a), [cx, cy] = sqXY(b); return Math.hypot(ax - px, ay - py) - Math.hypot(cx - px, cy - py); })[0];
+  const ranged = !BO.ring(G.boss.at, 1).includes(sq);
+  if (ranged) { addAnim({ kind: 'shot', f: sq, t: near, dur: 380, proj: 'bullet' }); addFx({ kind: 'muzzle', sq, to: near, dur: 160, proj: 'bullet' }); snd('twang'); }
+  else { addAnim({ kind: 'lunge', p, f: sq, t: near, dur: 460, back: true }); snd('whoosh'); }
+  const r = BO.hit(G, side, sq);
+  setTimeout(() => { snd('hit'); shakeT = performance.now() + 300; if (G.boss) G.boss.hitT = performance.now(); }, ranged ? 360 : 280);
+  addFx({ kind: 'impact', sq: near, from: sq, delay: ranged ? 360 : 280, dur: 380, big: true });
+  addFx({ kind: 'text', sq: near, str: `-${r.dmg}`, col: RED, delay: 300, dur: 1300 });
+  const cap = `${M.SIDE(side)}: *${U[p.t].name} ${M.pick(['bonks', 'slaps', 'punches', 'pokes', 'roundhouse kicks', 'headbutts'])} ${BO.NAME}*`;
+  meme(cap, { react: r.dead ? null : M.pick(['DAMAGE', 'it felt that', 'GET HIM', 'crit!!']), sq: near });
+  say(sq, 'special', { delay: 100 });
+  addLog(`${poss(side)} ${U[p.t].name} hits ${BO.NAME} for ${r.dmg} (${G.boss.hp} health left).`, 'special');
+  addRot(3);
+  refresh(); await waitAnims();
+  clip(r.dead ? 15 : 3 + r.dmg, hb, hi, sq, near, cap, r.dead ? 'BOSS DEFEATED' : 'DAMAGE', 'BOSS FIGHT');
+  if (r.dead) await bossDefeated(side, sq);
+  finishTurn(side);
+}
+async function bossDefeated(side, sq) {
+  const at = G.boss.at, dmg = G.boss.dmg;
+  for (const b of BO.squares(at)) addFx({ kind: 'boom', sq: b, delay: Math.random() * 300, dur: 900 });
+  addFx({ kind: 'flash', dur: 700 }); shakeT = performance.now() + 1500; snd('nukeboom'); setTimeout(() => snd('airhorn'), 600);
+  BO.remove(G);
+  G.coins[side] += 15;
+  if (sq != null && G.board[sq] && G.board[sq].s === side) { const q = G.board[sq]; G.board[sq] = { ...q, ar: (q.ar || 0) + 2, mut: [...(q.mut || []), 'zoom'] }; addFx({ kind: 'spell', key: 'mutate', sq, delay: 500, dur: 1000 }); }
+  for (const b of BO.squares(at)) addFx({ kind: 'confetti', sq: b, dur: 1800, s: b });
+  meme(`${M.SIDE(side)}: *defeats ${BO.NAME}*`, { react: 'BOSS DEFEATED', big: true, sq: at });
+  const mvp = dmg.w === dmg.b ? 'a tie' : dmg.w > dmg.b ? who('w') : who('b');
+  addLog(`${BO.NAME} IS DEFEATED! ${who(side)} landed the final blow: +15 coins, and the hero gets 2 armour and super speed. Damage dealt: ${who('w')} ${dmg.w}, ${who('b')} ${dmg.b} (MVP: ${mvp}).`, 'actlog');
+  refresh(); await waitAnims(); await sleep(400);
+}
+async function bossTurn() {
+  if (!G.boss) return;
+  const toMove = G.turn, hb = G.board.slice(), hi = G.items.slice();
+  focusOn(G.boss.at);
+  const res = BO.act(G, toMove); if (!res) return;
+  const [bx, by] = bossCentre();
+  const cap = `${BO.NAME}: *${res.verb}*`;
+  meme(cap, { react: res.react, big: res.killed.length > 0, sq: G.boss.at });
+  if (res.kind === 'stomp') { shakeT = performance.now() + 700; snd('rumble'); for (const b of BO.ring(G.boss.at, 1)) addFx({ kind: 'dust', sq: b, dur: 600, s: b }); }
+  if (res.kind === 'laser') { addFx({ kind: 'laser', row: res.row, sqs: res.laser, from: G.boss.at, dur: 900 }); snd('laser'); }
+  if (res.kind === 'roar') { addFx({ kind: 'scream', sq: G.boss.at, dur: 900 }); addFx({ kind: 'scream', sq: G.boss.at + N + 1, dur: 900, delay: 150 }); snd('scream'); for (const i of res.frozen.slice(0, 2)) say(i, 'boss', { delay: 400 }); }
+  if (res.moved) { shakeT = performance.now() + 600; snd('rumble'); }
+  for (const { sq, p } of res.killed) {
+    const a = Math.atan2(sqXY(sq)[1] - by, sqXY(sq)[0] - bx);
+    addFx({ kind: 'fling', p, sq, dir: [Math.cos(a), Math.sin(a) - .5], delay: 250, dur: 900, s: p.id });
+    say(sq, 'dying', { p, dead: true, delay: 300 });
+  }
+  if (res.killed.length) { setTimeout(() => snd('hit'), 250); clip(4 + res.killed.length * 2, hb, hi, -1, res.killed[0].sq, cap, res.react, 'BOSS ATTACK'); }
+  const lost = res.killed.map(k => `${poss(k.p.s)} ${U[k.p.t].name}`);
+  addLog(`${BO.NAME} ${res.verb}${lost.length ? `, destroying ${lost.join(', ')}` : ''}${res.frozen.length ? ` (${res.frozen.length} pieces frozen)` : ''}.`, 'chaoslog');
+  refresh(); await waitAnims(); await sleep(250);
 }
 
 // ---- talking pieces
@@ -588,6 +677,14 @@ async function aiTurn() {
   if (G.chaos !== 'calm' && !G.spcd.b && tier() >= 1 && Math.random() < .45) {
     const sp = aiSpecial();
     if (sp) { await sleep(250); await doSpecial('b', sp.at, sp.key, sp.tg); return; }
+  }
+  if (G.boss && Math.random() < .55) {
+    I.setEnv(G);
+    if (!I.inCheck(G.board, 'b')) {
+      let best = -1, bd = 0;
+      for (let i = 0; i < N * N; i++) { const q = G.board[i]; if (q && q.s === 'b' && BO.canHit(G, i)) { const d = BO.damageOf(q) + (q.t === 'K' ? -5 : 0) + Math.random(); if (d > bd) { bd = d; best = i; } } }
+      if (best >= 0) { await sleep(200); await bossAttack('b', best); return; }
+    }
   }
   if (G.items && Math.random() < .5) {
     I.setEnv(G);
@@ -742,6 +839,7 @@ function currentTargets() {
     I.setEnv(G);
     const pt = G.board[G.sel] && G.board[G.sel].t;
     list = I.legalMoves(G.board, G.turn).filter(m => m.f === G.sel).map(m => ({ sq: m.t, type: m.sw ? 'swap' : (m.r || (m.arm && isShooter(pt))) ? 'shoot' : m.cap ? 'cap' : 'move', m }));
+    if (bossHittable(G.turn, G.sel)) for (const b of BO.squares(G.boss.at)) list.push({ sq: b, type: 'boss' });
   }
   tKey = key; tList = list; return list;
 }
@@ -794,6 +892,7 @@ function drawBoard(now) {
     else if (t.type === 'swap') { c.strokeStyle = BLUE; c.lineWidth = 2; c.beginPath(); c.arc(x, y, CELL * .36, -2.6, -0.5); c.stroke(); c.beginPath(); c.arc(x, y, CELL * .36, 0.5, 2.6); c.stroke(); }
     else if (t.type === 'place') { c.strokeStyle = BLUE; c.lineWidth = 1.6; c.setLineDash([4, 4]); c.strokeRect(x - CELL * .38, y - CELL * .38, CELL * .76, CELL * .76); c.setLineDash([]); }
     else if (t.type === 'spell') { c.strokeStyle = BLUE; c.lineWidth = 2.2; I.circ(c, x, y, CELL * .42, t.sq, 1, 12); c.stroke(); }
+    else if (t.type === 'boss') { c.fillStyle = 'rgba(179,50,43,0.18)'; c.fillRect(x - CELL / 2 + 2, y - CELL / 2 + 2, CELL - 4, CELL - 4); }
     else if (t.type === 'special') { c.fillStyle = 'rgba(122,63,184,0.16)'; c.fillRect(x - CELL / 2 + 2, y - CELL / 2 + 2, CELL - 4, CELL - 4); c.strokeStyle = '#7a3fb8'; c.lineWidth = 2.2; I.circ(c, x, y, CELL * .4, t.sq + 9, 1.2, 12); c.stroke(); }
   }
   if (hover >= 0 && humanTurn() && !G.lock) {
@@ -824,6 +923,7 @@ function drawBoard(now) {
     }
     I.drawBadges(c, p, x, y, CELL);
   }
+  if (G.boss) { const [bx, by] = sqXY(G.boss.at); BO.draw(c, G.boss, bx + CELL / 2, by + CELL / 2, CELL, now); }
   for (const f of fx) {
     if (f.kind !== 'fling' || now > f.start + f.dur) continue;
     const [x, y] = sqXY(f.sq);
@@ -934,7 +1034,14 @@ function drawBoard(now) {
       c.lineWidth = 4; c.strokeStyle = PAPER; c.strokeText(f.str, x, y - CELL * .55 - k * CELL * .5);
       c.fillStyle = f.col === GOLD ? '#9a6f0c' : f.col; c.fillText(f.str, x, y - CELL * .55 - k * CELL * .5); c.globalAlpha = 1;
     } else if (f.kind === 'spell') drawSpellFx(c, f, k);
-    else if (f.kind === 'dust') {
+    else if (f.kind === 'laser') {
+      const [bx, by] = sqXY(f.from), ey = sqXY(f.row * N)[1], ex = bx + CELL * .5, w = (1 - k) * CELL * .28 + 2;
+      const xs = f.sqs.map(i => sqXY(i)[0]), lo = Math.min(...xs, ex), hi = Math.max(...xs, ex);
+      c.globalAlpha = Math.min(1, (1 - k) * 2);
+      c.fillStyle = '#ff3b2e'; c.fillRect(lo - CELL / 2, ey - w / 2, hi - lo + CELL, w);
+      c.fillStyle = '#fff3ea'; c.fillRect(lo - CELL / 2, ey - w / 6, hi - lo + CELL, w / 3);
+      c.globalAlpha = 1;
+    } else if (f.kind === 'dust') {
       const [x, y] = sqXY(f.sq); c.fillStyle = 'rgba(120,110,95,.5)'; c.globalAlpha = 1 - k;
       for (let i = 0; i < 6; i++) { const side = i % 2 ? 1 : -1, d = CELL * (.2 + k * .35 + I.hash(f.s + i) * .1); c.beginPath(); c.arc(x + side * d, y + CELL * .36 - k * CELL * .08 * (1 + i % 3), CELL * (.05 + .05 * I.hash(f.s + i + 3)) * (1 + k), 0, 7); c.fill(); }
       c.globalAlpha = 1;
@@ -1074,10 +1181,11 @@ function boardClick(px, py) {
     playCard(side, G.pend.idx, G.pend.opts.find(o => o.a === sq)); return;
   }
   if (hit && hit.m) { playMove(side, hit.m); return; }
+  if (hit && hit.type === 'boss') { bossAttack(side, G.sel); return; }
   const p = G.board[sq];
   G.sel = p && p.s === side ? (G.sel === sq ? -1 : sq) : -1;
   if (G.sel >= 0 && p.fz > 0) { toast(`That ${U[p.t].name} is frozen`); G.sel = -1; }
-  else if (G.sel >= 0) { snd('pick'); I.setEnv(G); if (!I.legalMoves(G.board, side).some(m => m.f === sq)) toast(`That ${U[p.t].name} can't move right now`); }
+  else if (G.sel >= 0) { snd('pick'); I.setEnv(G); if (!I.legalMoves(G.board, side).some(m => m.f === sq) && !bossHittable(side, sq)) toast(`That ${U[p.t].name} can't move right now`); }
   tKey = null; refresh();
 }
 window.addEventListener('keydown', e => {
@@ -1337,6 +1445,15 @@ function buildGuide() {
   const START = ['K', 'Q', 'R', 'B', 'N', 'A', 'P'];
   const nukeBtn = document.createElement('button'); nukeBtn.type = 'button'; nukeBtn.className = 'btn'; nukeBtn.textContent = 'Watch the NUKE cutscene';
   nukeBtn.onclick = () => { unlockAudio(); nukeCutscene(); }; grid.appendChild(nukeBtn);
+  const bossBtn = document.createElement('button'); bossBtn.className = 'btn'; bossBtn.type = 'button'; bossBtn.style.marginLeft = '8px';
+  bossBtn.textContent = `Summon ${BO.NAME} now`;
+  bossBtn.onclick = async () => {
+    unlockAudio();
+    if (G.over || G.lock || G.boss) { toast(G.boss ? `${BO.NAME} is already here` : 'Wait for your turn'); return; }
+    $('#unitsOverlay').hidden = true; G.lock = true; await spawnBoss(); G.lock = false; refresh();
+    if (G.mode === 'ai' && G.turn === 'b') aiTurn();
+  };
+  grid.appendChild(bossBtn);
   { const h = document.createElement('h3'); h.textContent = 'Special moves (unlocked by the Brainrot meter)'; grid.appendChild(h);
     const ul = document.createElement('ul'); ul.className = 'sp-guide'; grid.appendChild(ul);
     for (const sp of M.SPECIALS) { const li = document.createElement('li'); li.innerHTML = `<b>${sp.name}</b> <i>(${sp.tier >= 5 ? 'Finale' : M.TIERS[sp.tier].act})</i>: ${sp.desc}`; ul.appendChild(li); } }
@@ -1468,6 +1585,7 @@ function snd(type) {
     case 'scream': tone('sawtooth', 900, 1500, .5, .05); tone('square', 600, 1300, .5, .03); noise(.5, .15, 3000, 0, 'bandpass'); break;
     case 'nukeboom': noise(3.5, .9, 160); tone('sine', 60, 18, 3.2, .35); noise(.4, .5, 4000, 0, 'highpass'); break;
     case 'nukeroar': noise(4.5, .35, 420, .3); noise(4.8, .25, 90, .8); break;
+    case 'laser': tone('sawtooth', 1400, 180, .7, .06); tone('square', 700, 120, .7, .03); break;
     case 'rumble': noise(3.5, .12, 120); tone('sine', 45, 38, 3.5, .08); break;
     case 'whistle': tone('sine', 2200, 420, 1.3, .05); tone('triangle', 1100, 210, 1.3, .03); break;
     case 'tinnitus': tone('sine', 4100, 4000, 4.5, .025); break;
@@ -1530,7 +1648,7 @@ $('#musicFile').addEventListener('change', async e => {
 $('#rcTrade').addEventListener('click', tradePicked);
 for (const ov of ['#packOverlay', '#unitsOverlay']) $(ov).addEventListener('pointerdown', e => { if (e.target === $(ov) && (ov === '#unitsOverlay' || !$('#packDone').hidden)) closeOverlays(); });
 
-window.__inkmate = { get G() { return G; }, playMove, playCard, doSpecial, newGame, refresh, addRot, meme, slam, offerReplay, watchReplay, I, cast: () => (castCache = castCache || cutsceneCast()), lines: () => NUKE_LINES };
+window.__inkmate = { get G() { return G; }, playMove, playCard, doSpecial, newGame, refresh, addRot, meme, slam, offerReplay, watchReplay, spawnBoss, bossAttack, I, cast: () => (castCache = castCache || cutsceneCast()), lines: () => NUKE_LINES };
 window.addEventListener('resize', sizeBoard);
 sizeBoard();
 newGame('ai');
