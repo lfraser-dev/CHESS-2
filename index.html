@@ -120,6 +120,21 @@
 </div>
 
 <div class="cutscene" id="cutscene" hidden><video id="cutsceneVideo" muted playsinline preload="none" aria-hidden="true" hidden></video><canvas id="cutsceneGL" aria-hidden="true" hidden></canvas><canvas id="cutscene2D" aria-label="Nuke cutscene"></canvas><button class="btn small" id="cutSkip" type="button">Skip</button></div>
+<div class="overlay replay-ov" id="replayOverlay" role="dialog" aria-modal="true" aria-labelledby="replayTitle" hidden>
+  <div class="replay-box">
+    <canvas id="replayCanvas" aria-label="Highlights replay. Click to stop." hidden></canvas>
+    <div class="replay-start" id="replayStart">
+      <p class="replay-kicker">GAME OVER</p>
+      <h2 id="replayTitle">GG</h2>
+      <p id="replayCount"></p>
+      <div class="start-btns">
+        <button class="btn primary" id="replayWatch" type="button">Watch the highlights</button>
+        <button class="btn" id="replayNew" type="button">New game</button>
+        <button class="btn ghost" id="replayClose" type="button">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="toast" id="toast" role="status" hidden></div>
 <script src="engine.js"></script>
 <script src="art.js"></script>
@@ -127,6 +142,8 @@
 <script src="cinema.js"></script>
 <script src="battle.js"></script>
 <script src="items.js"></script>
+<script src="talk.js"></script>
+<script src="replay.js"></script>
 <script src="memes.js"></script>
 <script src="game.js"></script>
 </body>

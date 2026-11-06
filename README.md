@@ -55,6 +55,12 @@ Tap one of your pieces to see its special moves. Using one takes your turn (exce
 
 Every move gets a meme caption ("White: *googles en passant*"), with reaction text, dramatic zoom-ins, move annotations (!!, ??, ?!) and synthesised sound stings. On **Calm** there's no meter and no specials.
 
+## Talking pieces and the highlights reel
+
+Pieces talk in speech bubbles: they brag when they capture, say their last words when they're taken, the king screams when he's in check, and bored pieces chat while you think.
+
+When the game ends you can **watch the highlights**: a vertical replay of the biggest moments (captures, special moves, random items, meteors, nukes and the checkmate) with captions and reactions, like a Short.
+
 **Mutations:** a piece that captures may mutate and gain a power: jumping like a knight, stepping like a king, sliding straight or diagonally, flying over pieces, zooming 6 squares, or growing a gun. Mutated pieces show a green star with the number of mutations.
 
 **Shuffled armies:** the back row is shuffled and three pieces are swapped for random weird units (both sides get the same lineup).
@@ -105,6 +111,8 @@ Open **Units & cards** in the game for every card, a move diagram for every unit
 - `game.js` – board, turns, shop, recycling, pack opening
 - `battle.js` – the battle cam close-ups
 - `items.js` – the random things on the board and their drawings
+- `talk.js` – what the pieces say, and the speech bubbles
+- `replay.js` – the end-of-game highlights reel
 - `memes.js` – the Brainrot meter, the acts, special moves, and meme captions
 - `cinema3d.js` – the NUKE cinematic's real-time 3D: raymarched chess set, metal bomb, volumetric clouds, fireball, mushroom cloud and shockwave (WebGL)
 - `cinema.js` – the cinematic's timeline, titles, captions, letterbox, grain and flashes (plus a 2D fallback if WebGL isn't available)

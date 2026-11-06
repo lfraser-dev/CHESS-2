@@ -346,3 +346,15 @@ button.card:disabled { cursor: default; }
 .sp-guide { margin: 0 0 12px; padding-left: 20px; font: 17px/1.35 var(--hand); }
 .sp-guide i { color: #7a3fb8; font-style: normal; }
 .log li.itemlog, .log li.itemlog:first-child { color: #1a7f7a; }
+
+/* ---- highlights replay */
+.replay-ov { background: rgba(20,18,26,.88); }
+.replay-box { width: min(100%, 520px); aspect-ratio: 9 / 14; max-height: calc(100vh - 32px); position: relative; border: 3px solid #f2eee2; border-radius: 14px 10px 16px 11px; overflow: hidden; background: #1e1c24; box-shadow: 0 0 0 6px #1e1c24, 8px 12px 0 rgba(0,0,0,.4); }
+#replayCanvas { position: absolute; inset: 0; width: 100%; height: 100%; cursor: pointer; }
+.replay-start { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px; text-align: center; color: #f2eee2; }
+.replay-start h2 { margin: 0; font: 400 clamp(38px, 9vw, 64px)/1 Anton, Impact, sans-serif; text-transform: uppercase; color: #f3d55b; text-wrap: balance; }
+.replay-kicker { margin: 0; font: 400 15px/1 Anton, Impact, sans-serif; letter-spacing: .4em; color: #b3322b; }
+.replay-start p { margin: 0; font-size: 19px; }
+.replay-start .start-btns { justify-content: center; margin-top: 10px; }
+.replay-start .btn { background: #f2eee2; color: #1e1c24; }
+.replay-start .btn.primary { background: #f3d55b; }

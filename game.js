@@ -40,7 +40,7 @@ function newGame(mode) {
   const level = chaosLevel();
   G = I.newState(mode, { chaosStart: level !== 'calm' });
   G.chaos = level;
-  Object.assign(G, { sel: -1, pend: null, spec: null, lock: false, recycle: null, rot: level === 'unhinged' ? 20 : 0, limbo: [], items: new Array(N * N).fill(null), gems: { w: 0, b: 0 }, spcd: { w: 0, b: 0 }, finale: false });
+  Object.assign(G, { sel: -1, pend: null, spec: null, lock: false, recycle: null, rot: level === 'unhinged' ? 20 : 0, limbo: [], items: new Array(N * N).fill(null), gems: { w: 0, b: 0 }, hl: [], lastClip: null, spcd: { w: 0, b: 0 }, finale: false });
   G.actShown = level === 'calm' ? 0 : M.tierOf(G.rot);
   if (level !== 'calm') for (let k = 0; k < (level === 'unhinged' ? 5 : 3); k++) IT.spawn(G);
   anims.length = 0; fx.length = 0;
@@ -105,6 +105,7 @@ function wantsBattleCam(mover, cap, m) {
 async function playMove(side, m) {
   G.lock = true; G.sel = -1; I.setEnv(G);
   const mover = G.board[m.f], cap = m.cap, mu = U[mover.t];
+  const hb = G.board.slice(), hi = G.items ? G.items.slice() : null;
   const rangedHit = !!(m.r || (m.arm && isShooter(mover.t) && !(mu.sl || mu.leap)));
   if (wantsBattleCam(mover, cap, m)) {
     focusOn(m.t); refresh();
@@ -220,7 +221,16 @@ async function playMove(side, m) {
   const got = !m.r && !m.arm && !m.sw ? pickUpItem(side, m.t) : null;
   { I.setEnv(G); const chk = I.inCheck(G.board, other(side)), atk = G.board[m.t] || mover;
     const mc = got ? { ...got, annot: null } : M.moveCaption(side, atk, cap && !m.sw ? cap : null, tier(), chk);
-    if (got) punch(m.t, .8, 1200);
+    if (got) { punch(m.t, .8, 1200); addFx({ kind: 'confetti', sq: m.t, dur: 1600, s: Math.random() * 99 }); }
+    // the pieces talk
+    const me = G.board[m.t] ? m.t : m.f;
+    if (cap && !m.arm && !m.sw) { say(m.t, 'dying', { p: cap, dead: true, delay: 250 }); if (Math.random() < .5) say(me, 'capture', { delay: 1100 }); }
+    else if (m.arm) say(m.t, 'armour', { delay: 400 });
+    else if (got) say(me, 'item', { delay: 200 });
+    else if (Math.random() < .3 + tier() * .06) say(me, 'move', { delay: 300 });
+    if (chk) { const ks = I.kingSq(G.board, other(side)); if (ks >= 0) say(ks, 'check', { loud: true, delay: 600 }); }
+    { let sc = 0; if (cap && !m.sw) sc += (U[cap.t].val || 1) * (m.arm ? .5 : 1) + (cap.t === 'Q' ? 4 : 0); if (chk) sc += 2; if (got) sc += 4; if (mc.react) sc += 1;
+      clip(sc, hb, hi, m.f, m.t, mc.text, mc.react, got ? 'RANDOM ITEM' : cap ? 'CAPTURE' : chk ? 'CHECK' : 'MOVE'); }
     meme(mc.text, { react: mc.react, sq: m.t, big: !!(cap && U[cap.t].val >= 5) || (chk && tier() >= 2) });
     if (mc.annot) addFx({ kind: 'annot', sq: m.t, a: mc.annot, delay: 250, dur: 1800 });
     if (cap && !m.arm && !m.sw) addRot(4); }
@@ -242,6 +252,7 @@ async function playCard(side, idx, o) {
   }
   I.setEnv(G);
   if (o && o.a >= 0) focusOn(o.a);
+  const hb = G.board.slice(), hi = G.items ? G.items.slice() : null;
   if (sim && key === 'nuke') { refresh(); await nukeCutscene(); shakeT = performance.now() + 1400; }
   if (!sim) addLog(`${who(side)} played ${card.name}, but nothing happened.`, 'played');
   else {
@@ -255,6 +266,8 @@ async function playCard(side, idx, o) {
     const destroyed = ev.filter(e => e.type === 'destroy');
     if (destroyed.length) line += `. Destroyed: ${destroyed.map(e => U[e.p.t].name).join(', ')}`;
     addLog(line + '.', 'played');
+    { const big = { epic: 4, legendary: 9 }[card.rarity] || (destroyed.length ? 3 : 0);
+      clip(big + destroyed.length * 2, hb, hi, -1, o && o.a >= 0 ? o.a : (I.kingSq(G.board, other(side)) >= 0 ? I.kingSq(G.board, other(side)) : 112), `${M.SIDE(side)}: *plays ${card.name}*`, key === 'nuke' ? 'NUCLEAR OPTION' : destroyed.length >= 2 ? 'OBLITERATED' : null, 'CARD'); }
     snd({ freeze: 'freeze', meteor: 'boom', orbital: 'boom', lightning: 'boom', earthquake: 'boom', mine: 'tap', pit: 'tap' }[key] || (card.kind === 'unit' ? 'summon' : 'spell'));
     if (ev.some(e => e.type === 'field')) toast(card.name + '!');
   }
@@ -369,7 +382,9 @@ async function finaleMeteor() {
   const hit = M.meteor(G, G.turn);
   if (!hit) return;
   focusOn(hit.sq);
+  const hb = G.board.slice(), hi = G.items.slice();
   Object.assign(G, { board: hit.st.board, terr: hit.st.terr, grave: hit.st.grave });
+  if (hit.p) { say(hit.sq, 'dying', { p: hit.p, dead: true, delay: 300 }); clip(4 + (U[hit.p.t].val || 0) / 2, hb, hi, -1, hit.sq, `The sky: *drops a meteor on the ${U[hit.p.t].name}*`, 'UNLUCKY', 'METEOR'); }
   addFx({ kind: 'spell', key: 'meteor', sq: hit.sq, dur: 900 }); addFx({ kind: 'boom', sq: hit.sq, delay: 350, dur: 800 });
   if (hit.p) { const a = Math.random() * Math.PI * 2; addFx({ kind: 'fling', p: hit.p, sq: hit.sq, dir: [Math.cos(a), Math.sin(a) - .6], delay: 380, dur: 850, s: hit.p.id }); }
   setTimeout(() => snd('boom'), 350); shakeT = performance.now() + 900;
@@ -384,7 +399,12 @@ function startTurn() {
   if (!canAct(t)) {
     if (I.inCheck(G.board, t)) { G.over = { winner: other(t), why: 'checkmate' }; addLog(`Checkmate! ${G.mode === 'ai' ? (other(t) === 'w' ? 'You win.' : 'The Ink Baron wins.') : who(other(t)) + ' wins.'}`, 'big');
       const lost = G.mode === 'ai' && other(t) === 'b'; snd(lost ? 'trombone' : 'win');
-      meme(`${M.SIDE(other(t))}: *checkmates*`, { react: lost ? 'it\'s so over' : M.pick(['GG EZ', 'WE\'RE SO BACK', 'absolute cinema']), big: true, sq: I.kingSq(G.board, t) }); }
+      const mateReact = lost ? 'it\'s so over' : M.pick(['GG EZ', 'WE\'RE SO BACK', 'absolute cinema']);
+      meme(`${M.SIDE(other(t))}: *checkmates*`, { react: mateReact, big: true, sq: I.kingSq(G.board, t) });
+      say(I.kingSq(G.board, t), 'lose', { loud: true, delay: 500, dur: 4000 });
+      const wk = I.kingSq(G.board, other(t)); if (wk >= 0) say(wk, 'win', { delay: 1300, dur: 4000 });
+      if (G.lastClip) { const lc = { ...G.lastClip, score: 99, caption: `${M.SIDE(other(t))}: *checkmates*`, react: 'CHECKMATE', label: 'THE ENDING' }; G.hl = G.hl.filter(x => x !== G.lastClip); G.hl.push(lc); }
+      setTimeout(offerReplay, 3800); }
     else { G.over = { winner: null, why: 'stalemate' }; addLog('Stalemate. Nobody can move, so it\'s a draw.', 'big'); }
   } else if (G.quiet >= 120) { G.over = { winner: null, why: 'quiet' }; addLog('Sixty moves each with nothing captured. It\'s a draw.', 'big'); }
   else if (I.inCheck(G.board, t)) { addLog(`${who(t)} ${G.mode === 'ai' && t === 'w' ? 'are' : 'is'} in check!`, 'warn'); snd('check'); }
@@ -429,6 +449,34 @@ function pickUpItem(side, at) {
   return { text: `${M.SIDE(side)}: *${U[p.t].name} ${it.verb}*`, react: M.pick(it.react) };
 }
 
+// ---- talking pieces
+const TK = I.TALK;
+function say(sq, kind, o = {}) {
+  const p = o.p || G.board[sq]; if (!p && !o.text) return;
+  const text = o.text || TK.line(kind, p.t);
+  const id = p ? p.id : null;
+  for (let i = fx.length - 1; i >= 0; i--) if (fx[i].kind === 'say' && ((id && fx[i].id === id) || fx[i].sq === sq)) fx.splice(i, 1);
+  const talking = fx.filter(f => f.kind === 'say');
+  if (talking.length >= 3) fx.splice(fx.indexOf(talking[0]), 1);
+  addFx({ kind: 'say', id: o.dead ? null : id, sq, text, loud: !!o.loud, delay: o.delay || 0, dur: o.dur || 2300 });
+}
+let idleT = 0;
+function idleChatter(now) {
+  if (!G || G.over || G.lock || !humanTurn() || now < idleT) return;
+  idleT = now + 5500 + Math.random() * 5000;
+  if (fx.some(f => f.kind === 'say')) return;
+  const [vr0, vr1, vc0, vc1] = visibleRange(), opts = [];
+  for (let r = vr0; r <= vr1; r++) for (let cc = vc0; cc <= vc1; cc++) { const q = G.board[r * N + cc]; if (q) opts.push(r * N + cc); }
+  if (opts.length) say(opts[Math.floor(Math.random() * opts.length)], 'idle');
+}
+
+// ---- highlights: remember the big moments for the replay at the end
+function clip(score, before, itemsBefore, f, t, caption, react, label) {
+  const c = { score, before, itemsBefore, after: G.board.slice(), itemsAfter: G.items ? G.items.slice() : null, f, t, caption, react, label };
+  G.lastClip = c;
+  if (score >= 3) { G.hl.push(c); if (G.hl.length > 40) G.hl.splice(G.hl.reduce((m, x, i, a) => x.score < a[m].score ? i : m, 0), 1); }
+}
+
 // ---- special moves
 async function doSpecial(side, at, key, tg) {
   const res = M.trySpecial(G, side, at, key, tg);
@@ -438,7 +486,10 @@ async function doSpecial(side, at, key, tg) {
   const p = G.board[at], sp = res.sp, name = U[p.t].name;
   focusOn(at); refresh();
   punch(at, 1.0, 1300);
-  meme(`${M.SIDE(side)}: *${sp.verb}*`, { react: M.pick(sp.react), sq: tg >= 0 ? tg : at, big: true, sound: false });
+  const spReact = M.pick(sp.react), hb = G.board.slice(), hi = G.items ? G.items.slice() : null;
+  meme(`${M.SIDE(side)}: *${sp.verb}*`, { react: spReact, sq: tg >= 0 ? tg : at, big: true, sound: false });
+  say(at, 'special', { loud: true });
+  addFx({ kind: 'flash', dur: 260, delay: 600 });
   snd(sp.tier >= 3 ? 'airhorn' : 'vboom');
   await sleep(650);
   const before = new Map(); G.board.forEach((q, i) => { if (q) before.set(q.id, { p: q, i }); });
@@ -455,6 +506,8 @@ async function doSpecial(side, at, key, tg) {
   else if (killed.size) setTimeout(() => snd('hit'), 200);
   G.last = { f: at, t: tg >= 0 ? tg : at };
   addLog(`${poss(side)} ${name} ${res.text}.`, 'special');
+  for (const e of res.ev) if (e.type === 'destroy' && e.p.s !== side && Math.random() < .6) { say(e.sq, 'dying', { p: e.p, dead: true, delay: 200 }); break; }
+  clip(6 + killed.size * 2, hb, hi, at, tg >= 0 ? tg : at, `${M.SIDE(side)}: *${sp.verb}*`, spReact, 'SPECIAL MOVE');
   G.spcd[side] = SPECIAL_CD[G.chaos] || 2;
   addRot(6);
   if (res.out.extra) G.extra = true;
@@ -651,11 +704,16 @@ function drawMinimap(c) {
   c.strokeStyle = RED; c.lineWidth = 1.5; c.strokeRect(mx + Math.max(0, cam.x) * k, my + Math.max(0, cam.y) * k, Math.min(N, vis) * k, Math.min(N, vis) * k);
 }
 const anims = [], fx = [];
-function addAnim(a) { a.start = performance.now() + (a.delay || 0); anims.push(a); }
+const LAZY_FX = new Set(['splat', 'say', 'dance', 'confetti', 'land', 'dust']);
+function addAnim(a) {
+  a.start = performance.now() + (a.delay || 0); anims.push(a);
+  // pieces squash when they land and kick up a little dust
+  if (a.kind === 'move' || (a.kind === 'lunge' && !a.back)) { const at = (a.delay || 0) + a.dur * (a.kind === 'lunge' ? .62 : 1); addFx({ kind: 'land', sq: a.t, delay: at, dur: 260 }); addFx({ kind: 'dust', sq: a.t, delay: at, dur: 450, s: Math.random() * 99 }); }
+}
 function addFx(f) { f.start = performance.now() + (f.delay || 0); fx.push(f); }
 function waitAnims() {
   return new Promise(res => {
-    const check = () => { const now = performance.now(); const busy = anims.some(a => now < a.start + a.dur) || fx.some(f => f.kind !== 'splat' && now < f.start + f.dur); busy ? setTimeout(check, 40) : res(); };
+    const check = () => { const now = performance.now(); const busy = anims.some(a => now < a.start + a.dur) || fx.some(f => !LAZY_FX.has(f.kind) && now < f.start + f.dur); busy ? setTimeout(check, 40) : res(); };
     check();
   });
 }
@@ -759,7 +817,11 @@ function drawBoard(now) {
     if (sm) alpha = now < sm.start ? 0 : Math.min(1, (now - sm.start) / (sm.dur * 0.6));
     const fsz = CELL * .82 * (G.fields.bighead > 0 ? 1.55 : G.fields.tiny > 0 ? .45 : 1);
     if (G.fields.flip > 0) { c.save(); c.translate(x, y); c.rotate(Math.PI); I.drawPiece(c, p.t, p.s, 0, 0, fsz, p.id * 3.7, alpha); c.restore(); }
-    else I.drawPiece(c, p.t, p.s, x, y, fsz, p.id * 3.7, alpha);
+    else {
+      const ld = fx.find(f => f.kind === 'land' && f.sq === sq && now >= f.start && now < f.start + f.dur);
+      if (ld) { const q = (now - ld.start) / ld.dur, sq2 = Math.sin(q * Math.PI) * (1 - q) * .5; c.save(); c.translate(x, y + CELL * .38); c.scale(1 + sq2 * .55, 1 - sq2 * .45); I.drawPiece(c, p.t, p.s, 0, -CELL * .38, fsz, p.id * 3.7, alpha); c.restore(); }
+      else I.drawPiece(c, p.t, p.s, x, y, fsz, p.id * 3.7, alpha);
+    }
     I.drawBadges(c, p, x, y, CELL);
   }
   for (const f of fx) {
@@ -872,7 +934,19 @@ function drawBoard(now) {
       c.lineWidth = 4; c.strokeStyle = PAPER; c.strokeText(f.str, x, y - CELL * .55 - k * CELL * .5);
       c.fillStyle = f.col === GOLD ? '#9a6f0c' : f.col; c.fillText(f.str, x, y - CELL * .55 - k * CELL * .5); c.globalAlpha = 1;
     } else if (f.kind === 'spell') drawSpellFx(c, f, k);
-    else if (f.kind === 'dance') {
+    else if (f.kind === 'dust') {
+      const [x, y] = sqXY(f.sq); c.fillStyle = 'rgba(120,110,95,.5)'; c.globalAlpha = 1 - k;
+      for (let i = 0; i < 6; i++) { const side = i % 2 ? 1 : -1, d = CELL * (.2 + k * .35 + I.hash(f.s + i) * .1); c.beginPath(); c.arc(x + side * d, y + CELL * .36 - k * CELL * .08 * (1 + i % 3), CELL * (.05 + .05 * I.hash(f.s + i + 3)) * (1 + k), 0, 7); c.fill(); }
+      c.globalAlpha = 1;
+    } else if (f.kind === 'confetti') {
+      const [x, y] = sqXY(f.sq);
+      for (let i = 0; i < 26; i++) { const a = I.hash(f.s + i) * Math.PI * 2, sp = .8 + I.hash(f.s + i + 40) * 1.8, px = x + Math.cos(a) * CELL * sp * Math.min(1, k * 3), py = y + Math.sin(a) * CELL * sp * .7 * Math.min(1, k * 3) - CELL * .6 * Math.sin(Math.min(1, k * 2) * Math.PI / 2) + k * k * CELL * 1.6;
+        c.globalAlpha = Math.max(0, 1 - Math.max(0, k - .6) / .4); c.fillStyle = ['#e86ad6', '#f3d55b', '#5bd1f3', '#7be06a', '#b3322b'][i % 5];
+        c.save(); c.translate(px, py); c.rotate(k * 12 + i); c.fillRect(-CELL * .04, -CELL * .02, CELL * .08, CELL * .04); c.restore(); }
+      c.globalAlpha = 1;
+    } else if (f.kind === 'flash') {
+      c.fillStyle = `rgba(255,252,240,${(1 - k) * .75})`; c.fillRect(-BS, -BS, BS * 3, BS * 3);
+    } else if (f.kind === 'dance') {
       const [x, y] = sqXY(f.sq); c.font = `${Math.round(CELL * .32)}px serif`; c.textAlign = 'center'; c.fillStyle = ['#7a3fb8', '#c0392b', '#1aa7a1'][f.sq % 3];
       for (let n = 0; n < 2; n++) { const kk = (k * 2 + n * .5) % 1; c.globalAlpha = 1 - kk; c.fillText(n ? '♫' : '♪', x + Math.sin((kk + n) * 6) * CELL * .25, y - CELL * .3 - kk * CELL * .5); }
       c.globalAlpha = 1;
@@ -901,6 +975,17 @@ function drawBoard(now) {
       if (f.key === 'rewind') { c.fillStyle = 'rgba(201,154,28,0.12)'; c.fillRect(0, 0, BS, BS); }
       c.globalAlpha = 1;
     }
+  }
+  // speech bubbles on top of everything
+  for (const f of fx) {
+    if (f.kind !== 'say' || now < f.start || now > f.start + f.dur) continue;
+    let sq = f.sq;
+    if (f.id) { const j = G.board.findIndex(q => q && q.id === f.id); if (j >= 0) sq = j; else if (!anims.some(a => a.p && a.p.id === f.id)) continue; }
+    if (!visible(sq)) continue;
+    const k = (now - f.start) / f.dur, [x, y] = sqXY(sq), pop = Math.min(1, (now - f.start) / 140);
+    c.save(); c.translate(x, y); c.scale(.6 + .4 * pop, .6 + .4 * pop); c.translate(-x, -y);
+    TK.drawBubble(c, f.text, x, y + (f.loud ? Math.sin(now / 40) * 1.5 : 0), CELL, k > .85 ? (1 - k) / .15 : 1, [0, 0, BS, BS], f.loud);
+    c.restore();
   }
   c.setTransform(DPR, 0, 0, DPR, 0, 0);
   if (BS / cam.cell < N - 1.5) drawMinimap(c);
@@ -1445,12 +1530,40 @@ $('#musicFile').addEventListener('change', async e => {
 $('#rcTrade').addEventListener('click', tradePicked);
 for (const ov of ['#packOverlay', '#unitsOverlay']) $(ov).addEventListener('pointerdown', e => { if (e.target === $(ov) && (ov === '#unitsOverlay' || !$('#packDone').hidden)) closeOverlays(); });
 
-window.__inkmate = { get G() { return G; }, playMove, playCard, doSpecial, newGame, refresh, addRot, meme, slam, I, cast: () => (castCache = castCache || cutsceneCast()), lines: () => NUKE_LINES };
+window.__inkmate = { get G() { return G; }, playMove, playCard, doSpecial, newGame, refresh, addRot, meme, slam, offerReplay, watchReplay, I, cast: () => (castCache = castCache || cutsceneCast()), lines: () => NUKE_LINES };
 window.addEventListener('resize', sizeBoard);
 sizeBoard();
 newGame('ai');
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { buildLayer(); $('#hand').dataset.sig = ''; document.querySelectorAll('#shop .pack-btn').forEach(b => I.drawPackArt(b.querySelector('canvas'), 46, 64, b.dataset.pack)); refresh(); });
 let lastBoil = 0;
-function loop(now) { if (now - lastBoil > 150) { I.boil = (I.boil + 1) % 4; lastBoil = now; } drawBoard(now); requestAnimationFrame(loop); }
+// ---- highlights replay
+let replayRun = null;
+function offerReplay() {
+  if (!G.over || !G.hl.length || !$('#replayOverlay').hidden) return;
+  const ov = $('#replayOverlay');
+  ov.hidden = false; $('#replayStart').hidden = false; $('#replayCanvas').hidden = true;
+  const win = G.over.winner, tit = win ? (G.mode === 'ai' ? (win === 'w' ? 'You won!' : 'The Ink Baron won') : `${who(win)} won!`) : 'It\'s a draw';
+  $('#replayTitle').textContent = tit;
+  $('#replayCount').textContent = `${Math.min(6, G.hl.length)} big moment${G.hl.length > 1 ? 's' : ''} this game`;
+  $('#replayWatch').focus();
+}
+function watchReplay() {
+  const clips = I.Replay.choose(G.hl, 6);
+  $('#replayStart').hidden = true; const cv = $('#replayCanvas'); cv.hidden = false;
+  const win = G.over && G.over.winner;
+  if (replayRun) replayRun.stop();
+  snd('dun');
+  replayRun = I.Replay.play(cv, clips, { title: win ? (G.mode === 'ai' ? (win === 'w' ? 'YOU WIN' : 'BARON WINS') : (win === 'w' ? 'WHITE WINS' : 'BLACK WINS')) : 'DRAW', sub: `${G.ply} moves of pure chaos` });
+  let n = -1; const tick = setInterval(() => { const i = Math.floor((performance.now() - t0) / I.Replay.CLIP); if (i !== n && i < clips.length) { n = i; setTimeout(() => snd(i === clips.length - 1 ? 'airhorn' : 'vboom'), I.Replay.CLIP * .56); } }, 100), t0 = performance.now();
+  replayRun.done.then(() => { clearInterval(tick); $('#replayStart').hidden = false; cv.hidden = true; $('#replayCount').textContent = 'Watch it again?'; });
+}
+function closeReplay() { if (replayRun) replayRun.stop(); $('#replayOverlay').hidden = true; }
+$('#replayWatch').onclick = () => { unlockAudio(); watchReplay(); };
+$('#replayNew').onclick = () => { closeReplay(); newGame(G.mode); };
+$('#replayClose').onclick = closeReplay;
+$('#replayCanvas').onclick = () => { if (replayRun) replayRun.stop(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#replayOverlay').hidden) closeReplay(); });
+
+function loop(now) { if (now - lastBoil > 150) { I.boil = (I.boil + 1) % 4; lastBoil = now; } drawBoard(now); idleChatter(now); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 })();
