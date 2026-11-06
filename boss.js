@@ -24,20 +24,33 @@ function ring(at, d = 1) {
 }
 const free = (G, i) => !G.board[i] && !G.terr[i] && !(G.items && G.items[i]);
 
-// find a clear 2x2 spot as close to the middle as possible
-function spawnSpot(G) {
-  let best = -1, bd = 1e9;
-  for (let r = 3; r <= N - 5; r++) for (let c = 3; c <= N - 5; c++) {
-    const at = r * N + c;
-    if (!squares(at).every(i => free(G, i))) continue;
-    const d = Math.abs(r + .5 - (N - 1) / 2) + Math.abs(c + .5 - (N - 1) / 2) + Math.random() * .5;
-    if (d < bd) { bd = d; best = at; }
+// find a 2x2 spot as close to the middle as possible: a clear one if there is one, otherwise it lands on
+// whatever is there (squashing anything but kings), as long as that doesn't leave a king hanging
+function spawnSpot(G, toMove) {
+  const cands = [];
+  for (let r = 1; r <= N - 3; r++) for (let c = 1; c <= N - 3; c++) {
+    const at = r * N + c, sq = squares(at);
+    if (sq.some(i => G.board[i] && G.board[i].t === 'K')) continue;
+    const clear = sq.every(i => free(G, i));
+    const d = Math.abs(r + .5 - (N - 1) / 2) + Math.abs(c + .5 - (N - 1) / 2) + Math.random() * .5 + (clear ? 0 : 6) + sq.filter(i => G.board[i]).length * 2;
+    cands.push({ at, d, clear });
   }
-  return best;
+  cands.sort((a, b) => a.d - b.d);
+  for (const { at, clear } of cands) {
+    if (clear) return at;
+    if (safe(G, toMove, s => { for (const i of squares(at)) s.board[i] = null; })) return at;
+  }
+  return -1;
 }
 function place(G, at) {
+  const squashed = [];
+  for (const i of squares(at)) {
+    const p = G.board[i]; if (p) { G.board[i] = null; G.grave[p.s].push(p.t); squashed.push({ sq: i, p }); }
+    if (G.items) G.items[i] = null;
+  }
   G.boss = { at, hp: MAX_HP, max: MAX_HP, turn: 0, dmg: { w: 0, b: 0 }, hitT: 0 };
   for (const i of squares(at)) G.terr[i] = { k: 'boss' };
+  return squashed;
 }
 // make sure the boss's squares are still solid (spells like the NUKE overwrite terrain)
 function ensure(G) {

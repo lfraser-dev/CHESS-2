@@ -400,9 +400,11 @@ async function finaleMeteor() {
   meme(`The sky: *drops a meteor${hit.p ? ` on the ${U[hit.p.t].name}` : ''}*`, { react: hit.p ? M.pick(['UNLUCKY', 'skill issue (cosmic)', 'GG']) : null, sq: hit.sq });
   refresh(); await waitAnims();
 }
+let bossQueued = false;
 function startTurn() {
   I.setEnv(G);
   const t = G.turn;
+  if (bossQueued && !G.boss && humanTurn()) { bossQueued = false; setTimeout(summonBossNow, 300); }
   if (G.spcd && G.spcd[t] > 0) G.spcd[t]--;
   if (!canAct(t)) {
     if (I.inCheck(G.board, t)) { G.over = { winner: other(t), why: 'checkmate' }; addLog(`Checkmate! ${G.mode === 'ai' ? (other(t) === 'w' ? 'You win.' : 'The Ink Baron wins.') : who(other(t)) + ' wins.'}`, 'big');
@@ -467,8 +469,9 @@ function bossHittable(side, sq) {
 const humanTurnFor = side => G.turn === side;
 const bossCentre = () => { const [x, y] = sqXY(G.boss.at); return [x + CELL / 2, y + CELL / 2]; };
 async function spawnBoss() {
-  const at = BO.spawnSpot(G); if (at < 0) return;
-  BO.place(G, at);
+  const at = BO.spawnSpot(G, G.turn); if (at < 0) { addLog(`${BO.NAME} looked for somewhere to land but the board is too full.`, 'chaoslog'); return; }
+  const squashed = BO.place(G, at);
+  for (const { sq, p } of squashed) addFx({ kind: 'fling', p, sq, dir: [Math.random() - .5, -1], delay: 100, dur: 900, s: p.id });
   focusOn(at); refresh();
   shakeT = performance.now() + 1400; addFx({ kind: 'flash', dur: 500 });
   for (const b of BO.squares(at)) addFx({ kind: 'boom', sq: b, delay: 100, dur: 900 });
@@ -1439,6 +1442,16 @@ function finishReveal(side, keys, title) {
 }
 function closeOverlays() { $('#packOverlay').hidden = true; $('#unitsOverlay').hidden = true; refresh(); }
 
+async function summonBossNow() {
+    unlockAudio();
+    $('#unitsOverlay').hidden = true;
+    if (G.boss) { toast(`${BO.NAME} is already here`); focusOn(G.boss.at); return; }
+    if (G.over) { toast('Start a new game first'); return; }
+    if (G.lock) { toast(`${BO.NAME} will land when it's your turn`); bossQueued = true; return; }
+    G.lock = true; await spawnBoss(); G.lock = false; refresh();
+    if (!G.boss) toast(`${BO.NAME} couldn't find anywhere to land`);
+    if (G.mode === 'ai' && G.turn === 'b') aiTurn();
+}
 // ---- units & cards guide
 function buildGuide() {
   const grid = $('#unitsGrid'); if (grid.dataset.built) return; grid.dataset.built = '1';
@@ -1447,12 +1460,7 @@ function buildGuide() {
   nukeBtn.onclick = () => { unlockAudio(); nukeCutscene(); }; grid.appendChild(nukeBtn);
   const bossBtn = document.createElement('button'); bossBtn.className = 'btn'; bossBtn.type = 'button'; bossBtn.style.marginLeft = '8px';
   bossBtn.textContent = `Summon ${BO.NAME} now`;
-  bossBtn.onclick = async () => {
-    unlockAudio();
-    if (G.over || G.lock || G.boss) { toast(G.boss ? `${BO.NAME} is already here` : 'Wait for your turn'); return; }
-    $('#unitsOverlay').hidden = true; G.lock = true; await spawnBoss(); G.lock = false; refresh();
-    if (G.mode === 'ai' && G.turn === 'b') aiTurn();
-  };
+  bossBtn.onclick = () => summonBossNow();
   grid.appendChild(bossBtn);
   { const h = document.createElement('h3'); h.textContent = 'Special moves (unlocked by the Brainrot meter)'; grid.appendChild(h);
     const ul = document.createElement('ul'); ul.className = 'sp-guide'; grid.appendChild(ul);
@@ -1619,6 +1627,7 @@ $('#startPvp').addEventListener('click', () => { unlockAudio(); $('#startOverlay
 $('#btnRecycle').addEventListener('click', () => { if (!humanTurn() || G.lock) return; G.recycle = G.recycle ? null : { picked: new Set() }; G.pend = null; G.sel = -1; refresh(); });
 $('#rcScrap').addEventListener('click', scrapPicked);
 $('#btnMusic').addEventListener('click', () => $('#musicFile').click());
+$('#btnBoss').onclick = () => summonBossNow();
 $('#btnNukeTest').addEventListener('click', () => { unlockAudio(); nukeCutscene(); });
 {
   const bsel = $('#battleQ');

@@ -57,7 +57,7 @@ Every move gets a meme caption ("White: *googles en passant*"), with reaction te
 
 ## Boss fight
 
-At **THE FINALE**, **MEGA HORSEY** lands in the middle of the board: a giant crowned horse that takes up 2×2 squares, has 18 health and belongs to nobody. To hit it, select a piece next to it (or a shooter within 3 squares) and click the boss. That uses your turn and deals damage based on the piece's value. Every round it attacks whoever is near: it **stomps** (destroys up to 2 pieces next to it), fires **eye lasers** along a row, **neighs** so loud everything nearby freezes, or **charges** towards the biggest crowd. Spells that hit it hurt it too, and a NUKE does 12. Whoever lands the final blow gets 15 coins, and that piece gets 2 armour and super speed. To summon it any time, open **Units & cards**.
+At **THE FINALE**, **MEGA HORSEY** lands in the middle of the board: a giant crowned horse that takes up 2×2 squares, has 18 health and belongs to nobody. To hit it, select a piece next to it (or a shooter within 3 squares) and click the boss. That uses your turn and deals damage based on the piece's value. Every round it attacks whoever is near: it **stomps** (destroys up to 2 pieces next to it), fires **eye lasers** along a row, **neighs** so loud everything nearby freezes, or **charges** towards the biggest crowd. Spells that hit it hurt it too, and a NUKE does 12. Whoever lands the final blow gets 15 coins, and that piece gets 2 armour and super speed. To summon it any time, press **Summon boss** at the top.
 
 ## Talking pieces and the highlights reel
 
