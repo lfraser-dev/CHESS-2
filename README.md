@@ -63,7 +63,7 @@ At **THE FINALE**, **MEGA HORSEY** lands in the middle of the board: a giant cro
 
 Pieces talk in speech bubbles: they brag when they capture, say their last words when they're taken, the king screams when he's in check, and bored pieces chat while you think.
 
-When the game ends you can **watch the highlights**: a vertical replay of the biggest moments (captures, special moves, random items, meteors, nukes and the checkmate) with captions and reactions, like a Short.
+When the game ends you can **watch the highlights**: a vertical replay of the 6 biggest moments, like a Short. Every clip plays out the action: pieces dash in with motion trails, victims get knocked flying, meteors fall and explode, nukes flash and mushroom, boss lasers fire, and the checkmated king topples over. Each one has slow-mo at the impact, screen shake, a big impact word (CRUNCH!, KABOOM!), captions and a reaction.
 
 **Mutations:** a piece that captures may mutate and gain a power: jumping like a knight, stepping like a king, sliding straight or diagonally, flying over pieces, zooming 6 squares, or growing a gun. Mutated pieces show a green star with the number of mutations.
 

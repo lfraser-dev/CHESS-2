@@ -105,7 +105,7 @@ function wantsBattleCam(mover, cap, m) {
 async function playMove(side, m) {
   G.lock = true; G.sel = -1; I.setEnv(G);
   const mover = G.board[m.f], cap = m.cap, mu = U[mover.t];
-  const hb = G.board.slice(), hi = G.items ? G.items.slice() : null;
+  markPre(); const hb = G.board.slice(), hi = G.items ? G.items.slice() : null;
   const rangedHit = !!(m.r || (m.arm && isShooter(mover.t) && !(mu.sl || mu.leap)));
   if (wantsBattleCam(mover, cap, m)) {
     focusOn(m.t); refresh();
@@ -230,7 +230,7 @@ async function playMove(side, m) {
     else if (Math.random() < .3 + tier() * .06) say(me, 'move', { delay: 300 });
     if (chk) { const ks = I.kingSq(G.board, other(side)); if (ks >= 0) say(ks, 'check', { loud: true, delay: 600 }); }
     { let sc = 0; if (cap && !m.sw) sc += (U[cap.t].val || 1) * (m.arm ? .5 : 1) + (cap.t === 'Q' ? 4 : 0); if (chk) sc += 2; if (got) sc += 4; if (mc.react) sc += 1;
-      clip(sc, hb, hi, m.f, m.t, mc.text, mc.react, got ? 'RANDOM ITEM' : cap ? 'CAPTURE' : chk ? 'CHECK' : 'MOVE'); }
+      clip(sc, hb, hi, m.f, m.t, mc.text, mc.react, got ? 'RANDOM ITEM' : cap ? 'CAPTURE' : chk ? 'CHECK' : 'MOVE', got ? 'item' : cap && !m.sw ? (rangedHit ? 'shot' : 'capture') : chk ? 'check' : 'move'); }
     meme(mc.text, { react: mc.react, sq: m.t, big: !!(cap && U[cap.t].val >= 5) || (chk && tier() >= 2) });
     if (mc.annot) addFx({ kind: 'annot', sq: m.t, a: mc.annot, delay: 250, dur: 1800 });
     if (cap && !m.arm && !m.sw) addRot(4); }
@@ -252,7 +252,7 @@ async function playCard(side, idx, o) {
   }
   I.setEnv(G);
   if (o && o.a >= 0) focusOn(o.a);
-  const hb = G.board.slice(), hi = G.items ? G.items.slice() : null;
+  markPre(); const hb = G.board.slice(), hi = G.items ? G.items.slice() : null;
   if (sim && key === 'nuke') { refresh(); await nukeCutscene(); shakeT = performance.now() + 1400; }
   if (!sim) addLog(`${who(side)} played ${card.name}, but nothing happened.`, 'played');
   else {
@@ -273,7 +273,7 @@ async function playCard(side, idx, o) {
     if (destroyed.length) line += `. Destroyed: ${destroyed.map(e => U[e.p.t].name).join(', ')}`;
     addLog(line + '.', 'played');
     { const big = { epic: 4, legendary: 9 }[card.rarity] || (destroyed.length ? 3 : 0);
-      clip(big + destroyed.length * 2, hb, hi, -1, o && o.a >= 0 ? o.a : (I.kingSq(G.board, other(side)) >= 0 ? I.kingSq(G.board, other(side)) : 112), `${M.SIDE(side)}: *plays ${card.name}*`, key === 'nuke' ? 'NUCLEAR OPTION' : destroyed.length >= 2 ? 'OBLITERATED' : null, 'CARD'); }
+      clip(big + destroyed.length * 2, hb, hi, -1, o && o.a >= 0 ? o.a : (I.kingSq(G.board, other(side)) >= 0 ? I.kingSq(G.board, other(side)) : 112), `${M.SIDE(side)}: *plays ${card.name}*`, key === 'nuke' ? 'NUCLEAR OPTION' : destroyed.length >= 2 ? 'OBLITERATED' : null, 'CARD', key === 'nuke' ? 'nuke' : 'card'); }
     snd({ freeze: 'freeze', meteor: 'boom', orbital: 'boom', lightning: 'boom', earthquake: 'boom', mine: 'tap', pit: 'tap' }[key] || (card.kind === 'unit' ? 'summon' : 'spell'));
     if (ev.some(e => e.type === 'field')) toast(card.name + '!');
   }
@@ -390,9 +390,9 @@ async function finaleMeteor() {
   const hit = M.meteor(G, G.turn);
   if (!hit) return;
   focusOn(hit.sq);
-  const hb = G.board.slice(), hi = G.items.slice();
+  markPre(); const hb = G.board.slice(), hi = G.items.slice();
   Object.assign(G, { board: hit.st.board, terr: hit.st.terr, grave: hit.st.grave });
-  if (hit.p) { say(hit.sq, 'dying', { p: hit.p, dead: true, delay: 300 }); clip(4 + (U[hit.p.t].val || 0) / 2, hb, hi, -1, hit.sq, `The sky: *drops a meteor on the ${U[hit.p.t].name}*`, 'UNLUCKY', 'METEOR'); }
+  if (hit.p) { say(hit.sq, 'dying', { p: hit.p, dead: true, delay: 300 }); clip(4 + (U[hit.p.t].val || 0) / 2, hb, hi, -1, hit.sq, `The sky: *drops a meteor on the ${U[hit.p.t].name}*`, 'UNLUCKY', 'METEOR', 'meteor'); }
   addFx({ kind: 'spell', key: 'meteor', sq: hit.sq, dur: 900 }); addFx({ kind: 'boom', sq: hit.sq, delay: 350, dur: 800 });
   if (hit.p) { const a = Math.random() * Math.PI * 2; addFx({ kind: 'fling', p: hit.p, sq: hit.sq, dir: [Math.cos(a), Math.sin(a) - .6], delay: 380, dur: 850, s: hit.p.id }); }
   setTimeout(() => snd('boom'), 350); shakeT = performance.now() + 900;
@@ -413,7 +413,7 @@ function startTurn() {
       meme(`${M.SIDE(other(t))}: *checkmates*`, { react: mateReact, big: true, sq: I.kingSq(G.board, t) });
       say(I.kingSq(G.board, t), 'lose', { loud: true, delay: 500, dur: 4000 });
       const wk = I.kingSq(G.board, other(t)); if (wk >= 0) say(wk, 'win', { delay: 1300, dur: 4000 });
-      if (G.lastClip) { const lc = { ...G.lastClip, score: 99, caption: `${M.SIDE(other(t))}: *checkmates*`, react: 'CHECKMATE', label: 'THE ENDING' }; G.hl = G.hl.filter(x => x !== G.lastClip); G.hl.push(lc); }
+      if (G.lastClip) { const lc = { ...G.lastClip, score: 99, caption: `${M.SIDE(other(t))}: *checkmates*`, react: 'CHECKMATE', label: 'THE ENDING', mate: I.kingSq(G.board, t) }; G.hl = G.hl.filter(x => x !== G.lastClip); G.hl.push(lc); }
       setTimeout(offerReplay, 3800); }
     else { G.over = { winner: null, why: 'stalemate' }; addLog('Stalemate. Nobody can move, so it\'s a draw.', 'big'); }
   } else if (G.quiet >= 120) { G.over = { winner: null, why: 'quiet' }; addLog('Sixty moves each with nothing captured. It\'s a draw.', 'big'); }
@@ -485,6 +485,7 @@ async function spawnBoss() {
 }
 async function bossAttack(side, sq) {
   G.lock = true; G.sel = -1; tKey = null;
+  markPre();
   const p = G.board[sq], hb = G.board.slice(), hi = G.items.slice();
   const [bx, by] = bossCentre(), [px, py] = sqXY(sq);
   const near = BO.squares(G.boss.at).sort((a, b) => { const [ax, ay] = sqXY(a), [cx, cy] = sqXY(b); return Math.hypot(ax - px, ay - py) - Math.hypot(cx - px, cy - py); })[0];
@@ -501,7 +502,7 @@ async function bossAttack(side, sq) {
   addLog(`${poss(side)} ${U[p.t].name} hits ${BO.NAME} for ${r.dmg} (${G.boss.hp} health left).`, 'special');
   addRot(3);
   refresh(); await waitAnims();
-  clip(r.dead ? 15 : 3 + r.dmg, hb, hi, sq, near, cap, r.dead ? 'BOSS DEFEATED' : 'DAMAGE', 'BOSS FIGHT');
+  clip(r.dead ? 15 : 3 + r.dmg, hb, hi, sq, near, cap, r.dead ? 'BOSS DEFEATED' : 'DAMAGE', 'BOSS FIGHT', 'bosshit', { dmg: r.dmg, dead: r.dead });
   if (r.dead) await bossDefeated(side, sq);
   finishTurn(side);
 }
@@ -520,6 +521,7 @@ async function bossDefeated(side, sq) {
 }
 async function bossTurn() {
   if (!G.boss) return;
+  markPre();
   const toMove = G.turn, hb = G.board.slice(), hi = G.items.slice();
   focusOn(G.boss.at);
   const res = BO.act(G, toMove); if (!res) return;
@@ -535,7 +537,7 @@ async function bossTurn() {
     addFx({ kind: 'fling', p, sq, dir: [Math.cos(a), Math.sin(a) - .5], delay: 250, dur: 900, s: p.id });
     say(sq, 'dying', { p, dead: true, delay: 300 });
   }
-  if (res.killed.length) { setTimeout(() => snd('hit'), 250); clip(4 + res.killed.length * 2, hb, hi, -1, res.killed[0].sq, cap, res.react, 'BOSS ATTACK'); }
+  if (res.killed.length) { setTimeout(() => snd('hit'), 250); clip(4 + res.killed.length * 2, hb, hi, -1, res.killed[0].sq, cap, res.react, 'BOSS ATTACK', 'bossatk', { attack: res.kind, row: res.row }); }
   const lost = res.killed.map(k => `${poss(k.p.s)} ${U[k.p.t].name}`);
   addLog(`${BO.NAME} ${res.verb}${lost.length ? `, destroying ${lost.join(', ')}` : ''}${res.frozen.length ? ` (${res.frozen.length} pieces frozen)` : ''}.`, 'chaoslog');
   refresh(); await waitAnims(); await sleep(250);
@@ -563,8 +565,11 @@ function idleChatter(now) {
 }
 
 // ---- highlights: remember the big moments for the replay at the end
-function clip(score, before, itemsBefore, f, t, caption, react, label) {
-  const c = { score, before, itemsBefore, after: G.board.slice(), itemsAfter: G.items ? G.items.slice() : null, f, t, caption, react, label };
+let pre = { terr: null, boss: null };
+function markPre() { pre = { terr: G.terr.slice(), boss: G.boss ? { ...G.boss } : null }; }
+function clip(score, before, itemsBefore, f, t, caption, react, label, kind = 'move', extra = {}) {
+  const c = { score, before, itemsBefore, after: G.board.slice(), itemsAfter: G.items ? G.items.slice() : null, f, t, caption, react, label, kind, ...extra,
+    terrBefore: pre.terr || G.terr.slice(), terrAfter: G.terr.slice(), bossBefore: pre.boss, bossAfter: G.boss ? { ...G.boss } : null };
   G.lastClip = c;
   if (score >= 3) { G.hl.push(c); if (G.hl.length > 40) G.hl.splice(G.hl.reduce((m, x, i, a) => x.score < a[m].score ? i : m, 0), 1); }
 }
@@ -578,7 +583,7 @@ async function doSpecial(side, at, key, tg) {
   const p = G.board[at], sp = res.sp, name = U[p.t].name;
   focusOn(at); refresh();
   punch(at, 1.0, 1300);
-  const spReact = M.pick(sp.react), hb = G.board.slice(), hi = G.items ? G.items.slice() : null;
+  markPre(); const spReact = M.pick(sp.react), hb = G.board.slice(), hi = G.items ? G.items.slice() : null;
   meme(`${M.SIDE(side)}: *${sp.verb}*`, { react: spReact, sq: tg >= 0 ? tg : at, big: true, sound: false });
   say(at, 'special', { loud: true });
   addFx({ kind: 'flash', dur: 260, delay: 600 });
@@ -599,7 +604,7 @@ async function doSpecial(side, at, key, tg) {
   G.last = { f: at, t: tg >= 0 ? tg : at };
   addLog(`${poss(side)} ${name} ${res.text}.`, 'special');
   for (const e of res.ev) if (e.type === 'destroy' && e.p.s !== side && Math.random() < .6) { say(e.sq, 'dying', { p: e.p, dead: true, delay: 200 }); break; }
-  clip(6 + killed.size * 2, hb, hi, at, tg >= 0 ? tg : at, `${M.SIDE(side)}: *${sp.verb}*`, spReact, 'SPECIAL MOVE');
+  clip(6 + killed.size * 2, hb, hi, at, tg >= 0 ? tg : at, `${M.SIDE(side)}: *${sp.verb}*`, spReact, 'SPECIAL MOVE', 'special');
   G.spcd[side] = SPECIAL_CD[G.chaos] || 2;
   addRot(6);
   if (res.out.extra) G.extra = true;
@@ -1681,7 +1686,11 @@ function watchReplay() {
   if (replayRun) replayRun.stop();
   snd('dun');
   replayRun = I.Replay.play(cv, clips, { title: win ? (G.mode === 'ai' ? (win === 'w' ? 'YOU WIN' : 'BARON WINS') : (win === 'w' ? 'WHITE WINS' : 'BLACK WINS')) : 'DRAW', sub: `${G.ply} moves of pure chaos` });
-  let n = -1; const tick = setInterval(() => { const i = Math.floor((performance.now() - t0) / I.Replay.CLIP); if (i !== n && i < clips.length) { n = i; setTimeout(() => snd(i === clips.length - 1 ? 'airhorn' : 'vboom'), I.Replay.CLIP * .56); } }, 100), t0 = performance.now();
+  // sound for each clip: a whoosh as the action starts, then the impact
+  const HIT_SND = { nuke: 'nukeboom', meteor: 'boom', capture: 'hit', shot: 'twang', special: 'vboom', item: 'brilliant', card: 'spell', bosshit: 'hit', bossatk: 'boom', check: 'check', move: 'whoosh' };
+  let n = -1; const tick = setInterval(() => { const i = Math.floor((performance.now() - t0) / I.Replay.CLIP); if (i !== n && i < clips.length) { n = i; const cl = clips[i], kd = cl.kind || 'move';
+    setTimeout(() => snd(kd === 'nuke' ? 'whistle' : 'whoosh'), I.Replay.CLIP * .27);
+    setTimeout(() => { snd(HIT_SND[kd] || 'hit'); if (cl.mate != null || i === clips.length - 1) setTimeout(() => snd('airhorn'), 500); else if (cl.react) setTimeout(() => snd('vboom'), 450); }, I.Replay.CLIP * I.Replay.T_HIT); } }, 100), t0 = performance.now();
   replayRun.done.then(() => { clearInterval(tick); $('#replayStart').hidden = false; cv.hidden = true; $('#replayCount').textContent = 'Watch it again?'; });
 }
 function closeReplay() { if (replayRun) replayRun.stop(); $('#replayOverlay').hidden = true; }
