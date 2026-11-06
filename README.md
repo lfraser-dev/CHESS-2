@@ -62,7 +62,7 @@ Press **Play online** on the start screen to play a friend on their own computer
 1. One of you presses **Host a game** and gets a 5-letter code.
 2. The other presses **Play online**, types the code and presses **Join**.
 
-The host plays Paper (moves first) and picks how random the game is. At the end of each turn the whole game is sent across, so the other screen animates what happened, with the captions, and it's their turn. If someone reloads, they rejoin with the same code and take their seat back. Anyone else who joins with the code watches. Online play doesn't work in a downloaded copy of the game (`index.html` opened on its own).
+The host plays Paper (moves first) and picks how random the game is. The board is turned round for whoever plays Ink, so everyone sees their own army at the bottom. At the end of each turn the whole game is sent across, so the other screen animates what happened, with the captions, and it's their turn. If someone reloads, they rejoin with the same code and take their seat back. Anyone else who joins with the code watches. Online play doesn't work in a downloaded copy of the game (`index.html` opened on its own).
 
 ## Boss fight
 

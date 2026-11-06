@@ -153,7 +153,7 @@ async function playMove(side, m) {
   if (m.arm) { line += `, cracking its armour`; addFx({ kind: 'text', sq: m.t, str: 'clang!', col: K, delay: 250, dur: 1000 }); setTimeout(() => snd('clang'), 250); }
   if (cap && !m.arm && !m.sw) {
     G.grave[cap.s].push(cap.t);
-    { const [fr, fc] = rc(m.f), [tr, tc] = rc(m.t), d = Math.hypot(tr - fr, tc - fc) || 1;
+    { const [fr, fc] = vrc(m.f), [tr, tc] = vrc(m.t), d = Math.hypot(tr - fr, tc - fc) || 1;
       addFx({ kind: 'fling', p: cap, sq: m.t, dir: [(tc - fc) / d, (tr - fr) / d], delay: m.r ? 400 : 270, dur: 820, s: Math.random() * 99 }); }
     addFx({ kind: 'splat', sq: m.t, delay: m.r ? 400 : 270, dur: 9000, s: Math.random() * 99 });
     setTimeout(() => snd('hit'), m.r ? 400 : 270);
@@ -473,7 +473,7 @@ function bossHittable(side, sq) {
   return !I.inCheck(G.board, side) && BO.canHit(G, sq) && G.board[sq] && G.board[sq].s === side;
 }
 const humanTurnFor = side => G.turn === side;
-const bossCentre = () => { const [x, y] = sqXY(G.boss.at); return [x + CELL / 2, y + CELL / 2]; };
+const bossCentre = () => { const [x1, y1] = sqXY(G.boss.at), [x2, y2] = sqXY(G.boss.at + N + 1); return [(x1 + x2) / 2, (y1 + y2) / 2]; };
 async function spawnBoss() {
   const at = BO.spawnSpot(G, G.turn); if (at < 0) { addLog(`${BO.NAME} looked for somewhere to land but the board is too full.`, 'chaoslog'); return; }
   const squashed = BO.place(G, at);
@@ -749,21 +749,28 @@ function centreOn(r, c, smooth = true) {
   const vis = BS / cam.cell, x = c + .5 - vis / 2, y = r + .5 - vis / 2;
   if (smooth) { cam.tx = x; cam.ty = y; } else { cam.x = x; cam.y = y; clampCam(); }
 }
+// the board is turned round for whoever plays Ink online, so their army is at the bottom.
+// "view" rows/cols are what's on screen; everything else uses real squares.
+const FLIP = () => !!(G && G.mode === 'online' && G.me === 'b');
+const vrc = sq => { const [r, c] = rc(sq); return FLIP() ? [N - 1 - r, N - 1 - c] : [r, c]; };
+const unview = (r, c) => FLIP() ? (N - 1 - r) * N + (N - 1 - c) : r * N + c;
 function focusOn(sq) {
   if (sq == null || sq < 0) return;
-  const [r, c] = rc(sq), vis = BS / cam.cell;
+  const [r, c] = vrc(sq), vis = BS / cam.cell;
   if (c < cam.x + 1.5 || c > cam.x + vis - 2.5 || r < cam.y + 1.5 || r > cam.y + vis - 2.5) centreOn(r, c);
 }
-const sqXY = sq => { const [r, c] = rc(sq); return [(c - cam.x + .5) * cam.cell, (r - cam.y + .5) * cam.cell]; };
-function sqAt(px, py) { const c = Math.floor(px / cam.cell + cam.x), r = Math.floor(py / cam.cell + cam.y); return inB(r, c) ? r * N + c : -1; }
+const sqXY = sq => { const [r, c] = vrc(sq); return [(c - cam.x + .5) * cam.cell, (r - cam.y + .5) * cam.cell]; };
+function sqAt(px, py) { const c = Math.floor(px / cam.cell + cam.x), r = Math.floor(py / cam.cell + cam.y); return inB(r, c) ? unview(r, c) : -1; }
 const boardRect = () => [-cam.x * cam.cell, -cam.y * cam.cell, (N - cam.x) * cam.cell, (N - cam.y) * cam.cell];
 const miniBox = () => { const m = Math.round(Math.min(130, BS * .24)); return [BS - m - 8, 8, m]; };
-function visibleRange() {
+// on-screen rows/cols (view = true), or the real squares they cover
+function visibleRange(view = false) {
   const vis = BS / cam.cell;
-  return [Math.max(0, Math.floor(cam.y)), Math.min(N - 1, Math.ceil(cam.y + vis)), Math.max(0, Math.floor(cam.x)), Math.min(N - 1, Math.ceil(cam.x + vis))];
+  const r0 = Math.max(0, Math.floor(cam.y)), r1 = Math.min(N - 1, Math.ceil(cam.y + vis)), c0 = Math.max(0, Math.floor(cam.x)), c1 = Math.min(N - 1, Math.ceil(cam.x + vis));
+  return view || !FLIP() ? [r0, r1, c0, c1] : [N - 1 - r1, N - 1 - r0, N - 1 - c1, N - 1 - c0];
 }
 function drawGrid(c) {
-  const [r0, r1, c0, c1] = visibleRange(), cell = cam.cell;
+  const [r0, r1, c0, c1] = visibleRange(true), cell = cam.cell, fl = FLIP();
   c.fillStyle = 'rgba(242,238,226,0.9)'; const [bx0, by0, bx1, by1] = boardRect(); c.fillRect(bx0, by0, bx1 - bx0, by1 - by0);
   // dark squares
   if (cell >= 14) {
@@ -795,9 +802,9 @@ function drawGrid(c) {
   // coordinates along the top and left edges of the view
   if (cell >= 16) {
     c.fillStyle = SOFT; c.font = `${Math.round(Math.min(13, cell * .32))}px 'Patrick Hand', cursive`; c.textAlign = 'left'; c.textBaseline = 'top';
-    for (let col = c0; col <= c1; col++) if (col % 2 === 0) c.fillText(colName(col), (col - cam.x) * cell + 2, Math.max(by0, 0) + 1);
+    for (let col = c0; col <= c1; col++) if (col % 2 === 0) c.fillText(colName(fl ? N - 1 - col : col), (col - cam.x) * cell + 2, Math.max(by0, 0) + 1);
     c.textBaseline = 'bottom';
-    for (let r = r0; r <= r1; r++) if (r % 2 === 0) c.fillText(String(N - r), Math.max(bx0, 0) + 2, (r + 1 - cam.y) * cell - 1);
+    for (let r = r0; r <= r1; r++) if (r % 2 === 0) c.fillText(String(fl ? r + 1 : N - r), Math.max(bx0, 0) + 2, (r + 1 - cam.y) * cell - 1);
   }
 }
 function drawMinimap(c) {
@@ -806,9 +813,9 @@ function drawMinimap(c) {
   c.strokeStyle = K; c.lineWidth = 1.5; c.strokeRect(mx, my, m, m);
   c.fillStyle = 'rgba(179,50,43,0.2)'; c.fillRect(mx, my + m / 2 - .5, m, 1);
   for (let i = 0; i < N * N; i++) {
-    const t = G.terr[i]; if (t && (t.k === 'pit' || t.k === 'rad' || t.k === 'fire')) { const [r, col] = rc(i); c.fillStyle = t.k === 'rad' ? 'rgba(111,143,58,.5)' : t.k === 'fire' ? 'rgba(232,137,43,.7)' : K; c.fillRect(mx + col * k, my + r * k, k, k); }
+    const t = G.terr[i]; if (t && (t.k === 'pit' || t.k === 'rad' || t.k === 'fire')) { const [r, col] = vrc(i); c.fillStyle = t.k === 'rad' ? 'rgba(111,143,58,.5)' : t.k === 'fire' ? 'rgba(232,137,43,.7)' : K; c.fillRect(mx + col * k, my + r * k, k, k); }
     const p = G.board[i]; if (!p) continue;
-    const [r, col] = rc(i), big = p.t === 'K' ? 2.2 : 1;
+    const [r, col] = vrc(i), big = p.t === 'K' ? 2.2 : 1;
     c.fillStyle = p.s === 'w' ? GOLD : K;
     c.fillRect(mx + col * k - (big - 1) * k / 2, my + r * k - (big - 1) * k / 2, k * big + .4, k * big + .4);
   }
@@ -938,7 +945,7 @@ function drawBoard(now) {
     }
     I.drawBadges(c, p, x, y, CELL);
   }
-  if (G.boss) { const [bx, by] = sqXY(G.boss.at); BO.draw(c, G.boss, bx + CELL / 2, by + CELL / 2, CELL, now); }
+  if (G.boss) { const [bx, by] = bossCentre(); BO.draw(c, G.boss, bx, by, CELL, now); }
   for (const f of fx) {
     if (f.kind !== 'fling' || now > f.start + f.dur) continue;
     const [x, y] = sqXY(f.sq);
@@ -1359,9 +1366,9 @@ function renderHand() {
 }
 function refresh() {
   if (!G) return;
-  // online: the bars sit next to their army (Ink at the top, Paper at the bottom)
-  renderBar($('#oppBar'), G.mode === 'pvp' ? other(G.turn) : G.mode === 'online' ? 'b' : other(viewer()));
-  renderBar($('#meBar'), G.mode === 'pvp' ? G.turn : G.mode === 'online' ? 'w' : viewer());
+  // the bars sit next to their army: online, your own army is always at the bottom
+  renderBar($('#oppBar'), G.mode === 'pvp' ? other(G.turn) : other(viewer()));
+  renderBar($('#meBar'), G.mode === 'pvp' ? G.turn : viewer());
   renderFields(); renderShop(); renderHand(); renderSpecials(); renderRot();
   $('#log').innerHTML = G.log.slice(0, 16).map(l => `<li class="${l.cls}">${l.text}</li>`).join('');
   setStatus();
@@ -1831,7 +1838,7 @@ $('#btnNukeTest').addEventListener('click', () => { unlockAudio(); nukeCutscene(
 $('#zIn').addEventListener('click', () => zoomAt(BS / 2, BS / 2, 1.3));
 $('#zOut').addEventListener('click', () => zoomAt(BS / 2, BS / 2, 1 / 1.3));
 $('#zFit').addEventListener('click', () => { cam.cell = MINZOOM(); clampCam(); cam.tx = null; });
-$('#zKing').addEventListener('click', () => { const k = I.kingSq(G.board, viewer()); if (k >= 0) { if (cam.cell < BS / 9) cam.cell = BS / 8; const [r, c] = rc(k); centreOn(r, c); } });
+$('#zKing').addEventListener('click', () => { const k = I.kingSq(G.board, viewer()); if (k >= 0) { if (cam.cell < BS / 9) cam.cell = BS / 8; const [r, c] = vrc(k); centreOn(r, c); } });
 $('#musicFile').addEventListener('change', async e => {
   const f = e.target.files && e.target.files[0]; if (!f) return;
   if (musicURL) URL.revokeObjectURL(musicURL);
