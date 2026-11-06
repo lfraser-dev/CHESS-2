@@ -352,13 +352,13 @@ async function nextAct() {
   G.actShown = t;
   if (t >= 5 && !G.finale) { await runFinale(); return; }
   await showAct(M.TIERS[t]);
-  addLog(`${M.TIERS[t].act}: ${M.TIERS[t].name}. New special moves unlocked.`, 'act');
+  addLog(`${M.TIERS[t].act}: ${M.TIERS[t].name}. New special moves unlocked.`, 'actlog');
 }
 async function runFinale() {
   await showAct(M.TIERS[5]);
   G.finale = true;
   for (const s of ['w', 'b']) I.addToHand(G, s, 'nuke');
-  addLog('THE FINALE: both sides get a NUKE card, a meteor lands every turn, and anything can self-destruct.', 'act');
+  addLog('THE FINALE: both sides get a NUKE card, a meteor lands every turn, and anything can self-destruct.', 'actlog');
   snd('airhorn'); slam('FINAL BOSS MUSIC', true);
   refresh(); await sleep(900);
 }
