@@ -18,6 +18,7 @@
       <button class="btn" id="btnNew" type="button">New game</button>
       <button class="btn" id="btnNukeTest" type="button">Test nuke cutscene</button>
       <button class="btn" id="btnBoss" type="button">Summon boss</button>
+      <button class="btn" id="btnLocker" type="button">Locker</button>
       <label class="qsel" for="battleQ">Battle cam
         <select id="battleQ">
           <option value="big">Big captures</option>
@@ -34,6 +35,13 @@
       </label>
       <button class="btn" id="btnMusic" type="button" title="Pick the song that plays during the NUKE">Nuke music</button>
       <input type="file" id="musicFile" accept="audio/*" hidden>
+      <label class="qsel" for="commQ">Commentary
+        <select id="commQ">
+          <option value="voice">Voice + text</option>
+          <option value="text">Text only</option>
+          <option value="off">Off</option>
+        </select>
+      </label>
       <button class="btn ghost" id="btnMusicOn" type="button" aria-pressed="true">Music on</button>
       <button class="btn ghost" id="btnMute" type="button" aria-pressed="true">Sound on</button>
     </nav>
@@ -42,6 +50,7 @@
     <section class="board-col" aria-label="Board">
       <div class="bar" id="oppBar"></div>
       <div class="rot" id="rot" hidden><span class="rot-lbl">Brainrot</span><div class="rot-bar" role="presentation"><i></i></div><span class="rot-n">0%</span><span class="rot-act"></span></div>
+      <div class="comm" id="comm" hidden><span class="comm-live" aria-hidden="true">● LIVE</span><b class="comm-who">JIM:</b> <span class="comm-text" aria-live="polite"></span></div>
       <div class="fields" id="fields" aria-live="polite" hidden></div>
       <div class="board-wrap" id="boardWrap"><div class="board-frame"><div class="meme-cap" id="memeCap" hidden aria-live="polite"></div><div class="meme-react" id="memeReact" hidden aria-hidden="true"></div><canvas id="duel" aria-label="Battle close-up. Click to skip." hidden></canvas><canvas id="board" aria-label="15 by 15 board. Scroll or pinch to zoom, drag to move around."></canvas>
         <div class="zoom" role="group" aria-label="Board view">
@@ -100,6 +109,7 @@
       <button class="btn primary" id="startAi" type="button">Play the computer</button>
       <button class="btn" id="startPvp" type="button">Two players, one device</button>
       <button class="btn" id="btnOnline" type="button">Play online</button>
+      <button class="btn" id="startLocker" type="button">Locker</button>
       <button class="btn ghost" id="startUnits" type="button">Meet the units</button>
     </div>
     <div class="online-panel" id="onlinePanel" hidden>
@@ -149,9 +159,18 @@
       <div class="start-btns">
         <button class="btn primary" id="replayWatch" type="button">Watch the highlights</button>
         <button class="btn" id="replayNew" type="button">New game</button>
+        <button class="btn" id="replayLocker" type="button">Locker</button>
         <button class="btn ghost" id="replayClose" type="button">Close</button>
       </div>
     </div>
+  </div>
+</div>
+<div class="overlay" id="lockerOverlay" role="dialog" aria-modal="true" aria-labelledby="lockerTitle" hidden>
+  <div class="sheet units locker">
+    <div class="sheet-head"><h2 id="lockerTitle">Locker</h2><span class="purse-count"><span class="coin-ico" aria-hidden="true"></span><b id="lockerBank">0</b> banked</span><button class="btn small" id="lockerClose" type="button">Close</button></div>
+    <p class="hint">Coins you have left when a game ends get banked here, plus 25 for a win, 5 for playing and 10 for every boss you finish off. Spend them on looks: they never change the rules, and your friend sees your hats and title online.</p>
+    <div class="lk-tabs" id="lockerTabs" role="group" aria-label="Locker sections"></div>
+    <div class="lk-grid" id="lockerGrid"></div>
   </div>
 </div>
 <div class="toast" id="toast" role="status" hidden></div>
@@ -166,6 +185,8 @@
 <script src="boss.js"></script>
 <script src="netpeer.js"></script>
 <script src="music.js"></script>
+<script src="locker.js"></script>
+<script src="commentary.js"></script>
 <script src="memes.js"></script>
 <script src="game.js"></script>
 </body>

@@ -82,6 +82,21 @@ At **THE FINALE** a random boss lands in the middle of the board. Each one takes
 
 To hit a boss, select a piece next to it (or a shooter within 3 squares) and click the boss. That uses your turn, and stronger pieces hit harder. Spells that hit it hurt it too, and a NUKE does 12. Whoever lands the final blow gets 15 coins, and that piece gets 2 armour and super speed. Press **Summon boss** at the top to summon a random one any time.
 
+## The Locker
+
+Coins you have left when a game ends get **banked** in your Locker, plus 25 for a win, 5 for playing and 10 for every boss you finish off (you start with 30). Press **Locker** (top bar, start screen, or after a game) to spend them on looks:
+
+- **Hats** for all your pieces: party hat, traffic cone, sunglasses, top hat, cowboy hat, chef hat, propeller cap, viking helmet, golden crown, halo
+- **Boards**: graph paper, old parchment, football pitch, beach, disco floor, outer space
+- **Capture effects** when your pieces take something: confetti, hearts, fire, pixel explosion, lightning, rainbow
+- **Titles** shown next to your name: from "Professional Blunderer" to "Chess 2 Grandmaster"
+
+Cosmetics never change the rules. Online, your friend sees your hats, capture effect and title. The Ink Baron always wears a top hat. Your Locker is saved in this browser.
+
+## Commentators
+
+**JIM** (excited play-by-play) and **BARRY** (deadpan) commentate live in the box above the board: big captures, blunders, checks, special moves, items, cards, nukes, meteors, bosses, new acts and the ending. They talk out loud using your browser's built-in voices. Change it with **Commentary** at the top: Voice + text, Text only, or Off.
+
 ## Music and sound
 
 The soundtrack is generated live (no files) and builds act by act: a plucky tune in ACT I, then bass, drums, a lead melody and more speed in each act, and heavy boss music with brass stabs while a boss is on the board. It goes quiet for the NUKE cutscene. Turn it off with **Music on/off** at the top (remembered), or turn off everything with **Sound on/off**. Sound effects include air horns, vine-style booms, record scratches, a crowd "ooooh", bonks, clucks, neighs and splats.
@@ -146,6 +161,8 @@ Open **Units & cards** in the game for every card, a move diagram for every unit
 - `replay.js` – the end-of-game highlights reel
 - `boss.js` – the finale bosses: their art, health and attacks
 - `music.js` – the generated soundtrack
+- `locker.js` – the Locker: banked coins, cosmetics and their drawings
+- `commentary.js` – what Jim and Barry say, and their voices
 - `netpeer.js` – online play outside Claude (PeerJS); the rest of online play is in the "online" section of `game.js`
 - `memes.js` – the Brainrot meter, the acts, special moves, and meme captions
 - `cinema3d.js` – the NUKE cinematic's real-time 3D: raymarched chess set, metal bomb, volumetric clouds, fireball, mushroom cloud and shockwave (WebGL)

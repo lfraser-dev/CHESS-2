@@ -37,6 +37,20 @@ function chaosLevel() { try { return localStorage.getItem('chess2.chaos') || 'wi
 const ITEM_EVERY = { calm: 0, mild: 6, wild: 3, unhinged: 2 };
 const MUTATE_CHANCE = { calm: 0, mild: .15, wild: .3, unhinged: .55 };
 const M = I.MEMES;
+const LK = I.LOCKER;
+let TH = LK.theme(LK.load().eq.theme);   // your board theme (only on your screen)
+// what you are: the side your coins and cosmetics belong to
+const mySide = () => G.mode === 'online' ? G.me : G.mode === 'ai' ? 'w' : null;
+// leftover coins go to the Locker when the game ends (+25 for a win, +5 for playing, +10 per boss you finished off)
+function bankAtEnd() {
+  if (!G.over || G.banked) return; G.banked = true;
+  const me = mySide() || G.over.winner || 'w', won = G.over.winner === me;
+  const n = G.coins[me] + (won ? 25 : 5) + (G.bossKills ? G.bossKills[me] * 10 : 0);
+  const total = LK.bank(n, won);
+  G.bankedNow = n;
+  addLog(`+${n} coins banked in your Locker (${total} total). Spend them on hats, boards and more.`, 'itemlog');
+  setTimeout(() => toast(`+${n} coins banked in your Locker`), 2200);
+}
 const SPECIAL_CD = { calm: 99, mild: 3, wild: 2, unhinged: 1 };
 const tier = () => G.chaos === 'calm' ? 0 : M.tierOf(G.rot || 0);
 function addRot(n) { if (G.chaos === 'calm') return; G.rot = Math.min(100, (G.rot || 0) + n * (M.RATE[G.chaos] || 1)); }
@@ -44,7 +58,8 @@ function newGame(mode) {
   const level = chaosLevel();
   G = I.newState(mode, { chaosStart: level !== 'calm' });
   G.chaos = level;
-  Object.assign(G, { sel: -1, pend: null, spec: null, lock: false, recycle: null, rot: level === 'unhinged' ? 20 : 0, limbo: [], items: new Array(N * N).fill(null), gems: { w: 0, b: 0 }, hl: [], lastClip: null, boss: null, spcd: { w: 0, b: 0 }, finale: false });
+  Object.assign(G, { sel: -1, pend: null, spec: null, lock: false, recycle: null, rot: level === 'unhinged' ? 20 : 0, limbo: [], items: new Array(N * N).fill(null), gems: { w: 0, b: 0 }, hl: [], lastClip: null, boss: null, banked: false, bossKills: { w: 0, b: 0 },
+    cos: { w: LK.look(), b: mode === 'ai' ? { hat: 'tophat', fx: 'ink', title: 'none' } : mode === 'pvp' ? LK.look() : null }, spcd: { w: 0, b: 0 }, finale: false });
   G.actShown = level === 'calm' ? 0 : M.tierOf(G.rot);
   if (level !== 'calm') for (let k = 0; k < (level === 'unhinged' ? 5 : 3); k++) IT.spawn(G);
   anims.length = 0; fx.length = 0;
@@ -53,6 +68,7 @@ function newGame(mode) {
   addLog(mode === 'ai' ? 'New game of Chess 2 against the Ink Baron. You play Paper and move first. Good luck.' : 'New game. Paper moves first.');
   refresh();
   
+  if (newGame.started) setTimeout(() => comment('start', {}, { big: true, barry: .7 }), 700);
   newGame.started = true;
 }
 let logN = 0;
@@ -224,6 +240,7 @@ async function playMove(side, m) {
   }
   addLog(line);
   const got = !m.r && !m.arm && !m.sw ? pickUpItem(side, m.t) : null;
+  if (cap && !m.arm && !m.sw && G.cos && G.cos[side] && G.cos[side].fx && G.cos[side].fx !== 'ink') addFx({ kind: 'cfx', style: G.cos[side].fx, sq: m.t, dur: 1200, delay: m.r ? 300 : 250, s: Math.random() * 99 });
   { I.setEnv(G); const chk = I.inCheck(G.board, other(side)), atk = G.board[m.t] || mover;
     const mc = got ? { ...got, annot: null } : M.moveCaption(side, atk, cap && !m.sw ? cap : null, tier(), chk);
     if (got) { punch(m.t, .8, 1200); addFx({ kind: 'confetti', sq: m.t, dur: 1600, s: Math.random() * 99 }); }
@@ -234,6 +251,12 @@ async function playMove(side, m) {
     else if (got) say(me, 'item', { delay: 200 });
     else if (Math.random() < .3 + tier() * .06) say(me, 'move', { delay: 300 });
     if (chk) { const ks = I.kingSq(G.board, other(side)); if (ks >= 0) say(ks, 'check', { loud: true, delay: 600 }); }
+    { const ctx = { A: team(side), V: team(other(side)), a: U[mover.t].name, v: cap ? U[cap.t].name : '' };
+      if (got) { /* the item already got a comment */ }
+      else if (cap && !m.sw && !m.arm) { const blunder = G.lastMoved && G.lastMoved[other(side)] === cap.id && U[cap.t].val >= 3; comment(blunder ? 'blunder' : (U[cap.t].val >= 5 || cap.t === 'Q') ? 'bigcapture' : 'capture', ctx, { big: U[cap.t].val >= 5 || blunder }); }
+      else if (chk) comment('check', ctx, { big: true });
+      else if (Math.random() < .22) comment('move', ctx, { barry: .25 });
+      G.lastMoved = { ...(G.lastMoved || {}), [side]: mover.id }; }
     { let sc = 0; if (cap && !m.sw) sc += (U[cap.t].val || 1) * (m.arm ? .5 : 1) + (cap.t === 'Q' ? 4 : 0); if (chk) sc += 2; if (got) sc += 4; if (mc.react) sc += 1;
       clip(sc, hb, hi, m.f, m.t, mc.text, mc.react, got ? 'RANDOM ITEM' : cap ? 'CAPTURE' : chk ? 'CHECK' : 'MOVE', got ? 'item' : cap && !m.sw ? (rangedHit ? 'shot' : 'capture') : chk ? 'check' : 'move'); }
     meme(mc.text, { react: mc.react, sq: m.t, big: !!(cap && U[cap.t].val >= 5) || (chk && tier() >= 2) });
@@ -258,6 +281,7 @@ async function playCard(side, idx, o) {
   I.setEnv(G);
   if (o && o.a >= 0) focusOn(o.a);
   markPre(); const hb = G.board.slice(), hi = G.items ? G.items.slice() : null;
+  if (sim) comment(key === 'nuke' ? 'nuke' : 'card', { A: team(side), card: card.name }, { big: key === 'nuke' || card.rarity === 'legendary' });
   if (sim && key === 'nuke') { refresh(); await nukeCutscene(); shakeT = performance.now() + 1400; }
   if (!sim) addLog(`${who(side)} played ${card.name}, but nothing happened.`, 'played');
   else {
@@ -344,6 +368,7 @@ function finishTurn(side) {
   }
   snap();
   addRot(2.5);
+  if (G.quiet === 24) comment('boring', {}, { barry: .7 });
   returnFromLimbo();
   let every = ITEM_EVERY[G.chaos] || 0;
   if (every > 1 && tier() >= 3) every = Math.max(1, every - 1);
@@ -380,12 +405,14 @@ async function nextAct() {
   G.actShown = t;
   if (t >= 5 && !G.finale) { await runFinale(); return; }
   await showAct(M.TIERS[t]);
+  comment('act', { act: `${M.TIERS[t].act}, ${M.TIERS[t].name}` }, { big: true });
   addLog(`${M.TIERS[t].act}: ${M.TIERS[t].name}. New special moves unlocked.`, 'actlog');
 }
 async function runFinale() {
   await showAct(M.TIERS[5]);
   G.finale = true;
   for (const s of ['w', 'b']) I.addToHand(G, s, 'nuke');
+  comment('finale', {}, { big: true, barry: .9 });
   addLog('THE FINALE: both sides get a NUKE card, a meteor lands every turn, and anything can self-destruct.', 'actlog');
   snd('airhorn'); slam('FINAL BOSS MUSIC', true);
   refresh(); await sleep(900);
@@ -397,7 +424,7 @@ async function finaleMeteor() {
   focusOn(hit.sq);
   markPre(); const hb = G.board.slice(), hi = G.items.slice();
   Object.assign(G, { board: hit.st.board, terr: hit.st.terr, grave: hit.st.grave });
-  if (hit.p) { say(hit.sq, 'dying', { p: hit.p, dead: true, delay: 300 }); clip(4 + (U[hit.p.t].val || 0) / 2, hb, hi, -1, hit.sq, `The sky: *drops a meteor on the ${U[hit.p.t].name}*`, 'UNLUCKY', 'METEOR', 'meteor'); }
+  if (hit.p) { comment('meteor', { v: U[hit.p.t].name }, { big: true }); say(hit.sq, 'dying', { p: hit.p, dead: true, delay: 300 }); clip(4 + (U[hit.p.t].val || 0) / 2, hb, hi, -1, hit.sq, `The sky: *drops a meteor on the ${U[hit.p.t].name}*`, 'UNLUCKY', 'METEOR', 'meteor'); }
   addFx({ kind: 'spell', key: 'meteor', sq: hit.sq, dur: 900 }); addFx({ kind: 'boom', sq: hit.sq, delay: 350, dur: 800 });
   if (hit.p) { const a = Math.random() * Math.PI * 2; addFx({ kind: 'fling', p: hit.p, sq: hit.sq, dir: [Math.cos(a), Math.sin(a) - .6], delay: 380, dur: 850, s: hit.p.id }); }
   setTimeout(() => snd('boom'), 350); shakeT = performance.now() + 900;
@@ -415,17 +442,24 @@ function startTurn() {
     if (I.inCheck(G.board, t)) { G.over = { winner: other(t), why: 'checkmate' }; addLog(`Checkmate! ${winText(other(t))}`, 'big');
       const lost = solo() && other(t) !== viewer(); snd(lost ? 'trombone' : 'win');
       const mateReact = lost ? 'it\'s so over' : M.pick(['GG EZ', 'WE\'RE SO BACK', 'absolute cinema']);
+      comment('mate', { A: team(other(t)) }, { big: true, barry: .9 });
       meme(`${M.SIDE(other(t))}: *checkmates*`, { react: mateReact, big: true, sq: I.kingSq(G.board, t) });
       say(I.kingSq(G.board, t), 'lose', { loud: true, delay: 500, dur: 4000 });
       const wk = I.kingSq(G.board, other(t)); if (wk >= 0) say(wk, 'win', { delay: 1300, dur: 4000 });
       if (G.lastClip) { const lc = { ...G.lastClip, score: 99, caption: `${M.SIDE(other(t))}: *checkmates*`, react: 'CHECKMATE', label: 'THE ENDING', mate: I.kingSq(G.board, t) }; G.hl = G.hl.filter(x => x !== G.lastClip); G.hl.push(lc); }
       setTimeout(offerReplay, 3800); }
-    else { G.over = { winner: null, why: 'stalemate' }; addLog('Stalemate. Nobody can move, so it\'s a draw.', 'big'); }
+    else { G.over = { winner: null, why: 'stalemate' }; addLog('Stalemate. Nobody can move, so it\'s a draw.', 'big'); comment('draw', {}, { big: true }); }
   } else if (G.quiet >= 120) { G.over = { winner: null, why: 'quiet' }; addLog('Sixty moves each with nothing captured. It\'s a draw.', 'big'); }
   else if (I.inCheck(G.board, t)) { addLog(`${who(t)} ${who(t) === 'You' ? 'are' : 'is'} in check!`, 'warn'); snd('check'); }
   G.lock = false;
   refresh();
-  if (G.over) { const ov = G.over, msg = ov.winner ? `Checkmate. ${winText(ov.winner)}` : 'Draw'; setTimeout(() => toast(msg), 900); return; }
+  if (G.over) {
+    const ov = G.over, msg = ov.winner ? `Checkmate. ${winText(ov.winner)}` : 'Draw'; setTimeout(() => toast(msg), 900);
+    bankAtEnd();
+    if (G.mode === 'online' && G.me && !NET.applying) netPublish();
+    if (!ov.winner) setTimeout(offerReplay, 2500);
+    return;
+  }
   if (G.mode === 'ai' && G.turn === 'b') { G.lock = true; refresh(); setTimeout(aiTurn, 450); }
   if (G.mode === 'online' && G.me && !NET.applying) netPublish();
 }
@@ -458,6 +492,7 @@ function pickUpItem(side, at) {
     coins: (s2, n, j) => { G.coins[s2] += n; addFx({ kind: 'text', sq: j, str: `+${n}`, col: GOLD, delay: 400, dur: 1200 }); },
   };
   const text = it.use(G, side, at, h);
+  comment('item', { A: team(side), a: U[p.t].name, item: it.name.toLowerCase() }, { big: true });
   addFx({ kind: 'spell', key: 'mutate', sq: at, dur: 700 });
   addLog(`${poss(side)} ${U[p.t].name} ${text}.`, 'itemlog');
   addRot(5);
@@ -488,6 +523,7 @@ async function spawnBoss(type) {
   snd('nukeboom'); setTimeout(() => snd('vboom'), 500); setTimeout(() => snd(G.boss && G.boss.type === 'chicken' ? 'cluck' : G.boss && G.boss.type === 'pawn' ? 'scream' : 'dun'), 900);
   punch(at, .9, 1800);
   meme(`${bossName()}: *has entered the chat*`, { react: 'BOSS FIGHT', big: true, sq: at });
+  comment('boss', { boss: bossName() }, { big: true, barry: .8 });
   addLog(`BOSS FIGHT! ${bossName()} (${BO.typeOf(G.boss).blurb}) lands in the middle of the board with ${G.boss.max} health. Both sides can hit it: select a piece next to it (or a shooter within 3) and click the boss. Whoever lands the final blow gets 15 coins.`, 'actlog');
   const near = BO.ring(at, 3).filter(i => G.board[i]).slice(0, 3);
   near.forEach((i, n) => say(i, 'boss', { delay: 900 + n * 500, loud: n === 0 }));
@@ -509,6 +545,7 @@ async function bossAttack(side, sq) {
   const cap = `${M.SIDE(side)}: *${U[p.t].name} ${M.pick(['bonks', 'slaps', 'punches', 'pokes', 'roundhouse kicks', 'headbutts'])} ${bossName()}*`;
   meme(cap, { react: r.dead ? null : M.pick(['DAMAGE', 'it felt that', 'GET HIM', 'crit!!']), sq: near });
   say(sq, 'special', { delay: 100 });
+  if (!r.dead) comment('bosshit', { A: team(side), a: U[p.t].name, boss: bossName() });
   addLog(`${poss(side)} ${U[p.t].name} hits ${bossName()} for ${r.dmg} (${G.boss.hp} health left).`, 'special');
   addRot(3);
   refresh(); await waitAnims();
@@ -521,10 +558,11 @@ async function bossDefeated(side, sq) {
   for (const b of BO.squares(at)) addFx({ kind: 'boom', sq: b, delay: Math.random() * 300, dur: 900 });
   addFx({ kind: 'flash', dur: 700 }); shakeT = performance.now() + 1500; snd('nukeboom'); setTimeout(() => snd('airhorn'), 600);
   BO.remove(G);
-  G.coins[side] += 15;
+  G.coins[side] += 15; if (G.bossKills) G.bossKills[side]++;
   if (sq != null && G.board[sq] && G.board[sq].s === side) { const q = G.board[sq]; G.board[sq] = { ...q, ar: (q.ar || 0) + 2, mut: [...(q.mut || []), 'zoom'] }; addFx({ kind: 'spell', key: 'mutate', sq, delay: 500, dur: 1000 }); }
   for (const b of BO.squares(at)) addFx({ kind: 'confetti', sq: b, dur: 1800, s: b });
   meme(`${M.SIDE(side)}: *defeats ${bname}*`, { react: 'BOSS DEFEATED', big: true, sq: at });
+  comment('bossdead', { A: team(side), boss: bname }, { big: true, barry: .8 });
   const mvp = dmg.w === dmg.b ? 'a tie' : dmg.w > dmg.b ? who('w') : who('b');
   addLog(`${bname} IS DEFEATED! ${who(side)} landed the final blow: +15 coins, and the hero gets 2 armour and super speed. Damage dealt: ${who('w')} ${dmg.w}, ${who('b')} ${dmg.b} (MVP: ${mvp}).`, 'actlog');
   refresh(); await waitAnims(); await sleep(400);
@@ -538,6 +576,7 @@ async function bossTurn() {
   const [bx, by] = bossCentre();
   const cap = `${bossName()}: *${res.verb}*`;
   meme(cap, { react: res.react, big: res.killed.length > 0, sq: G.boss.at });
+  if (res.killed.length || Math.random() < .3) comment('bossattack', { boss: bossName() }, { big: res.killed.length > 0 });
   if (res.kind === 'stomp') { shakeT = performance.now() + 700; snd('rumble'); for (const b of BO.ring(G.boss.at, 1)) addFx({ kind: 'dust', sq: b, dur: 600, s: b }); }
   if (res.kind === 'laser' || res.kind === 'laserCol') { addFx({ kind: 'laser', row: res.row, col: res.col, sqs: res.laser, from: G.boss.at, dur: 900 }); snd(res.kind === 'laserCol' ? 'scream' : 'laser'); }
   if (res.kind === 'roar' || res.kind === 'scream') { addFx({ kind: 'scream', sq: G.boss.at, dur: 900 }); addFx({ kind: 'scream', sq: G.boss.at + N + 1, dur: 900, delay: 150 }); snd(res.kind === 'scream' ? 'scream' : 'neigh'); for (const i of res.frozen.slice(0, 2)) say(i, 'boss', { delay: 400 }); }
@@ -558,6 +597,32 @@ async function bossTurn() {
   addLog(`${bossName()} ${res.verb}${lost.length ? `, destroying ${lost.join(', ')}` : ''}${res.frozen.length ? ` (${res.frozen.length} pieces frozen)` : ''}.`, 'chaoslog');
   refresh(); await waitAnims(); await sleep(250);
 }
+
+// ---- the commentators (Jim and Barry)
+const CM = I.COMM;
+let commMode = 'voice'; try { commMode = localStorage.getItem('chess2.comm') || 'voice'; } catch (e) { /* default */ }
+let commT = 0, commTyping = 0, barryT = 0;
+const team = s => G.mode === 'ai' ? (s === 'w' ? 'Paper' : 'the Baron') : (s === 'w' ? 'Paper' : 'Ink');
+function comment(ev, ctx = {}, o = {}) {
+  if (commMode === 'off' || !G) return;
+  const now = performance.now();
+  if (!o.big && now - commT < 1800) return;            // don't talk over a big moment with small stuff
+  const ln = CM.line(ev, ctx); if (!ln) return;
+  commT = now; showComment(ln, o.big);
+  clearTimeout(barryT);
+  if (Math.random() < (o.barry != null ? o.barry : .45)) barryT = setTimeout(() => { const b = CM.line(ev, ctx, true); if (b) { commT = performance.now(); showComment(b, false); } }, 2600 + ln.text.length * 25);
+}
+function showComment(ln, urgent) {
+  const el = $('#comm'); if (!el) return;
+  el.hidden = false;
+  el.querySelector('.comm-who').textContent = ln.who + ':';
+  el.querySelector('.comm-who').className = 'comm-who ' + ln.who.toLowerCase();
+  const tx = el.querySelector('.comm-text'); let i = 0;
+  clearInterval(commTyping);
+  commTyping = setInterval(() => { i = Math.min(ln.text.length, i + 2); tx.textContent = ln.text.slice(0, i); if (i >= ln.text.length) clearInterval(commTyping); }, 18);
+  if (commMode === 'voice' && !muted) CM.speak(ln.who, ln.text, urgent);
+}
+function renderCommBox() { const el = $('#comm'); if (el && commMode === 'off') el.hidden = true; }
 
 // ---- talking pieces
 const TK = I.TALK;
@@ -602,6 +667,7 @@ async function doSpecial(side, at, key, tg) {
   markPre(); const spReact = M.pick(sp.react), hb = G.board.slice(), hi = G.items ? G.items.slice() : null;
   meme(`${M.SIDE(side)}: *${sp.verb}*`, { react: spReact, sq: tg >= 0 ? tg : at, big: true, sound: false });
   say(at, 'special', { loud: true });
+  comment('special', { A: team(side), a: name, verb: sp.verb }, { big: true });
   addFx({ kind: 'flash', dur: 260, delay: 600 });
   snd(sp.tier >= 3 ? 'airhorn' : 'vboom');
   await sleep(650);
@@ -780,11 +846,13 @@ function visibleRange(view = false) {
   return view || !FLIP() ? [r0, r1, c0, c1] : [N - 1 - r1, N - 1 - r0, N - 1 - c1, N - 1 - c0];
 }
 function drawGrid(c) {
-  const [r0, r1, c0, c1] = visibleRange(true), cell = cam.cell, fl = FLIP();
-  c.fillStyle = 'rgba(242,238,226,0.9)'; const [bx0, by0, bx1, by1] = boardRect(); c.fillRect(bx0, by0, bx1 - bx0, by1 - by0);
+  const [r0, r1, c0, c1] = visibleRange(true), cell = cam.cell, fl = FLIP(), th = TH, now = performance.now();
+  c.fillStyle = th.base; const [bx0, by0, bx1, by1] = boardRect(); c.fillRect(bx0, by0, bx1 - bx0, by1 - by0);
+  if (th.disco || th.stars || th.stripes || th.shells) for (let r = r0; r <= r1; r++) for (let col = c0; col <= c1; col++) LK.decorate(c, th, r, col, (col - cam.x) * cell, (r - cam.y) * cell, cell, now);
   // dark squares
-  if (cell >= 14) {
-    c.strokeStyle = 'rgba(30,28,36,0.17)'; c.lineWidth = 1; c.beginPath();
+  if (!th.hatch) { if (th.darkFill) { c.fillStyle = th.darkFill; for (let r = r0; r <= r1; r++) for (let col = c0; col <= c1; col++) if ((r + col) % 2) c.fillRect((col - cam.x) * cell, (r - cam.y) * cell, cell, cell); } }
+  else if (cell >= 14) {
+    c.strokeStyle = th.dark; c.lineWidth = 1; c.beginPath();
     const gap = Math.max(4, cell / 7);
     for (let r = r0; r <= r1; r++) for (let col = c0; col <= c1; col++) {
       if ((r + col) % 2 === 0) continue;
@@ -796,22 +864,22 @@ function drawGrid(c) {
     }
     c.stroke();
   } else {
-    c.fillStyle = 'rgba(30,28,36,0.07)';
+    c.fillStyle = th.darkFill;
     for (let r = r0; r <= r1; r++) for (let col = c0; col <= c1; col++) if ((r + col) % 2) c.fillRect((col - cam.x) * cell, (r - cam.y) * cell, cell, cell);
   }
   // halfway line and starting zones
   c.strokeStyle = 'rgba(179,50,43,0.25)'; c.lineWidth = 2; c.setLineDash([8, 8]);
   c.beginPath(); c.moveTo(bx0, (N / 2 - cam.y) * cell); c.lineTo(bx1, (N / 2 - cam.y) * cell); c.stroke(); c.setLineDash([]);
   // grid lines
-  c.strokeStyle = cell >= 14 ? 'rgba(30,28,36,0.75)' : 'rgba(30,28,36,0.35)'; c.lineWidth = Math.max(.6, Math.min(1.6, cell / 30));
+  c.strokeStyle = th.line; c.globalAlpha = cell >= 14 ? 1 : .5; c.lineWidth = Math.max(.6, Math.min(1.6, cell / 30));
   c.beginPath();
   for (let r = r0; r <= r1 + 1; r++) { const y = (r - cam.y) * cell + (I.hash(r) - .5) * .8; c.moveTo((c0 - cam.x) * cell, y); c.lineTo((c1 + 1 - cam.x) * cell, y + (I.hash(r + 7) - .5)); }
   for (let col = c0; col <= c1 + 1; col++) { const x = (col - cam.x) * cell + (I.hash(col + 3) - .5) * .8; c.moveTo(x, (r0 - cam.y) * cell); c.lineTo(x + (I.hash(col + 9) - .5), (r1 + 1 - cam.y) * cell); }
-  c.stroke();
+  c.stroke(); c.globalAlpha = 1;
   c.strokeStyle = K; c.lineWidth = 3; c.strokeRect(bx0, by0, bx1 - bx0, by1 - by0);
   // coordinates along the top and left edges of the view
   if (cell >= 16) {
-    c.fillStyle = SOFT; c.font = `${Math.round(Math.min(13, cell * .32))}px 'Patrick Hand', cursive`; c.textAlign = 'left'; c.textBaseline = 'top';
+    c.fillStyle = th.glow ? 'rgba(220,225,255,.7)' : SOFT; c.font = `${Math.round(Math.min(13, cell * .32))}px 'Patrick Hand', cursive`; c.textAlign = 'left'; c.textBaseline = 'top';
     for (let col = c0; col <= c1; col++) if (col % 2 === 0) c.fillText(colName(fl ? N - 1 - col : col), (col - cam.x) * cell + 2, Math.max(by0, 0) + 1);
     c.textBaseline = 'bottom';
     for (let r = r0; r <= r1; r++) if (r % 2 === 0) c.fillText(String(fl ? r + 1 : N - r), Math.max(bx0, 0) + 2, (r + 1 - cam.y) * cell - 1);
@@ -947,12 +1015,15 @@ function drawBoard(now) {
     const sm = fx.find(f => f.kind === 'summon' && f.sq === sq && now < f.start + f.dur);
     if (sm) alpha = now < sm.start ? 0 : Math.min(1, (now - sm.start) / (sm.dur * 0.6));
     const fsz = CELL * .82 * (G.fields.bighead > 0 ? 1.55 : G.fields.tiny > 0 ? .45 : 1);
+    if (TH.glow) { const gl = c.createRadialGradient(x, y, 0, x, y, CELL * .5); gl.addColorStop(0, 'rgba(242,238,226,.85)'); gl.addColorStop(1, 'rgba(242,238,226,0)'); c.fillStyle = gl; c.fillRect(x - CELL / 2, y - CELL / 2, CELL, CELL); }
     if (G.fields.flip > 0) { c.save(); c.translate(x, y); c.rotate(Math.PI); I.drawPiece(c, p.t, p.s, 0, 0, fsz, p.id * 3.7, alpha); c.restore(); }
     else {
       const ld = fx.find(f => f.kind === 'land' && f.sq === sq && now >= f.start && now < f.start + f.dur);
       if (ld) { const q = (now - ld.start) / ld.dur, sq2 = Math.sin(q * Math.PI) * (1 - q) * .5; c.save(); c.translate(x, y + CELL * .38); c.scale(1 + sq2 * .55, 1 - sq2 * .45); I.drawPiece(c, p.t, p.s, 0, -CELL * .38, fsz, p.id * 3.7, alpha); c.restore(); }
       else I.drawPiece(c, p.t, p.s, x, y, fsz, p.id * 3.7, alpha);
     }
+    const hat = G.cos && G.cos[p.s] && G.cos[p.s].hat;
+    if (hat && hat !== 'none' && G.fields.flip <= 0 && CELL >= 16) LK.drawHat(c, hat, x, y, fsz, now);
     I.drawBadges(c, p, x, y, CELL);
   }
   if (G.boss) { const [bx, by] = bossCentre(); BO.draw(c, G.boss, bx, by, CELL, now); }
@@ -1079,6 +1150,7 @@ function drawBoard(now) {
         c.fillStyle = '#fff3ea'; c.fillRect(lo - CELL / 2, ey - w / 6, hi - lo + CELL, w / 3);
       }
       c.globalAlpha = 1;
+    } else if (f.kind === 'cfx') { const [x, y] = sqXY(f.sq); LK.drawCaptureFx(c, f.style, x, y, CELL, k, f.s);
     } else if (f.kind === 'dust') {
       const [x, y] = sqXY(f.sq); c.fillStyle = 'rgba(120,110,95,.5)'; c.globalAlpha = 1 - k;
       for (let i = 0; i < 6; i++) { const side = i % 2 ? 1 : -1, d = CELL * (.2 + k * .35 + I.hash(f.s + i) * .1); c.beginPath(); c.arc(x + side * d, y + CELL * .36 - k * CELL * .08 * (1 + i % 3), CELL * (.05 + .05 * I.hash(f.s + i + 3)) * (1 + k), 0, 7); c.fill(); }
@@ -1285,7 +1357,8 @@ function setStatus() {
 function renderBar(el, side) {
   const isTurn = G.turn === side && !G.over, hand = G.hand[side].length;
   el.classList.toggle('active', isTurn);
-  el.innerHTML = `<span class="who"><span class="dot ${side}"></span>${who(side)}</span><span class="meta"><span class="coin-ico" aria-hidden="true"></span>${G.coins[side]}<span class="sep">·</span>${hand} card${hand === 1 ? '' : 's'}</span>`;
+  const ttl = G.cos ? LK.titleText(G.cos[side]) : '';
+  el.innerHTML = `<span class="who"><span class="dot ${side}"></span>${who(side)}${ttl ? ` <i class="title">${ttl}</i>` : ''}</span><span class="meta"><span class="coin-ico" aria-hidden="true"></span>${G.coins[side]}<span class="sep">·</span>${hand} card${hand === 1 ? '' : 's'}</span>`;
 }
 function renderFields() {
   const el = $('#fields'), chips = [];
@@ -1497,7 +1570,7 @@ NET.api = window.claude && window.claude.use ? null : PEER_API;
   renderOnlinePanel();
 })();
 async function packState(extra) {
-  const keep = ['board', 'terr', 'items', 'coins', 'hand', 'grave', 'fields', 'extra', 'turn', 'ply', 'quiet', 'over', 'rot', 'actShown', 'limbo', 'spcd', 'finale', 'gems', 'boss', 'chaos', 'last'];
+  const keep = ['board', 'terr', 'items', 'coins', 'hand', 'grave', 'fields', 'extra', 'turn', 'ply', 'quiet', 'over', 'rot', 'actShown', 'limbo', 'spcd', 'finale', 'gems', 'boss', 'chaos', 'last', 'cos'];
   const st = {}; for (const k of keep) st[k] = G[k];
   const body = JSON.stringify({ st, ...extra });
   const cs = new Blob([body]).stream().pipeThrough(new CompressionStream('deflate-raw'));
@@ -1548,6 +1621,7 @@ function startOnlineGame() {
   const keepMe = G && G.me;
   newGame('online');
   G.me = NET.mySide || 'w';
+  G.cos = { w: LK.look(), b: null };
   NET.applied = NET.seq; NET.caps.length = 0; NET.logSent = logN;
   addLog(`Online game started with code ${NET.code}. You play ${G.me === 'w' ? 'Paper (you move first)' : 'Ink'}.`, 'actlog');
   $('#startOverlay').hidden = true; closeReplay();
@@ -1575,6 +1649,7 @@ async function applyRemote(pr) {
     // the NUKE gets its cutscene on both screens
     if (!fresh && data.caps && data.caps.some(c => /plays NUKE/.test(c.text))) { refresh(); await nukeCutscene(); }
     Object.assign(G, data.st);
+    if (G.me) { G.cos = { ...(G.cos || {}), [G.me]: LK.look() }; }
     G.sel = -1; G.pend = null; G.spec = null; G.recycle = null; G.lock = false; tKey = null;
     let maxId = 0; for (const p of G.board) if (p && p.id > maxId) maxId = p.id; for (const e of G.limbo || []) if (e.p && e.p.id > maxId) maxId = e.p.id; I.bumpPid(maxId);
     NET.applied = data.seq; NET.seq = Math.max(NET.seq, data.seq);
@@ -1584,11 +1659,12 @@ async function applyRemote(pr) {
     if (before) animateDiff(before);
     // replay their captions one after another
     (data.caps || []).forEach((c, i) => setTimeout(() => { meme(c.text, { react: c.react, sq: c.sq, big: c.big, remote: true }); }, i * 1300));
+    if (!fresh && G.me && Math.random() < .5) setTimeout(() => comment(G.over ? 'mate' : 'friend', { A: team(data.by) }, { big: !!G.over }), 900);
     const last = (data.caps || [])[data.caps.length - 1];
     if (before && last) clip((last.big ? 5 : 2) + (last.react ? 1 : 0), before, beforeItems, -1, last.sq >= 0 ? last.sq : (G.last ? G.last.t : 112), last.text, last.react, 'FRIEND');
     if (G.last) focusOn(G.last.t);
     refresh();
-    if (G.over) { snd(G.over.winner && G.over.winner === G.me ? 'win' : 'trombone'); setTimeout(offerReplay, 3200); }
+    if (G.over) { snd(G.over.winner && G.over.winner === G.me ? 'win' : 'trombone'); bankAtEnd(); setTimeout(offerReplay, 3200); }
     else if (G.me && G.turn === G.me) { snd('ding'); toast('Your turn'); if (I.inCheck(G.board, G.me)) { addLog('You are in check!', 'warn'); snd('check'); } }
   } finally { NET.applying = false; }
 }
@@ -1656,6 +1732,67 @@ $('#btnOnline').addEventListener('click', () => { const p = $('#onlinePanel'); p
 $('#onlineHost').addEventListener('click', hostOnline);
 $('#onlineJoin').addEventListener('click', joinOnline);
 $('#onlineCode').addEventListener('keydown', e => { if (e.key === 'Enter') joinOnline(); });
+
+// ===================================================================== the Locker (cosmetics shop)
+let lockerTab = 'hat';
+function openLocker() { unlockAudio(); $('#lockerOverlay').hidden = false; renderLocker(); $('#lockerClose').focus(); }
+function renderLocker() {
+  const p = LK.load();
+  $('#lockerBank').textContent = p.bank;
+  $('#lockerTabs').innerHTML = LK.TABS.map(([k, label]) => `<button type="button" class="btn small${k === lockerTab ? ' primary' : ''}" data-tab="${k}" aria-pressed="${k === lockerTab}">${label}</button>`).join('');
+  $('#lockerTabs').querySelectorAll('button').forEach(b => b.onclick = () => { lockerTab = b.dataset.tab; renderLocker(); });
+  const grid = $('#lockerGrid'); grid.innerHTML = '';
+  for (const it of LK.CATALOG[lockerTab]) {
+    const owned = LK.owns(lockerTab, it.id), on = p.eq[lockerTab] === it.id;
+    const card = document.createElement('div'); card.className = 'lk-item' + (on ? ' on' : '');
+    const cv = document.createElement('canvas'); cv.width = 180; cv.height = 120; cv.className = 'lk-prev';
+    const label = document.createElement('b'); label.textContent = it.name;
+    const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'btn small' + (owned ? '' : ' primary');
+    btn.textContent = on ? 'Equipped' : owned ? 'Equip' : `Buy · ${it.price}`;
+    btn.disabled = on || (!owned && p.bank < it.price);
+    btn.onclick = () => {
+      if (!owned) { const r = LK.buy(lockerTab, it.id); if (!r.ok) { toast(r.why); return; } snd('legend'); toast(`${it.name} unlocked!`); }
+      else { LK.equip(lockerTab, it.id); snd('pick'); }
+      applyLook(); renderLocker();
+    };
+    card.append(cv, label, btn); grid.appendChild(card);
+    drawLockerPreview(cv, lockerTab, it.id);
+  }
+}
+function drawLockerPreview(cv, kind, id) {
+  const c = cv.getContext('2d'), W = cv.width, H = cv.height, now = performance.now();
+  c.fillStyle = '#f2eee2'; c.fillRect(0, 0, W, H);
+  if (kind === 'theme') {
+    const th = LK.theme(id), cell = 30;
+    c.fillStyle = th.base; c.fillRect(0, 0, W, H);
+    for (let r = 0; r < 4; r++) for (let col = 0; col < 6; col++) { LK.decorate(c, th, r, col, col * cell, r * cell, cell, now); if ((r + col) % 2 && (th.darkFill || th.dark)) { c.fillStyle = th.darkFill || th.dark; c.fillRect(col * cell, r * cell, cell, cell); } }
+    c.strokeStyle = th.line; c.lineWidth = 1; for (let i = 0; i <= 6; i++) { c.beginPath(); c.moveTo(i * cell, 0); c.lineTo(i * cell, H); c.stroke(); } for (let i = 0; i <= 4; i++) { c.beginPath(); c.moveTo(0, i * cell); c.lineTo(W, i * cell); c.stroke(); }
+    if (th.glow) { const gl = c.createRadialGradient(75, 75, 0, 75, 75, 18); gl.addColorStop(0, 'rgba(242,238,226,.85)'); gl.addColorStop(1, 'rgba(242,238,226,0)'); c.fillStyle = gl; c.fillRect(57, 57, 36, 36); }
+    I.drawPiece(c, 'N', 'w', 75, 75, 26, 3); I.drawPiece(c, 'Q', 'b', 105, 45, 26, 5);
+  } else if (kind === 'hat') {
+    I.drawPiece(c, 'P', 'w', 60, 70, 64, 1); I.drawPiece(c, 'K', 'w', 125, 70, 64, 2);
+    LK.drawHat(c, id, 60, 70, 64, now); LK.drawHat(c, id, 125, 70, 64, now);
+  } else if (kind === 'fx') {
+    I.drawPiece(c, 'R', 'w', 90, 70, 60, 4);
+    if (id === 'ink') { c.fillStyle = '#1e1c24'; for (let i = 0; i < 9; i++) { c.beginPath(); c.arc(90 + Math.cos(i) * 40, 60 + Math.sin(i * 1.7) * 25, 3 + (i % 3) * 2, 0, 7); c.fill(); } }
+    else LK.drawCaptureFx(c, id, 90, 60, 50, .3, 7);
+  } else {
+    c.font = '18px "Patrick Hand", cursive'; c.fillStyle = '#1e1c24'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillText('You', W / 2, H * .38);
+    c.font = 'italic 17px "Patrick Hand", cursive'; c.fillStyle = '#7a3fb8'; c.fillText(id === 'none' ? '(no title)' : LK.find('title', id).name, W / 2, H * .62, W - 12);
+  }
+}
+// put on what you just bought / equipped: your board, and your pieces in this game
+function applyLook() {
+  TH = LK.theme(LK.load().eq.theme);
+  if (G && G.cos) { const me = mySide() || 'w'; G.cos[me] = LK.look(); if (G.mode === 'pvp') G.cos.b = LK.look(); }
+  refresh();
+}
+$('#btnLocker').addEventListener('click', openLocker);
+$('#startLocker').addEventListener('click', openLocker);
+$('#replayLocker').addEventListener('click', () => { closeReplay(); openLocker(); });
+$('#lockerClose').addEventListener('click', () => { $('#lockerOverlay').hidden = true; });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#lockerOverlay').hidden) $('#lockerOverlay').hidden = true; });
 
 async function summonBossNow() {
     unlockAudio();
@@ -1847,7 +1984,8 @@ $('#startUnits').addEventListener('click', openGuide);
 $('#unitsClose').addEventListener('click', () => { $('#unitsOverlay').hidden = true; });
 $('#btnNew').addEventListener('click', () => { if (G && G.mode === 'online' && NET.room && !G.over && !confirmLeave()) return; openStart(); });
 function confirmLeave() { toast('You\'re in an online game. Pick a mode on the start screen to leave it.'); return true; }
-$('#btnMute').addEventListener('click', () => { muted = !muted; $('#btnMute').textContent = muted ? 'Sound off' : 'Sound on'; $('#btnMute').setAttribute('aria-pressed', String(!muted)); if (I.Music) I.Music.setOn(musicOn && !muted); });
+$('#btnMute').addEventListener('click', () => { muted = !muted; if (muted) CM.hush(); $('#btnMute').textContent = muted ? 'Sound off' : 'Sound on'; $('#btnMute').setAttribute('aria-pressed', String(!muted)); if (I.Music) I.Music.setOn(musicOn && !muted); });
+{ const cq = $('#commQ'); cq.value = commMode; cq.addEventListener('change', () => { commMode = cq.value; try { localStorage.setItem('chess2.comm', commMode); } catch (e) { /* not saved */ } if (commMode !== 'voice') CM.hush(); renderCommBox(); if (commMode !== 'off') comment('start', {}, { big: true, barry: 0 }); }); }
 $('#btnMusicOn').addEventListener('click', () => { unlockAudio(); musicOn = !musicOn; try { localStorage.setItem('chess2.music', musicOn ? 'on' : 'off'); } catch (e) { /* not saved */ } renderMusicBtn(); if (I.Music) I.Music.setOn(musicOn && !muted); });
 renderMusicBtn();
 {
@@ -1899,12 +2037,12 @@ let lastBoil = 0;
 // ---- highlights replay
 let replayRun = null;
 function offerReplay() {
-  if (!G.over || !G.hl.length || !$('#replayOverlay').hidden) return;
+  if (!G.over || !$('#replayOverlay').hidden) return;
   const ov = $('#replayOverlay');
   ov.hidden = false; $('#replayStart').hidden = false; $('#replayCanvas').hidden = true;
   const win = G.over.winner, tit = win ? (who(win) === 'You' ? 'You won!' : `${who(win)} won`) : 'It\'s a draw';
   $('#replayTitle').textContent = tit;
-  $('#replayCount').textContent = `${Math.min(6, G.hl.length)} big moment${G.hl.length > 1 ? 's' : ''} this game`;
+  $('#replayCount').textContent = `${Math.min(6, G.hl.length)} big moment${G.hl.length > 1 ? 's' : ''} this game${G.bankedNow ? ` · +${G.bankedNow} coins banked in your Locker` : ''}`;
   $('#replayWatch').focus();
 }
 function watchReplay() {
