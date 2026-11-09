@@ -22,6 +22,7 @@ const CATALOG = {
     { id: 'halo', name: 'Halo', price: 80 },
   ],
   theme: [
+    { id: 'midnight', name: 'Midnight Stone', price: 0 },
     { id: 'notebook', name: 'Notebook', price: 0 },
     { id: 'graph', name: 'Graph Paper', price: 20 },
     { id: 'parchment', name: 'Old Parchment', price: 30 },
@@ -53,12 +54,14 @@ const CATALOG = {
 };
 const TABS = [['hat', 'Hats'], ['theme', 'Boards'], ['fx', 'Capture effects'], ['title', 'Titles'], ['fame', 'Hall of Fame']];
 const find = (kind, id) => CATALOG[kind].find(x => x.id === id) || CATALOG[kind][0];
-const DEFAULT = { bank: 30, owned: ['hat:none', 'theme:notebook', 'fx:ink', 'title:none'], eq: { hat: 'none', theme: 'notebook', fx: 'ink', title: 'none' }, games: 0, wins: 0 };
+const DEFAULT = { bank: 30, owned: ['hat:none', 'theme:midnight', 'theme:notebook', 'fx:ink', 'title:none'], eq: { hat: 'none', theme: 'midnight', fx: 'ink', title: 'none' }, games: 0, wins: 0, v: 2 };
 
 let prof = null;
 function load() {
   if (prof) return prof;
   try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && typeof s.bank === 'number') prof = { ...DEFAULT, ...s, eq: { ...DEFAULT.eq, ...(s.eq || {}) }, owned: [...new Set([...DEFAULT.owned, ...(s.owned || [])])] }; } catch (e) { /* fresh */ }
+  // the big visual upgrade: move everyone on the old default board to the new one (once)
+  if (prof && !prof.v) { if (prof.eq.theme === 'notebook') prof.eq.theme = 'midnight'; prof.v = 2; save(); }
   return prof || (prof = JSON.parse(JSON.stringify(DEFAULT)));
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(prof)); } catch (e) { /* not saved: private window */ } }
@@ -135,15 +138,16 @@ function drawHat(c, hat, x, y, sz, now = 0) {
 // ---------------------------------------------------------------- board themes
 // colours for the board drawing: base fill, dark-square tint, grid lines, and whether pieces need a glow to show up
 const THEMES = {
+  midnight: { tiles: ['#47414f', '#2a2630'], base: '#1d1a22', dark: null, darkFill: null, line: 'rgba(0,0,0,0)', hatch: false, night: true },
   notebook: { base: 'rgba(242,238,226,0.9)', dark: 'rgba(30,28,36,0.17)', darkFill: 'rgba(30,28,36,0.07)', line: 'rgba(30,28,36,0.75)', hatch: true },
   graph: { base: '#f4f8ff', dark: 'rgba(74,111,176,0.18)', darkFill: 'rgba(74,111,176,0.1)', line: 'rgba(74,111,176,0.8)', hatch: false },
   parchment: { base: '#efdcb2', dark: 'rgba(110,70,30,0.22)', darkFill: 'rgba(110,70,30,0.13)', line: 'rgba(90,55,25,0.7)', hatch: true },
   grass: { base: '#7fbf5a', dark: 'rgba(30,80,20,0.18)', darkFill: 'rgba(40,100,30,0.16)', line: 'rgba(255,255,255,0.75)', hatch: false, stripes: true },
   beach: { base: '#f3dfa6', dark: 'rgba(180,140,60,0.2)', darkFill: 'rgba(180,140,60,0.14)', line: 'rgba(120,90,40,0.55)', hatch: false, shells: true },
-  disco: { base: '#2a2238', dark: null, darkFill: null, line: 'rgba(255,255,255,0.35)', hatch: false, disco: true, glow: true },
-  space: { base: '#141a33', dark: null, darkFill: 'rgba(255,255,255,0.04)', line: 'rgba(170,190,255,0.35)', hatch: false, stars: true, glow: true },
+  disco: { base: '#2a2238', dark: null, darkFill: null, line: 'rgba(255,255,255,0.35)', hatch: false, disco: true, glow: true, night: true },
+  space: { base: '#141a33', dark: null, darkFill: 'rgba(255,255,255,0.04)', line: 'rgba(170,190,255,0.35)', hatch: false, stars: true, glow: true, night: true },
 };
-const theme = id => THEMES[id] || THEMES.notebook;
+const theme = id => THEMES[id] || THEMES.midnight;
 // extra per-square decoration for fancy themes (called for each visible square)
 function decorate(c, th, r, col, x, y, cell, now) {
   if (th.disco) { const h = (r * 47 + col * 83 + Math.floor(now / 500) * 37) % 360, on = (r + col + Math.floor(now / 500)) % 3 === 0; c.fillStyle = `hsla(${h},80%,${on ? 62 : 38}%,${on ? .55 : .25})`; c.fillRect(x + 1, y + 1, cell - 2, cell - 2); }

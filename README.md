@@ -2,7 +2,7 @@
 
 *The sequel nobody asked for.*
 
-Chess on a 15×15 notebook board, scribbled in ink, with card packs and absolutely no stability.
+Chess on a 15×15 board with card packs and absolutely no stability. Dark, moody look: bone-white Paper pieces vs black Ink pieces with a glowing red rim, on a stone-tile board (the old notebook board is still in the Locker).
 
 A normal chess army each (plus two Archers) on a 15×15 board. Scroll or pinch to zoom in, drag to look around. Every turn you either **move a piece or play a card**.
 You earn coins (1 a turn, more for captures) and spend 5 to open a pack. Opening packs doesn't use your turn.
@@ -120,7 +120,7 @@ To hit a boss, select a piece next to it (or a shooter within 3 squares) and cli
 Coins you have left when a game ends get **banked** in your Locker, plus 25 for a win, 5 for playing and 10 for every boss you finish off (you start with 30). Press **Locker** (top bar, start screen, or after a game) to spend them on looks:
 
 - **Hats** for all your pieces: party hat, traffic cone, sunglasses, top hat, cowboy hat, chef hat, propeller cap, viking helmet, golden crown, halo
-- **Boards**: graph paper, old parchment, football pitch, beach, disco floor, outer space
+- **Boards**: Midnight Stone (the default), the old Notebook, graph paper, old parchment, football pitch, beach, disco floor, outer space
 - **Capture effects** when your pieces take something: confetti, hearts, fire, pixel explosion, lightning, rainbow
 - **Titles** shown next to your name: from "Professional Blunderer" to "Chess 2 Grandmaster"
 

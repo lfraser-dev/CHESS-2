@@ -396,3 +396,90 @@ button.card:disabled { cursor: default; }
 .fame { grid-column: 1 / -1; margin: 0; padding-left: 0; list-style: none; font-size: 18px; }
 .fame li { padding: 6px 0; border-bottom: 1px dashed var(--ink-soft); }
 .fame-lvl { color: #b3322b; }
+
+/* =====================================================================
+   THE BIG VISUAL UPGRADE: a dark, moody, high-contrast look with bone-white text and red accents.
+   It redefines the colour tokens above, so everything built on them follows; the rest are fixes for
+   things that need to stay light (playing cards, move diagrams) or that used fixed colours. */
+:root {
+  --paper: #1d1a22;
+  --paper-2: #26222c;
+  --ink: #efe6d2;
+  --ink-soft: #a39b8e;
+  --red: #e0442f;
+  --gold: #e2b53a;
+  --gold-ink: #e2b53a;
+  --blue: #7fa6e8;
+  --line: #3b3644;
+  --wobble: 10px;
+  --title: Anton, Impact, 'Arial Black', sans-serif;
+  color-scheme: dark;
+}
+body {
+  background-color: #121015;
+  background-image: radial-gradient(1200px 700px at 30% 0%, rgba(224,68,47,.08), transparent 60%), radial-gradient(900px 600px at 100% 100%, rgba(122,63,184,.08), transparent 60%);
+  background-attachment: fixed;
+}
+@media (max-width: 899px) { body { background-image: radial-gradient(900px 600px at 30% 0%, rgba(224,68,47,.08), transparent 60%); } }
+.top h1 { font: 400 clamp(30px, 5vw, 44px)/1 var(--title); letter-spacing: .04em; text-transform: uppercase; transform: none; color: #efe6d2; text-shadow: 3px 3px 0 #e0442f; }
+.btn { background: #24212a; border: 2px solid var(--line); border-radius: 8px; box-shadow: 0 3px 0 #000; color: var(--ink); }
+.btn:hover { background: #2f2b36; border-color: #4d4657; }
+.btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #000; }
+.btn.primary { background: #e0442f; border-color: #e0442f; color: #fff; }
+.btn.primary:hover { background: #ee5a44; }
+.btn.ghost { border-style: solid; background: transparent; box-shadow: none; }
+.btn.small { box-shadow: 0 2px 0 #000; }
+:focus-visible { outline: 2px solid #f3d55b; outline-offset: 3px; }
+.status { background: #1d1a22; border: 2px solid var(--line); border-radius: 10px; box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }
+.panel h2, .sheet-head h2, #unitsGrid h3 { font-family: var(--title); letter-spacing: .05em; text-transform: uppercase; font-weight: 400; }
+.panel h2 { font-size: 20px; color: #efe6d2; }
+.bar { font-size: 18px; }
+.bar.active { border-bottom-color: #e0442f; }
+.bar .dot { border-color: #efe6d2; }
+.bar .dot.b { background: #1d1a22; box-shadow: 0 0 0 2px #e0442f; border-color: #1d1a22; }
+.bar .dot.w { background: #efe6d2; }
+.board-frame { padding: 0; border-radius: 6px; box-shadow: 0 0 0 3px #2b2731, 0 0 0 6px #121015, 0 18px 40px rgba(0,0,0,.6); }
+.zoom .btn { background: rgba(36,33,42,.92); }
+.shop .pack-btn, .pack-btn { background: #24212a; border: 2px solid var(--line); border-radius: 10px; box-shadow: 0 3px 0 #000; }
+.pack-btn:hover:not(:disabled) { background: #2f2b36; transform: translateY(-1px); }
+.recycle-bar { background: #1d1a22; border-color: var(--line); }
+.chip { background: #24212a; border-color: #7fa6e8; color: var(--ink); }
+.qsel select, .chaos-pick select { background: #24212a; color: var(--ink); border-color: var(--line); }
+.overlay { background: rgba(8,7,10,.84); backdrop-filter: blur(3px); }
+.sheet { background: #1d1a22; border: 2px solid var(--line); border-radius: 14px; box-shadow: 0 24px 60px rgba(0,0,0,.6); }
+.start { transform: none; }
+.big-title { font: 400 clamp(52px, 11vw, 92px)/.95 var(--title); text-transform: uppercase; letter-spacing: .03em; text-shadow: 4px 4px 0 #e0442f; }
+.sub-title { color: #e0442f; font-family: var(--hand); }
+.sheet-head { background: #1d1a22; }
+.toast { background: #efe6d2; color: #121015; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.5); font-weight: bold; }
+/* playing cards stay light, like real cards */
+.card { background: #efe6d2; color: #1e1c24; border-color: #0d0c10; box-shadow: 0 4px 0 #000, 0 8px 18px rgba(0,0,0,.4); }
+.card .card-foot { color: #5a5560; border-top-color: #8a8378; }
+.card .card-art { border-bottom-color: #1e1c24; }
+.card.legendary { background: linear-gradient(160deg, #f6efd6, #efe6d2 45%, #f3e6bf); }
+.card-set { color: #efe6d2; }
+.face.back canvas { border-color: #0d0c10; }
+/* unit pictures and move diagrams are drawn in ink, so give them a light panel */
+.u-art, .u-diag, .lk-prev { background: #efe6d2; border-radius: 8px; }
+.unit { background: #24212a; border-color: var(--line); }
+.legend { color: var(--ink-soft); }
+/* log colours that read on dark */
+.log li.played, .log li.played:first-child { color: #8fb3ff; }
+.log li.special { color: #c7a6ff; }
+.log li.itemlog, .log li.itemlog:first-child { color: #5fd3c9; }
+.log li.actlog { color: #ff6a55; }
+.log li.chaoslog, .log li.chaoslog:first-child { color: #c58cf0; }
+.log li.warn { color: #ff6a55; }
+.rot-act, .status .spx, .bar .title { color: #c7a6ff; }
+.sp-head { color: #c7a6ff; }
+.specials { background: rgba(122,63,184,.08); border-color: #6b46a3; border-style: solid; }
+.rot-bar { background: #121015; border-color: var(--line); }
+.comm { border: 2px solid var(--line); background: #0d0c10; }
+.online-panel { background: #1d1a22; border-color: var(--line); border-style: solid; }
+.online-join input { background: #121015; color: var(--ink); border-color: var(--line); }
+.lk-item { background: #24212a; border-color: var(--line); box-shadow: 0 3px 0 #000; }
+.lk-item.on { outline-color: #e0442f; }
+.lk-item b { color: var(--ink); }
+.fame li { border-bottom-color: var(--line); }
+.chaos { outline-color: #e0442f; }
+.sp-guide i { color: #c7a6ff; }

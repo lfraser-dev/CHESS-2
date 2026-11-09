@@ -93,7 +93,7 @@ function erupt(G, toMove) {
 function drawVoid(c, style, x, y, cell, i, now, neighbours) {
   const h = cell / 2;
   if (style === 'water') {
-    c.fillStyle = '#5b9bd5'; c.fillRect(x - h, y - h, cell, cell);
+    const wg = c.createLinearGradient(x, y - h, x, y + h); wg.addColorStop(0, '#2f7fc4'); wg.addColorStop(1, '#1d5a96'); c.fillStyle = wg; c.fillRect(x - h, y - h, cell, cell);
     c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = Math.max(1, cell * .04);
     for (let k = 0; k < 2; k++) { const yy = y - h * .4 + k * h * .8, ph = now / 500 + i * .7 + k; c.beginPath(); for (let t = 0; t <= 6; t++) { const xx = x - h * .7 + t * h * .23; const w = Math.sin(ph + t * 1.1) * cell * .04; t ? c.lineTo(xx, yy + w) : c.moveTo(xx, yy + w); } c.stroke(); }
     // foam where the water touches land
@@ -107,12 +107,17 @@ function drawVoid(c, style, x, y, cell, i, now, neighbours) {
     c.fillStyle = g; c.fillRect(x - h, y - h, cell, cell);
     c.fillStyle = 'rgba(80,20,10,.5)'; for (let k = 0; k < 3; k++) { const a = now / 900 + i + k * 2.1; c.beginPath(); c.arc(x + Math.cos(a) * h * .5, y + Math.sin(a * 1.3) * h * .5, cell * (.06 + .04 * Math.sin(now / 300 + k)), 0, 7); c.fill(); }
   } else {
-    // a deep chasm: dark, with a lighter rim on the edges that touch solid ground
-    c.fillStyle = '#1e1c24'; c.fillRect(x - h, y - h, cell, cell);
-    c.fillStyle = 'rgba(122,63,184,.25)'; c.fillRect(x - h * .6, y - h * .6, cell * .6, cell * .6);
-    c.fillStyle = 'rgba(255,255,255,.08)'; if (I.hash(i * 3) > .6) c.fillRect(x + (I.hash(i) - .5) * cell * .6, y + (I.hash(i + 9) - .5) * cell * .6, 1.5, 1.5);
-    c.fillStyle = '#5a5560';
-    if (!neighbours[0]) c.fillRect(x - h, y - h, cell, cell * .1);
+    // a deep chasm: pitch black falling away into purple fog, with a lit rock edge where it meets solid ground
+    const g = c.createLinearGradient(x, y - h, x, y + h); g.addColorStop(0, '#07060a'); g.addColorStop(1, '#1a0f26');
+    c.fillStyle = g; c.fillRect(x - h, y - h, cell, cell);
+    c.fillStyle = `rgba(140,80,220,${.08 + .05 * Math.sin(now / 900 + i)})`; c.fillRect(x - h, y - h * .2, cell, h * 1.2);
+    if (I.hash(i * 3) > .6) { c.fillStyle = 'rgba(200,170,255,.35)'; c.fillRect(x + (I.hash(i) - .5) * cell * .6, y + (I.hash(i + 9) - .5) * cell * .6, 1.5, 1.5); }
+    const e = Math.max(2, cell * .09);
+    c.fillStyle = '#6a6272';
+    if (!neighbours[0]) c.fillRect(x - h, y - h, cell, e);
+    if (!neighbours[2]) c.fillRect(x - h, y - h, e * .6, cell);
+    if (!neighbours[3]) c.fillRect(x + h - e * .6, y - h, e * .6, cell);
+    c.fillStyle = 'rgba(0,0,0,.6)'; if (!neighbours[0]) c.fillRect(x - h, y - h + e, cell, e);
   }
 }
 

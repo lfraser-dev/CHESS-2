@@ -91,7 +91,7 @@ function drawClip(c, W, H, clip, k, idx, n, now) {
   if (kind === 'bossatk' && clip.bossBefore) { const b = clip.bossBefore.at; fx = (fx + ((b % N) + 1) * cell) / 2; fy = (fy + ((b / N | 0) + 1) * cell) / 2; }
   const xy = sq => [((sq % N) + .5) * cell - fx, ((sq / N | 0) + .5) * cell - fy];
 
-  c.fillStyle = PAPER; c.fillRect(0, 0, W, H);
+  c.fillStyle = '#121015'; c.fillRect(0, 0, W, H);
   c.save();
   c.translate(W / 2 + sx, H * .46 + sy); c.rotate(tilt);
   // board squares (only the ones that could be on screen)
@@ -99,8 +99,9 @@ function drawClip(c, W, H, clip, k, idx, n, now) {
   for (let r = hr - span; r <= hr + span; r++) for (let cc = hc - span; cc <= hc + span; cc++) {
     if (r < 0 || cc < 0 || r >= N || cc >= N) continue;
     const x = (cc + .5) * cell - fx - cell / 2, y = (r + .5) * cell - fy - cell / 2;
-    if ((r + cc) % 2) { c.fillStyle = 'rgba(30,28,36,.06)'; c.fillRect(x, y, cell, cell); }
-    c.strokeStyle = 'rgba(30,28,36,.3)'; c.lineWidth = 1; c.strokeRect(x, y, cell, cell);
+    const gp = Math.max(1, cell * .035);
+    c.fillStyle = (r + cc) % 2 ? '#2a2630' : '#47414f'; c.fillRect(x + gp, y + gp, cell - gp * 2, cell - gp * 2);
+    c.fillStyle = 'rgba(255,255,255,.05)'; c.fillRect(x + gp, y + gp, cell - gp * 2, (cell - gp * 2) * .45);
   }
   const vis = sq => { const [x, y] = xy(sq); return Math.abs(x) < W && Math.abs(y) < H; };
   const after = s >= T_HIT;

@@ -991,9 +991,24 @@ function visibleRange(view = false) {
   const r0 = Math.max(0, Math.floor(cam.y)), r1 = Math.min(N - 1, Math.ceil(cam.y + vis)), c0 = Math.max(0, Math.floor(cam.x)), c1 = Math.min(N - 1, Math.ceil(cam.x + vis));
   return view || !FLIP() ? [r0, r1, c0, c1] : [N - 1 - r1, N - 1 - r0, N - 1 - c1, N - 1 - c0];
 }
+// stone tiles: each square is a slightly bevelled tile with a little grain, lit from the top left
+function drawTiles(c, th, r0, r1, c0, c1, cell, fl) {
+  const gap = Math.max(1, cell * .035);
+  for (let r = r0; r <= r1; r++) for (let col = c0; col <= c1; col++) {
+    const x = (col - cam.x) * cell, y = (r - cam.y) * cell, rr = fl ? N - 1 - r : r, cc = fl ? N - 1 - col : col, h = I.hash(rr * 31 + cc * 7);
+    c.fillStyle = th.tiles[(r + col) % 2]; c.fillRect(x + gap, y + gap, cell - gap * 2, cell - gap * 2);
+    c.fillStyle = `rgba(255,255,255,${.03 + h * .03})`; c.fillRect(x + gap, y + gap, cell - gap * 2, (cell - gap * 2) * .45);
+    if (cell >= 22) {
+      c.fillStyle = 'rgba(255,255,255,.07)'; c.fillRect(x + gap, y + gap, cell - gap * 2, gap * 1.2); c.fillRect(x + gap, y + gap, gap * 1.2, cell - gap * 2);
+      c.fillStyle = 'rgba(0,0,0,.28)'; c.fillRect(x + gap, y + cell - gap * 2.2, cell - gap * 2, gap * 1.2); c.fillRect(x + cell - gap * 2.2, y + gap, gap * 1.2, cell - gap * 2);
+      if (h > .55) { c.strokeStyle = 'rgba(0,0,0,.18)'; c.lineWidth = 1; c.beginPath(); c.moveTo(x + cell * (.2 + h * .3), y + cell * .25); c.lineTo(x + cell * (.35 + h * .2), y + cell * .5); c.lineTo(x + cell * (.3 + h * .3), y + cell * .7); c.stroke(); }
+    }
+  }
+}
 function drawGrid(c) {
   const [r0, r1, c0, c1] = visibleRange(true), cell = cam.cell, fl = FLIP(), th = TH, now = performance.now();
   c.fillStyle = th.base; const [bx0, by0, bx1, by1] = boardRect(); c.fillRect(bx0, by0, bx1 - bx0, by1 - by0);
+  if (th.tiles) drawTiles(c, th, r0, r1, c0, c1, cell, fl);
   if (th.disco || th.stars || th.stripes || th.shells) for (let r = r0; r <= r1; r++) for (let col = c0; col <= c1; col++) LK.decorate(c, th, r, col, (col - cam.x) * cell, (r - cam.y) * cell, cell, now);
   // dark squares
   if (!th.hatch) { if (th.darkFill) { c.fillStyle = th.darkFill; for (let r = r0; r <= r1; r++) for (let col = c0; col <= c1; col++) if ((r + col) % 2) c.fillRect((col - cam.x) * cell, (r - cam.y) * cell, cell, cell); } }
@@ -1025,7 +1040,7 @@ function drawGrid(c) {
   c.strokeStyle = K; c.lineWidth = 3; c.strokeRect(bx0, by0, bx1 - bx0, by1 - by0);
   // coordinates along the top and left edges of the view
   if (cell >= 16) {
-    c.fillStyle = th.glow ? 'rgba(220,225,255,.7)' : SOFT; c.font = `${Math.round(Math.min(13, cell * .32))}px 'Patrick Hand', cursive`; c.textAlign = 'left'; c.textBaseline = 'top';
+    c.fillStyle = th.night ? 'rgba(241,232,212,.55)' : SOFT; c.font = `${Math.round(Math.min(13, cell * .32))}px 'Patrick Hand', cursive`; c.textAlign = 'left'; c.textBaseline = 'top';
     for (let col = c0; col <= c1; col++) if (col % 2 === 0) c.fillText(colName(fl ? N - 1 - col : col), (col - cam.x) * cell + 2, Math.max(by0, 0) + 1);
     c.textBaseline = 'bottom';
     for (let r = r0; r <= r1; r++) if (r % 2 === 0) c.fillText(String(fl ? r + 1 : N - r), Math.max(bx0, 0) + 2, (r + 1 - cam.y) * cell - 1);
@@ -1033,14 +1048,14 @@ function drawGrid(c) {
 }
 function drawMinimap(c) {
   const [mx, my, m] = miniBox(), k = m / N;
-  c.fillStyle = 'rgba(242,238,226,0.94)'; c.fillRect(mx, my, m, m);
-  c.strokeStyle = K; c.lineWidth = 1.5; c.strokeRect(mx, my, m, m);
+  c.fillStyle = TH.night ? 'rgba(18,16,21,0.92)' : 'rgba(242,238,226,0.94)'; c.fillRect(mx, my, m, m);
+  c.strokeStyle = TH.night ? '#4d4657' : K; c.lineWidth = 1.5; c.strokeRect(mx, my, m, m);
   c.fillStyle = 'rgba(179,50,43,0.2)'; c.fillRect(mx, my + m / 2 - .5, m, 1);
   for (let i = 0; i < N * N; i++) {
     const t = G.terr[i]; if (t && (t.k === 'pit' || t.k === 'rad' || t.k === 'fire' || t.k === 'void')) { const [r, col] = vrc(i); c.fillStyle = t.k === 'rad' ? 'rgba(111,143,58,.5)' : t.k === 'fire' ? 'rgba(232,137,43,.7)' : t.k === 'void' ? (MP.MAPS[G.map || 'classic'].style === 'water' ? '#5b9bd5' : MP.MAPS[G.map || 'classic'].style === 'lava' ? '#ef7d22' : '#3a3542') : K; c.fillRect(mx + col * k, my + r * k, k, k); }
     const p = G.board[i]; if (!p) continue;
     const [r, col] = vrc(i), big = p.t === 'K' ? 2.2 : 1;
-    c.fillStyle = p.s === 'w' ? GOLD : K;
+    c.fillStyle = p.s === 'w' ? (TH.night ? '#f1e8d4' : GOLD) : (TH.night ? '#e0442f' : K);
     c.fillRect(mx + col * k - (big - 1) * k / 2, my + r * k - (big - 1) * k / 2, k * big + .4, k * big + .4);
   }
   const vis = BS / cam.cell;
@@ -1131,15 +1146,16 @@ function drawBoard(now) {
     for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2, r = CELL * (.18 + I.hash(f.s + i) * .14); c.lineTo(x + Math.cos(a) * r, y + CELL * .3 + Math.sin(a) * r * .35); }
     c.fill(); c.globalAlpha = 1;
   }
-  if (G.last) for (const sq of [G.last.f, G.last.t]) { const [x, y] = sqXY(sq); c.fillStyle = 'rgba(236,200,70,0.32)'; I.poly(c, [[x - CELL * .47, y - CELL * .44], [x + CELL * .46, y - CELL * .47], [x + CELL * .47, y + CELL * .45], [x - CELL * .45, y + CELL * .47]], sq, 1.2); c.fill(); }
-  for (const s of ['w', 'b']) if (inCheckCached(s)) { const ks = I.kingSq(G.board, s); if (ks >= 0) { const [x, y] = sqXY(ks); c.strokeStyle = RED; c.lineWidth = 2.6; I.circ(c, x, y, CELL * .44, 77, 1.5, 14); c.stroke(); } }
+  const night = !!TH.night;
+  if (G.last) for (const sq of [G.last.f, G.last.t]) { const [x, y] = sqXY(sq); c.fillStyle = night ? 'rgba(236,190,70,0.2)' : 'rgba(236,200,70,0.32)'; c.fillRect(x - CELL / 2, y - CELL / 2, CELL, CELL); }
+  for (const s of ['w', 'b']) if (inCheckCached(s)) { const ks = I.kingSq(G.board, s); if (ks >= 0) { const [x, y] = sqXY(ks), pulse = .55 + .35 * Math.sin(now / 160); const g = c.createRadialGradient(x, y, CELL * .1, x, y, CELL * .7); g.addColorStop(0, `rgba(230,50,40,${pulse})`); g.addColorStop(1, 'rgba(230,50,40,0)'); c.fillStyle = g; c.fillRect(x - CELL * .75, y - CELL * .75, CELL * 1.5, CELL * 1.5); } }
   const targets = currentTargets();
-  if (G.sel >= 0) { const [x, y] = sqXY(G.sel); c.strokeStyle = RED; c.lineWidth = 2.4; I.circ(c, x, y, CELL * .42, 5, 1.2, 12); c.stroke(); }
+  if (G.sel >= 0) { const [x, y] = sqXY(G.sel); c.fillStyle = 'rgba(243,213,91,.22)'; c.fillRect(x - CELL / 2, y - CELL / 2, CELL, CELL); c.strokeStyle = '#f3d55b'; c.lineWidth = Math.max(2, CELL * .05); c.strokeRect(x - CELL / 2 + 2, y - CELL / 2 + 2, CELL - 4, CELL - 4); }
   if (G.pend && G.pend.first != null) { const [x, y] = sqXY(G.pend.first); c.strokeStyle = BLUE; c.lineWidth = 2.4; I.circ(c, x, y, CELL * .42, 6, 1.2, 12); c.stroke(); }
   for (const t of targets) {
     const [x, y] = sqXY(t.sq);
-    if (t.type === 'move') { c.fillStyle = 'rgba(30,28,36,0.55)'; I.circ(c, x, y, CELL * .1, t.sq, .8, 7); c.fill(); }
-    else if (t.type === 'cap') { c.strokeStyle = RED; c.lineWidth = 2; I.circ(c, x, y, CELL * .4, t.sq, 1, 12); c.stroke(); }
+    if (t.type === 'move') { c.fillStyle = night ? 'rgba(241,232,212,0.45)' : 'rgba(30,28,36,0.55)'; c.beginPath(); c.arc(x, y, CELL * .13, 0, 7); c.fill(); }
+    else if (t.type === 'cap') { c.fillStyle = 'rgba(224,68,47,.18)'; c.fillRect(x - CELL / 2, y - CELL / 2, CELL, CELL); c.strokeStyle = '#e0442f'; c.lineWidth = Math.max(2, CELL * .06); const e = CELL * .44, l = CELL * .2; for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { c.beginPath(); c.moveTo(x + sx * e, y + sy * (e - l)); c.lineTo(x + sx * e, y + sy * e); c.lineTo(x + sx * (e - l), y + sy * e); c.stroke(); } }
     else if (t.type === 'shoot') { c.strokeStyle = RED; c.lineWidth = 1.8; I.circ(c, x, y, CELL * .36, t.sq, .8, 12); c.stroke(); for (const [a, b] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) I.ln(c, x + a * CELL * .2, y + b * CELL * .2, x + a * CELL * .45, y + b * CELL * .45, t.sq + a + b * 3, .3); }
     else if (t.type === 'swap') { c.strokeStyle = BLUE; c.lineWidth = 2; c.beginPath(); c.arc(x, y, CELL * .36, -2.6, -0.5); c.stroke(); c.beginPath(); c.arc(x, y, CELL * .36, 0.5, 2.6); c.stroke(); }
     else if (t.type === 'place') { c.strokeStyle = BLUE; c.lineWidth = 1.6; c.setLineDash([4, 4]); c.strokeRect(x - CELL * .38, y - CELL * .38, CELL * .76, CELL * .76); c.setLineDash([]); }
@@ -1352,6 +1368,7 @@ function drawBoard(now) {
       c.globalAlpha = 1;
     }
   }
+  if (TH.night) { const vg = c.createRadialGradient(BS / 2, BS / 2, BS * .35, BS / 2, BS / 2, BS * .75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,.45)'); c.fillStyle = vg; c.fillRect(0, 0, BS, BS); }
   drawPast(c, now);
   // speech bubbles on top of everything
   for (const f of fx) {
@@ -1990,7 +2007,7 @@ function buildGuide() {
   grid.appendChild(bossBtn);
   { const h = document.createElement('h3'); h.textContent = 'Special moves (unlocked by the Brainrot meter)'; grid.appendChild(h);
     const ul = document.createElement('ul'); ul.className = 'sp-guide'; grid.appendChild(ul);
-    for (const sp of M.SPECIALS) { const li = document.createElement('li'); li.innerHTML = `<b>${sp.name}</b> <i>(${sp.tier >= 5 ? 'Finale' : M.TIERS[sp.tier].act})</i>: ${sp.desc}`; ul.appendChild(li); } }
+    for (const sp of M.SPECIALS) { const li = document.createElement('li'); li.innerHTML = `<b>${sp.name}</b> <i>(${sp.rift ? 'time rifts' : sp.tier >= 5 ? 'Finale' : M.TIERS[sp.tier].act})</i>: ${sp.desc}`; ul.appendChild(li); } }
   const unitBlock = (title, list) => {
     const h = document.createElement('h3'); h.textContent = title; grid.appendChild(h);
     const wrap = document.createElement('div'); wrap.className = 'unit-list'; grid.appendChild(wrap);

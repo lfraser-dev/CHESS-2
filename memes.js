@@ -138,6 +138,7 @@ const DESC = {
   snacks: 'Any piece but kings and knights. Leaves for 2 turns and comes back home with 3 coins.',
   eat: 'Any piece but the king. Eats an enemy piece right next to it.',
   selfdestruct: 'Any piece but the king, finale only. Blows itself up and everything next to it.',
+  timetravel: 'Any piece but the king, while a time rift is open and it stands next to it. Goes back in time and erases an enemy piece that was on the board back then, then comes home 2 turns later.',
 };
 SPECIALS.forEach(s => { s.desc = DESC[s.key]; });
 const BY_KEY = Object.fromEntries(SPECIALS.map(s => [s.key, s]));

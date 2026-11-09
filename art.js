@@ -563,16 +563,73 @@ const ART = {
 };
 INK.ART = ART;
 
-function drawPiece(c, t, side, x, y, sz, seed = 0, alpha = 1) {
+// the plain line drawing (used for tiny pieces, and as the base of the fancy sprites)
+function drawPieceRaw(c, t, side, x, y, sz, seed = 0, alpha = 1, plain = false) {
   c.save(); c.globalAlpha *= alpha;
   c.translate(x, y + sz * 0.36);
   const k = sz / 62; c.scale(side === 'b' ? -k : k, k);
-  c.strokeStyle = K; c.lineJoin = 'round'; c.lineCap = 'round'; c.lineWidth = 2.4;
-  if (t !== 'J' && t !== 'ghost') { c.fillStyle = 'rgba(30,28,36,0.13)'; ell(c, 0, 1, 15, 3.4); c.fill(); }
-  ART[t](c, side === 'w' ? PAPER : K, side === 'w' ? K : PAPER, seed);
+  c.strokeStyle = side === 'w' ? '#17151b' : '#0d0c10'; c.lineJoin = 'round'; c.lineCap = 'round'; c.lineWidth = plain ? 2.4 : 3;
+  if (plain && t !== 'J' && t !== 'ghost') { c.fillStyle = 'rgba(30,28,36,0.13)'; ell(c, 0, 1, 15, 3.4); c.fill(); }
+  ART[t](c, side === 'w' ? BONE : NIGHT, side === 'w' ? '#17151b' : BONE, seed);
+  c.restore();
+}
+// team looks: Paper is bone-white with a black outline, Ink is black with a glowing red rim
+const BONE = '#f1e8d4', NIGHT = '#1d1b23';
+const TEAM = {
+  w: { rim: '#121015', base: '#e8dcc2', baseEdge: '#121015', baseTop: '#fbf5e6', glow: null },
+  b: { rim: '#e0442f', base: '#24212b', baseEdge: '#e0442f', baseTop: '#3a3542', glow: 'rgba(224,68,47,0.45)' },
+};
+// sprites are drawn once per unit, team, size and wobble frame, then reused (fast on slow computers)
+const spriteCache = new Map();
+function pieceSprite(t, side, sz) {
+  // sizes are rounded to steps of 8 pixels and scaled when drawn, so zooming doesn't redraw everything
+  const dpr = Math.min(window.devicePixelRatio || 1, 2), px = Math.max(16, Math.ceil(sz * dpr / 8) * 8);
+  const key = t + '|' + side + '|' + px;
+  let sp = spriteCache.get(key); if (sp) return sp;
+  if (spriteCache.size > 900) spriteCache.clear();
+  const S = Math.ceil(px * 1.9), cx = S / 2, cy = S * .5, art = document.createElement('canvas'); art.width = art.height = S;
+  const a = art.getContext('2d');
+  drawPieceRaw(a, t, side, cx, cy, px, 7, 1);
+  // soft light from the top
+  a.globalCompositeOperation = 'source-atop';
+  const g = a.createLinearGradient(0, cy - px * .5, 0, cy + px * .5); g.addColorStop(0, side === 'w' ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.14)'); g.addColorStop(.55, 'rgba(255,255,255,0)'); g.addColorStop(1, side === 'w' ? 'rgba(90,70,40,.18)' : 'rgba(0,0,0,.25)');
+  a.fillStyle = g; a.fillRect(0, 0, S, S);
+  a.globalCompositeOperation = 'source-over';
+  // outline: the silhouette, grown in every direction and filled with the team rim colour
+  const out = document.createElement('canvas'); out.width = out.height = S; const o = out.getContext('2d');
+  const R = Math.max(1.2, px * .045);
+  for (let i = 0; i < 12; i++) { const an = i / 12 * Math.PI * 2; o.drawImage(art, Math.cos(an) * R, Math.sin(an) * R); }
+  o.globalCompositeOperation = 'source-in'; o.fillStyle = TEAM[side].rim; o.fillRect(0, 0, S, S);
+  o.globalCompositeOperation = 'source-over';
+  const fin = document.createElement('canvas'); fin.width = fin.height = S; const f = fin.getContext('2d');
+  if (TEAM[side].glow) { f.save(); f.shadowColor = TEAM[side].glow; f.shadowBlur = px * .18; f.drawImage(out, 0, 0); f.restore(); }
+  f.drawImage(out, 0, 0); f.drawImage(art, 0, 0);
+  sp = { cv: fin, S: S / dpr, dpr, px };
+  spriteCache.set(key, sp);
+  return sp;
+}
+const FLIERS = new Set(['J', 'ghost', 'D', 'heli', 'phoenix', 'pigeon', 'moth', 'parrot', 'gunship', 'ufo', 'vampire']);
+function drawPiece(c, t, side, x, y, sz, seed = 0, alpha = 1) {
+  if (!ART[t]) return;
+  // tiny pieces (minimap, small previews) stay as simple line drawings
+  if (sz < 16 || typeof document === 'undefined') { drawPieceRaw(c, t, side, x, y, sz, seed, alpha, true); return; }
+  const T = TEAM[side] || TEAM.w, fly = FLIERS.has(t), footY = y + sz * .38;
+  c.save(); c.globalAlpha *= alpha;
+  // shadow, and a little round base like a board-game miniature (fliers hover over a shadow instead)
+  if (fly) { c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(x, footY + sz * .04, sz * .24, sz * .06, 0, 0, 7); c.fill(); }
+  else {
+    c.fillStyle = 'rgba(0,0,0,.35)'; c.beginPath(); c.ellipse(x + sz * .03, footY + sz * .06, sz * .34, sz * .09, 0, 0, 7); c.fill();
+    c.fillStyle = T.base; c.strokeStyle = T.baseEdge; c.lineWidth = Math.max(1.2, sz * .035);
+    c.beginPath(); c.ellipse(x, footY + sz * .02, sz * .3, sz * .085, 0, 0, 7); c.fill(); c.stroke();
+    c.fillStyle = T.baseTop; c.beginPath(); c.ellipse(x, footY - sz * .005, sz * .22, sz * .045, 0, 0, 7); c.fill();
+  }
+  const sp = pieceSprite(t, side, sz), bob = fly ? Math.sin(performance.now() / 380 + seed) * sz * .04 - sz * .06 : 0;
+  const D = sp.S * (sz * sp.dpr / sp.px);
+  c.drawImage(sp.cv, x - D / 2, y - D / 2 + bob, D, D);
   c.restore();
 }
 INK.drawPiece = drawPiece;
+INK.drawPieceRaw = drawPieceRaw;
 
 // status badges drawn over a piece on the board
 function drawBadges(c, p, x, y, cell) {
