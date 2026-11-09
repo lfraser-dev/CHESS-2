@@ -1561,7 +1561,12 @@ function closeOverlays() { $('#packOverlay').hidden = true; $('#unitsOverlay').h
 const NET = { api: null, room: null, code: null, seq: 0, applied: 0, caps: [], logSent: 0, applying: false, friendHere: false, started: false, unsub: null, queue: Promise.resolve() };
 const CODE_CHARS = 'abcdefghjkmnpqrstuvwxyz23456789';
 // inside Claude: the page's live room. Anywhere else (GitHub Pages, a downloaded copy): PeerJS (netpeer.js)
-const PEER_API = { kind: 'peer', join: name => I.PeerRoom.join(name) };
+// outside Claude: a public MQTT server (works on most networks), falling back to direct PeerJS connections
+const PEER_API = { kind: 'peer', async join(name) {
+  try { return await I.MqttRoom.join(name); }
+  catch (e) { console.warn('[chess2] MQTT failed, trying PeerJS', e); try { return await I.PeerRoom.join(name); } catch (e2) { console.warn('[chess2] PeerJS failed', e2); throw e; } }
+} };
+const netErr = (e, fallback) => (e && e.message && /library|online server/.test(e.message)) ? e.message.replace(/ \(.*\)$/, '') : fallback;
 NET.api = window.claude && window.claude.use ? null : PEER_API;
 (async () => {
   if (!window.claude || !window.claude.use) { renderOnlinePanel(); return; }
@@ -1704,9 +1709,9 @@ async function hostOnline() {
   unlockAudio();
   let code = ''; for (let i = 0; i < 5; i++) code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
   NET.role = 'host'; NET.mySide = 'w'; NET.started = false; NET.seq = 0; NET.applied = 0;
-  $('#onlineStatus').textContent = 'Setting up the game...';
+  $('#onlineStatus').textContent = 'Connecting to the online server...';
   try { await joinRoom(code); await NET.room.presence({ side: 'w', seq: 0 }); }
-  catch (e) { console.warn('[chess2] host', e); $('#onlineStatus').textContent = (e && e.message && /library/.test(e.message)) ? e.message : 'Couldn\'t open an online game. Check your internet connection and try again.'; return; }
+  catch (e) { console.warn('[chess2] host', e); $('#onlineStatus').textContent = netErr(e, 'Couldn\'t open an online game. Check your internet connection and try again.'); return; }
   renderOnlinePanel();
 }
 async function joinOnline() {
@@ -1714,13 +1719,14 @@ async function joinOnline() {
   const code = ($('#onlineCode').value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
   if (code.length < 4) { $('#onlineStatus').textContent = 'Type the code your friend gave you.'; return; }
   NET.role = 'join'; NET.seq = 0; NET.applied = 0; NET.started = true;
-  $('#onlineStatus').textContent = 'Joining...';
-  try { await joinRoom(code); } catch (e) { console.warn('[chess2] join', e); $('#onlineStatus').textContent = (e && e.message && /library/.test(e.message)) ? e.message : 'Couldn\'t join that game. Check the code and your internet connection, then try again.'; return; }
+  $('#onlineStatus').textContent = 'Connecting to the online server...';
+  try { await joinRoom(code); } catch (e) { console.warn('[chess2] join', e); $('#onlineStatus').textContent = netErr(e, 'Couldn\'t join that game. Check the code and your internet connection, then try again.'); return; }
   // wait a moment for everyone already there to show up, then take a free seat
+  $('#onlineStatus').textContent = `Looking for game ${code}...`;
   for (let t = 0; t < 30 && onlineSides(NET.room.peers()).size === 0; t++) await sleep(t < 8 ? 200 : 300);
   await sleep(300);
   const taken = onlineSides(NET.room.peers());
-  if (!taken.size) { $('#onlineStatus').textContent = `Nobody is in game ${code} yet. Check the code, or ask your friend to press Host a game first.`; await NET.room.leave(); NET.room = null; return; }
+  if (!taken.size) { $('#onlineStatus').textContent = `Game ${code} wasn't found. Check the code (it's 5 letters and numbers), and make sure your friend pressed Host a game and still has that screen open.`; await NET.room.leave(); NET.room = null; return; }
   NET.mySide = !taken.has('b') ? 'b' : !taken.has('w') ? 'w' : null;
   await NET.room.presence({ side: NET.mySide, seq: 0 });
   if (G && G.mode === 'online') G.me = NET.mySide;

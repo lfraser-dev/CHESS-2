@@ -66,7 +66,7 @@ The host plays Paper (moves first) and picks how random the game is. The board i
 
 **Where it works:**
 
-- **From GitHub (or any copy of the game):** both of you open the game with the internet on. It connects you directly using [PeerJS](https://peerjs.com) (free, loaded automatically, no account needed). The easiest way to share one link is GitHub Pages: in the repo go to **Settings → Pages**, pick **Deploy from a branch**, choose `main` and `/ (root)`, then use the link it gives you. (GitHub Pages on a private repo needs a paid GitHub plan; on a free plan, make the repo public, or each download the repo and open `index.html`.) Some school or work networks block these direct connections.
+- **From GitHub (or any copy of the game):** both of you open the game with the internet on. It connects through a free public game server (MQTT over a secure websocket, the same kind of connection normal websites use; it tries HiveMQ, then EMQX, then Mosquitto's public servers). If none of those work it tries a direct connection with [PeerJS](https://peerjs.com). No accounts needed. The game codes are random, but the public servers aren't private, so don't put anything secret in your title. The easiest way to share one link is GitHub Pages: in the repo go to **Settings → Pages**, pick **Deploy from a branch**, choose `main` and `/ (root)`, then use the link it gives you. (GitHub Pages on a private repo needs a paid GitHub plan; on a free plan, make the repo public, or each download the repo and open `index.html`.) Some school or work networks block game servers; if it says it couldn't reach the online server, try a different wifi.
 - **On the Chess 2 page in Claude:** share it with your friend from the page's **Share** menu (invite their email; they need to be signed in to Claude), and you both open it. It uses Claude's own live connection.
 
 ## Boss fights
@@ -163,7 +163,8 @@ Open **Units & cards** in the game for every card, a move diagram for every unit
 - `music.js` – the generated soundtrack
 - `locker.js` – the Locker: banked coins, cosmetics and their drawings
 - `commentary.js` – what Jim and Barry say, and their voices
-- `netpeer.js` – online play outside Claude (PeerJS); the rest of online play is in the "online" section of `game.js`
+- `netmqtt.js` – online play outside Claude (public MQTT server)
+- `netpeer.js` – the backup for online play outside Claude (PeerJS); the rest of online play is in the "online" section of `game.js`
 - `memes.js` – the Brainrot meter, the acts, special moves, and meme captions
 - `cinema3d.js` – the NUKE cinematic's real-time 3D: raymarched chess set, metal bomb, volumetric clouds, fireball, mushroom cloud and shockwave (WebGL)
 - `cinema.js` – the cinematic's timeline, titles, captions, letterbox, grain and flashes (plus a 2D fallback if WebGL isn't available)
