@@ -38,6 +38,28 @@ const ITEM_EVERY = { calm: 0, mild: 6, wild: 3, unhinged: 2 };
 const MUTATE_CHANCE = { calm: 0, mild: .15, wild: .3, unhinged: .55 };
 const M = I.MEMES;
 const LK = I.LOCKER;
+const MP = I.MAPS;
+const LV = I.LEVELS;
+// a piece earned XP: level-up fanfare, and your heroes go in the Hall of Fame
+function giveXp(sq, n, why) {
+  const r = LV.gain(G, sq, n); if (!r) return;
+  if (r.up) {
+    const p = r.p, lvName = LV.LEVELS[r.up].name, nm = LV.fullName(p);
+    addFx({ kind: 'confetti', sq, dur: 1600, s: sq, delay: 500 }); addFx({ kind: 'spell', key: 'mutate', sq, dur: 900, delay: 400 });
+    setTimeout(() => { meme(`${nm}: *becomes a ${lvName.toUpperCase()}*`, { react: { 1: 'VETERAN', 2: 'LEGENDARY', 3: 'MYTHIC' }[r.up], big: r.up >= 2, sq }); snd(r.up >= 2 ? 'airhorn' : 'brilliant'); }, 900);
+    const perk = { 1: 'gets a name, a headband and +1 armour', 2: 'gets a cape, a new way to move and +1 armour', 3: 'glows gold, can fly over pieces, grows a gun and +1 armour' }[r.up];
+    addLog(`LEVEL UP! ${poss(p.s)} ${U[p.t].name} is now ${nm}, a ${lvName}: ${perk}.`, 'actlog');
+    setTimeout(() => comment('levelup', { a: nm, lvl: lvName }, { big: r.up >= 2, clip: r.up >= 3 ? 'incredible' : null }), 1000);
+    if (p.s === mySide()) LK.fame(p, U[p.t].name, G.ply);
+  } else if (r.p.nm && r.p.s === mySide()) LK.fame(r.p, U[r.p.t].name, G.ply);
+}
+function mourn(p, sq) {
+  if (!p || !p.nm) return;
+  addLog(`RIP ${LV.fullName(p)} (${p.xp} XP). Gone but not forgotten.`, 'warn');
+  setTimeout(() => comment('rip', { v: LV.fullName(p) }, { big: (p.lvl || 0) >= 2, barry: .8 }), 1400);
+  if (p.s === mySide()) LK.fame(p, U[p.t].name, G.ply, true);
+}
+{ let m = 'classic'; try { m = localStorage.getItem('chess2.map') || 'classic'; } catch (e) { /* default */ } const sel = document.getElementById('mapQ'); if (sel) { sel.value = m; sel.addEventListener('change', () => { try { localStorage.setItem('chess2.map', sel.value); } catch (e) { /* not saved */ } }); } }
 let TH = LK.theme(LK.load().eq.theme);   // your board theme (only on your screen)
 // what you are: the side your coins and cosmetics belong to
 const mySide = () => G.mode === 'online' ? G.me : G.mode === 'ai' ? 'w' : null;
@@ -47,6 +69,7 @@ function bankAtEnd() {
   const me = mySide() || G.over.winner || 'w', won = G.over.winner === me;
   const n = G.coins[me] + (won ? 25 : 5) + (G.bossKills ? G.bossKills[me] * 10 : 0);
   const total = LK.bank(n, won);
+  G.board.forEach(p => { if (p && p.nm && p.s === me) LK.fame(p, U[p.t].name, G.ply); });
   G.bankedNow = n;
   addLog(`+${n} coins banked in your Locker (${total} total). Spend them on hats, boards and more.`, 'itemlog');
   setTimeout(() => toast(`+${n} coins banked in your Locker`), 2200);
@@ -58,14 +81,16 @@ function newGame(mode) {
   const level = chaosLevel();
   G = I.newState(mode, { chaosStart: level !== 'calm' });
   G.chaos = level;
-  Object.assign(G, { sel: -1, pend: null, spec: null, lock: false, recycle: null, rot: level === 'unhinged' ? 20 : 0, limbo: [], items: new Array(N * N).fill(null), gems: { w: 0, b: 0 }, hl: [], lastClip: null, boss: null, banked: false, bossKills: { w: 0, b: 0 },
+  Object.assign(G, { sel: -1, pend: null, spec: null, lock: false, recycle: null, rot: level === 'unhinged' ? 20 : 0, limbo: [], items: new Array(N * N).fill(null), gems: { w: 0, b: 0 }, hl: [], lastClip: null, boss: null, rift: null, banked: false, bossKills: { w: 0, b: 0 },
     cos: { w: LK.look(), b: mode === 'ai' ? { hat: 'tophat', fx: 'ink', title: 'none' } : mode === 'pvp' ? LK.look() : null }, spcd: { w: 0, b: 0 }, finale: false });
   G.actShown = level === 'calm' ? 0 : M.tierOf(G.rot);
+  { const pickMap = ($('#mapQ') && $('#mapQ').value) || 'classic'; const m = MP.apply(G, pickMap); if (m !== 'classic') G.mapNote = MP.MAPS[m]; }
   if (level !== 'calm') for (let k = 0; k < (level === 'unhinged' ? 5 : 3); k++) IT.spawn(G);
   anims.length = 0; fx.length = 0;
   if (sizeBoard.done) { cam.cell = MINZOOM(); clampCam(); }
   snap();
   addLog(mode === 'ai' ? 'New game of Chess 2 against the Ink Baron. You play Paper and move first. Good luck.' : 'New game. Paper moves first.');
+  if (G.mapNote) { addLog(`Map: ${G.mapNote.name}. ${G.mapNote.blurb}`, 'actlog'); G.mapNote = null; }
   refresh();
   
   if (newGame.started) setTimeout(() => comment('start', {}, { big: true, barry: .7 }), 700);
@@ -239,6 +264,11 @@ async function playMove(side, m) {
     }
   }
   addLog(line);
+  if (cap && !m.sw && !m.arm) {
+    const at = G.board[m.t] && G.board[m.t].id === mover.id ? m.t : G.board[m.f] && G.board[m.f].id === mover.id ? m.f : -1;
+    if (at >= 0) giveXp(at, 1 + (U[cap.t].val >= 5 ? 1 : 0));
+    mourn(cap, m.t);
+  }
   const got = !m.r && !m.arm && !m.sw ? pickUpItem(side, m.t) : null;
   if (cap && !m.arm && !m.sw && G.cos && G.cos[side] && G.cos[side].fx && G.cos[side].fx !== 'ink') addFx({ kind: 'cfx', style: G.cos[side].fx, sq: m.t, dur: 1200, delay: m.r ? 300 : 250, s: Math.random() * 99 });
   { I.setEnv(G); const chk = I.inCheck(G.board, other(side)), atk = G.board[m.t] || mover;
@@ -374,6 +404,8 @@ function finishTurn(side) {
   let every = ITEM_EVERY[G.chaos] || 0;
   if (every > 1 && tier() >= 3) every = Math.max(1, every - 1);
   const steps = [];
+  if (G.map && MP.MAPS[G.map] && MP.MAPS[G.map].moving && !G.over) steps.push(mapTick);
+  if (!G.over && G.chaos !== 'calm' && (G.rift ? G.ply >= G.rift.until : tier() >= 1 && G.ply >= 12 && G.snaps.length >= 10 && Math.random() < (G.chaos === 'unhinged' ? .12 : .07))) steps.push(riftStep);
   if (G.finale && !G.over) steps.push(finaleMeteor);
   if (G.boss && !G.over && G.ply % 2 === 0) steps.push(bossTurn);
   if (every && G.ply % every === 0 && !G.over) steps.push(spawnItems);
@@ -387,7 +419,7 @@ function returnFromLimbo() {
   if (!G.limbo || !G.limbo.length) return;
   for (const e of G.limbo.slice()) {
     if (G.ply < e.back || G.turn === e.p.s) continue;
-    const rows = e.why === 'snacks' ? I.homeRows(e.p.s) : I.halfRows(other(e.p.s));
+    const rows = e.why === 'snacks' || e.why === 'time' ? I.homeRows(e.p.s) : I.halfRows(other(e.p.s));
     let at = -1; const opts = [];
     for (let i = 0; i < N * N; i++) { const r = i / N | 0; const t = G.terr[i]; if (rows.includes(r) && !G.board[i] && !(t && (I.solid(t) || t.k === 'portal'))) opts.push(i); }
     if (!opts.length) continue;
@@ -396,10 +428,86 @@ function returnFromLimbo() {
     G.limbo.splice(G.limbo.indexOf(e), 1);
     addFx({ kind: 'summon', sq: at, dur: 900, big: true }); addFx({ kind: 'spell', key: 'teleport', sq: at, dur: 800 });
     if (e.why === 'snacks') { G.coins[e.p.s] += 3; addFx({ kind: 'text', sq: at, str: '+3 snacks', col: GOLD, delay: 300, dur: 1300 }); }
-    addLog(e.why === 'snacks' ? `${poss(e.p.s)} ${U[e.p.t].name} is back from the shop on ${sqName(at)} with 3 coins.` : `${poss(e.p.s)} ${U[e.p.t].name} falls out of another dimension onto ${sqName(at)}!`, 'special');
+    addLog(e.why === 'time' ? `${poss(e.p.s)} ${U[e.p.t].name} comes back from the past and lands on ${sqName(at)}.` : e.why === 'snacks' ? `${poss(e.p.s)} ${U[e.p.t].name} is back from the shop on ${sqName(at)} with 3 coins.` : `${poss(e.p.s)} ${U[e.p.t].name} falls out of another dimension onto ${sqName(at)}!`, 'special');
     meme(`${M.SIDE(e.p.s)}: *${U[e.p.t].name} ${e.why === 'snacks' ? 'is back with snacks' : 'returns from another dimension'}*`, { react: e.why === 'snacks' ? 'he\'s back' : 'HE\'S BACK', sq: at, big: e.why !== 'snacks' });
     focusOn(at);
   }
+}
+// ---- time rifts
+async function riftStep() {
+  if (G.rift) {
+    const at = G.rift.at; G.rift = null; pastCache = null;
+    addFx({ kind: 'spell', key: 'teleport', sq: at, dur: 800 }); snd('whoosh');
+    addLog('The time rift closes.', 'chaoslog');
+    refresh(); return;
+  }
+  const opts = []; for (let i = 0; i < N * N; i++) { const r = i / N | 0; if (r >= 4 && r <= N - 5 && !G.board[i] && !G.terr[i] && !(G.items && G.items[i])) opts.push(i); }
+  if (!opts.length) return;
+  const at = opts[Math.floor(Math.random() * opts.length)];
+  const from = Math.max(0, G.snaps.length - 11), then = G.snaps[from];
+  G.rift = { at, until: G.ply + 8, past: then.board.map((p, i) => p ? [i, p.id, p.t, p.s] : null).filter(Boolean), ago: G.snaps.length - from };
+  pastCache = null;
+  focusOn(at); refresh();
+  addFx({ kind: 'flash', dur: 400 }); shakeT = performance.now() + 500; snd('vboom'); setTimeout(() => snd('spell'), 300);
+  punch(at, .8, 1400);
+  meme('The universe: *opens a TIME RIFT*', { react: M.pick(['TIME TRAVEL', 'what year is it', 'the past is calling']), big: true, sq: at });
+  comment('act', { act: 'a time rift! Pieces can go back in time' }, { big: true, barry: .5 });
+  addLog(`A TIME RIFT opens on ${sqName(at)} for 8 turns! The picture in the corner shows the board ${G.rift.ago} turns ago. Any piece next to the rift can jump in and erase an enemy that was on the board back then.`, 'actlog');
+  await sleep(1300);
+}
+// the sepia "PAST" board in the corner, drawn once per rift into a small offscreen canvas
+let pastCache = null;
+function drawPast(c, now) {
+  if (!G.rift || !G.rift.past) return;
+  const S = Math.max(110, Math.min(200, BS * .28)), pad = 8;
+  if (!pastCache || pastCache.S !== S) {
+    const cv = document.createElement('canvas'); cv.width = S * DPR; cv.height = S * DPR; const x = cv.getContext('2d'); x.scale(DPR, DPR);
+    const k = S / N; x.fillStyle = '#e8d7b0'; x.fillRect(0, 0, S, S);
+    for (let r = 0; r < N; r++) for (let col = 0; col < N; col++) if ((r + col) % 2) { x.fillStyle = 'rgba(110,70,30,.15)'; x.fillRect(col * k, r * k, k, k); }
+    for (const [i, , t, sd] of G.rift.past) { const [vr, vc] = vrc(i); I.drawPiece(x, t, sd, (vc + .5) * k, (vr + .5) * k, k * .95, i); }
+    x.fillStyle = 'rgba(160,110,50,.25)'; x.fillRect(0, 0, S, S);
+    pastCache = { S, cv };
+  }
+  const x0 = BS - S - pad, y0 = pad + 22, wob = Math.sin(now / 300) * 1.5;
+  c.save(); c.translate(x0, y0 + wob);
+  c.fillStyle = 'rgba(30,28,36,.85)'; c.fillRect(-4, -22, S + 8, S + 26);
+  c.drawImage(pastCache.cv, 0, 0, S, S);
+  c.font = '400 13px Anton, Impact, sans-serif'; c.fillStyle = '#e8d7b0'; c.textAlign = 'left'; c.textBaseline = 'middle';
+  c.fillText(`${G.rift.ago} TURNS AGO`, 2, -11);
+  c.textAlign = 'right'; c.fillStyle = '#c7a6ff'; c.fillText(`closes in ${Math.max(0, G.rift.until - G.ply)}`, S, -11);
+  // while picking a target, ring where it was back then
+  if (G.spec && G.spec.key === 'timetravel') { const k = S / N; c.strokeStyle = '#7a3fb8'; c.lineWidth = 2; for (const tg of G.spec.opts) { const q = G.board[tg]; const e = q && G.rift.past.find(x => x[1] === q.id); if (e) { const [vr, vc] = vrc(e[0]); c.beginPath(); c.arc((vc + .5) * k, (vr + .5) * k, k * .7, 0, 7); c.stroke(); } } }
+  c.strokeStyle = '#7a3fb8'; c.lineWidth = 2; c.strokeRect(-4, -22, S + 8, S + 26);
+  c.restore();
+}
+function drawRift(c, now) {
+  if (!G.rift) return;
+  const [x, y] = sqXY(G.rift.at);
+  if (x < -CELL || y < -CELL || x > BS + CELL || y > BS + CELL) return;
+  c.save(); c.translate(x, y);
+  for (let k = 0; k < 4; k++) { c.rotate(now / (600 - k * 90)); c.strokeStyle = ['#7a3fb8', '#c7a6ff', '#5bd1f3', '#e86ad6'][k]; c.lineWidth = Math.max(1.5, CELL * .05); c.beginPath(); c.ellipse(0, 0, CELL * (.42 - k * .08), CELL * (.3 - k * .05), 0, k, k + 4.6); c.stroke(); }
+  c.fillStyle = 'rgba(30,10,50,.7)'; c.beginPath(); c.arc(0, 0, CELL * .12, 0, 7); c.fill();
+  c.restore();
+}
+
+// drifting islands and spreading lava
+async function mapTick() {
+  const before = G.board.slice();
+  const res = MP.tick(G, G.turn); if (!res) return;
+  if (res.kind === 'drift') {
+    const moved = res.from.map((f, n) => ({ f, t: res.to[n], p: G.board[res.to[n]] })).filter(x => x.p);
+    for (const m of moved) addAnim({ kind: 'move', p: m.p, f: m.f, t: m.t, dur: 650 });
+    if (res.crash) { shakeT = performance.now() + 500; setTimeout(() => snd('boom'), 600); }
+    snd('whoosh');
+    if (res.crash || moved.length) { meme(`The islands: *${res.crash ? 'CRASH INTO EACH OTHER' : 'drift'}*`, { react: res.crash ? M.pick(['CRASH', 'island collision', 'land ahoy']) : null, sq: res.to[Math.floor(res.to.length / 2)] }); if (res.crash) comment('act', { act: 'the islands crashing together' }, { barry: .6 }); }
+    addLog(`An island drifts ${['up', 'down', 'left', 'right'][[[-1, 0], [1, 0], [0, -1], [0, 1]].findIndex(([a, b]) => a === res.dir[0] && b === res.dir[1])]}${res.crash ? ' and crashes into another one' : ''}${moved.length ? `, carrying ${moved.length} piece${moved.length > 1 ? 's' : ''}` : ''}.`, 'chaoslog');
+  } else if (res.kind === 'lava') {
+    for (const q of res.squares) addFx({ kind: 'boom', sq: q, dur: 700, delay: Math.random() * 200 });
+    snd('rumble'); shakeT = performance.now() + 400;
+    meme(`The volcano: *spills more lava*`, { react: M.pick(['HOT HOT HOT', 'the floor is literally lava', 'it\'s spreading']), sq: res.squares[0] });
+    addLog(`The volcano spills lava onto ${res.squares.map(sqName).join(', ')}.`, 'chaoslog');
+  }
+  refresh(); await waitAnims();
 }
 async function nextAct() {
   const t = tier();
@@ -540,6 +648,7 @@ async function bossAttack(side, sq) {
   if (ranged) { addAnim({ kind: 'shot', f: sq, t: near, dur: 380, proj: 'bullet' }); addFx({ kind: 'muzzle', sq, to: near, dur: 160, proj: 'bullet' }); snd('twang'); }
   else { addAnim({ kind: 'lunge', p, f: sq, t: near, dur: 460, back: true }); snd('whoosh'); }
   const r = BO.hit(G, side, sq);
+  giveXp(sq, r.dead ? 3 : 1);
   setTimeout(() => { snd('hit'); shakeT = performance.now() + 300; if (G.boss) G.boss.hitT = performance.now(); }, ranged ? 360 : 280);
   addFx({ kind: 'impact', sq: near, from: sq, delay: ranged ? 360 : 280, dur: 380, big: true });
   addFx({ kind: 'text', sq: near, str: `-${r.dmg}`, col: RED, delay: 300, dur: 1300 });
@@ -589,6 +698,7 @@ async function bossTurn() {
   if (res.moved && G.boss.type === 'pom') snd('rumble');
   if (res.moved) { shakeT = performance.now() + 600; snd('rumble'); }
   for (const { sq, p } of res.killed) {
+    mourn(p, sq);
     const a = Math.atan2(sqXY(sq)[1] - by, sqXY(sq)[0] - bx);
     addFx({ kind: 'fling', p, sq, dir: [Math.cos(a), Math.sin(a) - .5], delay: 250, dur: 900, s: p.id });
     say(sq, 'dying', { p, dead: true, delay: 300 });
@@ -705,8 +815,13 @@ async function doSpecial(side, at, key, tg) {
   const before = new Map(); G.board.forEach((q, i) => { if (q) before.set(q.id, { p: q, i }); });
   const st = res.st;
   Object.assign(G, { board: st.board, terr: st.terr, fields: st.fields, coins: st.coins, hand: st.hand, grave: st.grave });
-  evToFx(res.ev, sp.key === 'airstrike' ? 'orbital' : sp.key === 'convert' ? 'mindcontrol' : sp.key);
+  evToFx(res.ev.filter(e => e.type !== 'erase'), sp.key === 'airstrike' ? 'orbital' : sp.key === 'convert' ? 'mindcontrol' : sp.key === 'timetravel' ? 'teleport' : sp.key);
+  if (sp.key === 'timetravel') { addFx({ kind: 'flash', dur: 500, delay: 250 }); setTimeout(() => slam('MEANWHILE, 10 TURNS AGO...', false), 200); }
   const killed = new Set(res.ev.filter(e => e.type === 'destroy').map(e => e.p.id));
+  for (const e of res.ev) if (e.type === 'destroy') mourn(e.p, e.sq);
+  for (const e of res.ev) if (e.type === 'erase') { addFx({ kind: 'glitch', p: e.p, sq: e.sq, dur: 1300, delay: 500 }); mourn(e.p, e.sq); setTimeout(() => snd('scratch'), 500); }
+  if (res.out.limbo && res.ev.some(e => e.type === 'erase')) res.out.limbo.p = { ...res.out.limbo.p, xp: (res.out.limbo.p.xp || 0) + 1 };
+  { const enemyKills = res.ev.filter(e => e.type === 'destroy' && e.p.s !== side).length, me = G.board.findIndex(q => q && q.id === p.id); if (enemyKills && me >= 0) giveXp(me, enemyKills); }
   G.board.forEach((q, i) => { if (!q) return; const b = before.get(q.id); if (b && b.i !== i) addAnim({ kind: 'move', p: q, f: b.i, t: i, dur: 480, fly: true }); else if (b && b.p.s !== q.s) addFx({ kind: 'spell', key: 'mutate', sq: i, dur: 900 }); });
   if (res.out.limbo) {
     G.limbo.push({ p: res.out.limbo.p, back: G.ply + 4, why: res.out.limbo.why });
@@ -922,7 +1037,7 @@ function drawMinimap(c) {
   c.strokeStyle = K; c.lineWidth = 1.5; c.strokeRect(mx, my, m, m);
   c.fillStyle = 'rgba(179,50,43,0.2)'; c.fillRect(mx, my + m / 2 - .5, m, 1);
   for (let i = 0; i < N * N; i++) {
-    const t = G.terr[i]; if (t && (t.k === 'pit' || t.k === 'rad' || t.k === 'fire')) { const [r, col] = vrc(i); c.fillStyle = t.k === 'rad' ? 'rgba(111,143,58,.5)' : t.k === 'fire' ? 'rgba(232,137,43,.7)' : K; c.fillRect(mx + col * k, my + r * k, k, k); }
+    const t = G.terr[i]; if (t && (t.k === 'pit' || t.k === 'rad' || t.k === 'fire' || t.k === 'void')) { const [r, col] = vrc(i); c.fillStyle = t.k === 'rad' ? 'rgba(111,143,58,.5)' : t.k === 'fire' ? 'rgba(232,137,43,.7)' : t.k === 'void' ? (MP.MAPS[G.map || 'classic'].style === 'water' ? '#5b9bd5' : MP.MAPS[G.map || 'classic'].style === 'lava' ? '#ef7d22' : '#3a3542') : K; c.fillRect(mx + col * k, my + r * k, k, k); }
     const p = G.board[i]; if (!p) continue;
     const [r, col] = vrc(i), big = p.t === 'K' ? 2.2 : 1;
     c.fillStyle = p.s === 'w' ? GOLD : K;
@@ -1002,7 +1117,13 @@ function drawBoard(now) {
     c.setLineDash([]);
   }
   const showMine = s => G.mode === 'pvp' || s === viewer();
-  for (let i = 0; i < N * N; i++) { const t = G.terr[i]; if (!t || !visible(i)) continue; const [x, y] = sqXY(i); I.drawTerrain(c, t, x, y, CELL, i, t.k !== 'mine' || showMine(t.s)); }
+  drawRift(c, now);
+  const vstyle = MP.MAPS[G.map || 'classic'].style, isV = j => j >= 0 && j < N * N && G.terr[j] && G.terr[j].k === 'void';
+  for (let i = 0; i < N * N; i++) {
+    const t = G.terr[i]; if (!t || !visible(i)) continue; const [x, y] = sqXY(i);
+    if (t.k === 'void') { const [r, cc] = rc(i), up = r > 0 && isV(i - N), dn = r < N - 1 && isV(i + N), lf = cc > 0 && isV(i - 1), rt = cc < N - 1 && isV(i + 1); const fl = FLIP(); MP.drawVoid(c, vstyle, x, y, CELL, i, now, fl ? [dn, up, rt, lf] : [up, dn, lf, rt]); continue; }
+    I.drawTerrain(c, t, x, y, CELL, i, t.k !== 'mine' || showMine(t.s));
+  }
   if (G.items) for (let i = 0; i < N * N; i++) { const it = G.items[i]; if (!it || !visible(i) || G.board[i]) continue; const [x, y] = sqXY(i); const dk = fx.find(f => f.kind === 'drop' && f.sq === i); let yo = 0; if (dk) { const k = Math.max(0, Math.min(1, (now - dk.start) / dk.dur)); yo = -(1 - k * k) * CELL * 3; } IT.drawItem(c, it.k, x, y + yo, CELL, now, i); }
   for (const f of fx) if (f.kind === 'splat' && now >= f.start) {
     const k = (now - f.start) / f.dur, [x, y] = sqXY(f.sq);
@@ -1050,9 +1171,11 @@ function drawBoard(now) {
     if (G.fields.flip > 0) { c.save(); c.translate(x, y); c.rotate(Math.PI); I.drawPiece(c, p.t, p.s, 0, 0, fsz, p.id * 3.7, alpha); c.restore(); }
     else {
       const ld = fx.find(f => f.kind === 'land' && f.sq === sq && now >= f.start && now < f.start + f.dur);
+      if (p.lvl >= 2) LV.drawBehind(c, p, x, y, fsz, now);
       if (ld) { const q = (now - ld.start) / ld.dur, sq2 = Math.sin(q * Math.PI) * (1 - q) * .5; c.save(); c.translate(x, y + CELL * .38); c.scale(1 + sq2 * .55, 1 - sq2 * .45); I.drawPiece(c, p.t, p.s, 0, -CELL * .38, fsz, p.id * 3.7, alpha); c.restore(); }
       else I.drawPiece(c, p.t, p.s, x, y, fsz, p.id * 3.7, alpha);
     }
+    if (p.lvl && CELL >= 14) LV.drawFront(c, p, x, y, fsz, now);
     const hat = G.cos && G.cos[p.s] && G.cos[p.s].hat;
     if (hat && hat !== 'none' && G.fields.flip <= 0 && CELL >= 16) LK.drawHat(c, hat, x, y, fsz, now);
     I.drawBadges(c, p, x, y, CELL);
@@ -1181,6 +1304,11 @@ function drawBoard(now) {
         c.fillStyle = '#fff3ea'; c.fillRect(lo - CELL / 2, ey - w / 6, hi - lo + CELL, w / 3);
       }
       c.globalAlpha = 1;
+    } else if (f.kind === 'glitch') {
+      // the erased piece flickers out of existence
+      const [x, y] = sqXY(f.sq);
+      if (k < .85) for (let s2 = 0; s2 < 5; s2++) { const off = (Math.random() - .5) * CELL * .3 * k; c.save(); c.beginPath(); c.rect(x - CELL / 2, y - CELL / 2 + s2 * CELL / 5, CELL, CELL / 5); c.clip(); c.globalAlpha = (1 - k) * (Math.random() < .3 ? .3 : 1); I.drawPiece(c, f.p.t, f.p.s, x + off, y, CELL * .82, f.p.id * 3.7); c.restore(); }
+      c.globalAlpha = 1; c.fillStyle = `rgba(122,63,184,${.4 * (1 - k)})`; c.fillRect(x - CELL / 2, y - CELL / 2, CELL, CELL);
     } else if (f.kind === 'cfx') { const [x, y] = sqXY(f.sq); LK.drawCaptureFx(c, f.style, x, y, CELL, k, f.s);
     } else if (f.kind === 'dust') {
       const [x, y] = sqXY(f.sq); c.fillStyle = 'rgba(120,110,95,.5)'; c.globalAlpha = 1 - k;
@@ -1224,6 +1352,7 @@ function drawBoard(now) {
       c.globalAlpha = 1;
     }
   }
+  drawPast(c, now);
   // speech bubbles on top of everything
   for (const f of fx) {
     if (f.kind !== 'say' || now < f.start || now > f.start + f.dur) continue;
@@ -1421,7 +1550,8 @@ function renderSpecials() {
   const list = M.specialsFor(G, G.sel, side);
   const locked = M.SPECIALS.filter(s => s.who(p.t) && (s.tier > tier() || (s.tier >= 5 && !G.finale)));
   const cd = G.spcd[side];
-  let html = `<div class="sp-head">Special moves: ${U[p.t].name}${cd ? ` <span class="sp-cd">recharging, ${cd} turn${cd > 1 ? 's' : ''}</span>` : ''}</div><div class="sp-list">`;
+  const lvl = p.lvl || 0, nextAt = LV.LEVELS[lvl + 1] ? LV.LEVELS[lvl + 1].at : null;
+  let html = `<div class="sp-head">${LV.fullName(p)}${lvl ? ` <span class="sp-lvl">${LV.LEVELS[lvl].name}</span>` : ''} <span class="sp-xp">${p.xp || 0} XP${nextAt ? ` · next level at ${nextAt}` : ' · max level'}</span>${cd ? ` <span class="sp-cd">recharging, ${cd} turn${cd > 1 ? 's' : ''}</span>` : ''}</div><div class="sp-list">`;
   for (const { sp, opts } of list) html += `<button type="button" class="sp-btn${G.spec && G.spec.key === sp.key ? ' on' : ''}" data-k="${sp.key}" ${cd ? 'disabled' : ''}><b>${sp.name}</b>${sp.free ? '<span class="sp-free">free</span>' : ''}<span>${opts[0] < 0 ? 'no target' : opts.length + ' target' + (opts.length > 1 ? 's' : '')}</span></button>`;
   for (const sp of locked.slice(0, 3)) html += `<span class="sp-lock">🔒 ${sp.name} <i>(${sp.tier >= 5 ? 'finale' : M.TIERS[sp.tier].act})</i></span>`;
   if (!list.length && !locked.length) html += '<span class="sp-lock">Nothing it can do right now</span>';
@@ -1606,7 +1736,7 @@ NET.api = window.claude && window.claude.use ? null : PEER_API;
   renderOnlinePanel();
 })();
 async function packState(extra) {
-  const keep = ['board', 'terr', 'items', 'coins', 'hand', 'grave', 'fields', 'extra', 'turn', 'ply', 'quiet', 'over', 'rot', 'actShown', 'limbo', 'spcd', 'finale', 'gems', 'boss', 'chaos', 'last', 'cos'];
+  const keep = ['board', 'terr', 'items', 'coins', 'hand', 'grave', 'fields', 'extra', 'turn', 'ply', 'quiet', 'over', 'rot', 'actShown', 'limbo', 'spcd', 'finale', 'gems', 'boss', 'chaos', 'last', 'cos', 'map', 'islands', 'rift'];
   const st = {}; for (const k of keep) st[k] = G[k];
   const body = JSON.stringify({ st, ...extra });
   const cs = new Blob([body]).stream().pipeThrough(new CompressionStream('deflate-raw'));
@@ -1684,7 +1814,7 @@ async function applyRemote(pr) {
     }
     // the NUKE gets its cutscene on both screens
     if (!fresh && data.caps && data.caps.some(c => /plays NUKE/.test(c.text))) { refresh(); await nukeCutscene(); }
-    Object.assign(G, data.st);
+    Object.assign(G, data.st); pastCache = null;
     if (G.me) { G.cos = { ...(G.cos || {}), [G.me]: LK.look() }; }
     G.sel = -1; G.pend = null; G.spec = null; G.recycle = null; G.lock = false; tKey = null;
     let maxId = 0; for (const p of G.board) if (p && p.id > maxId) maxId = p.id; for (const e of G.limbo || []) if (e.p && e.p.id > maxId) maxId = e.p.id; I.bumpPid(maxId);
@@ -1779,6 +1909,12 @@ function renderLocker() {
   $('#lockerTabs').innerHTML = LK.TABS.map(([k, label]) => `<button type="button" class="btn small${k === lockerTab ? ' primary' : ''}" data-tab="${k}" aria-pressed="${k === lockerTab}">${label}</button>`).join('');
   $('#lockerTabs').querySelectorAll('button').forEach(b => b.onclick = () => { lockerTab = b.dataset.tab; renderLocker(); });
   const grid = $('#lockerGrid'); grid.innerHTML = '';
+  if (lockerTab === 'fame') {
+    const list = p.fame || [];
+    grid.innerHTML = list.length ? `<ol class="fame">${list.map((f, i) => `<li><b>${i + 1}. ${f.name} the ${f.unit}</b> <span class="fame-lvl">${LV.LEVELS[f.lvl] ? LV.LEVELS[f.lvl].name : ''}</span> · ${f.xp} XP · game ${f.game}${f.died ? ' · <i>fell in battle</i>' : ''}</li>`).join('')}</ol>`
+      : '<p class="hint">No heroes yet. Pieces that capture twice become Veterans and get a name: your best ones end up here.</p>';
+    return;
+  }
   for (const it of LK.CATALOG[lockerTab]) {
     const owned = LK.owns(lockerTab, it.id), on = p.eq[lockerTab] === it.id;
     const card = document.createElement('div'); card.className = 'lk-item' + (on ? ' on' : '');
@@ -2065,7 +2201,7 @@ $('#musicFile').addEventListener('change', async e => {
 $('#rcTrade').addEventListener('click', tradePicked);
 for (const ov of ['#packOverlay', '#unitsOverlay']) $(ov).addEventListener('pointerdown', e => { if (e.target === $(ov) && (ov === '#unitsOverlay' || !$('#packDone').hidden)) closeOverlays(); });
 
-window.__inkmate = { get G() { return G; }, playMove, playCard, doSpecial, newGame, refresh, addRot, meme, slam, offerReplay, watchReplay, spawnBoss, bossAttack, NET, hostOnline, joinOnline, I, cast: () => (castCache = castCache || cutsceneCast()), lines: () => NUKE_LINES };
+window.__inkmate = { get G() { return G; }, playMove, playCard, doSpecial, newGame, refresh, addRot, meme, slam, offerReplay, watchReplay, spawnBoss, bossAttack, riftStep, mapTick, giveXp, NET, hostOnline, joinOnline, I, cast: () => (castCache = castCache || cutsceneCast()), lines: () => NUKE_LINES };
 window.addEventListener('resize', sizeBoard);
 sizeBoard();
 newGame('ai');

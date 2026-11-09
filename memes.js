@@ -106,6 +106,16 @@ const SPECIALS = [
     react: ['CRONCH', 'nom nom nom', 'he ate him'],
     targets: (st, at, s) => near(at, 1).filter(j => j !== at && st.board[j] && st.board[j].s !== s && hittable(st.board[j])),
     apply: (st, s, at, tg, ev) => `eats the ${U[kill(st, tg, ev).t].name} whole` },
+  // ---- time rifts: any piece next to an open rift can jump into the past and erase an enemy from history
+  { key: 'timetravel', name: 'Travel back in time', verb: 'jumps into the time rift and erases an enemy from history', tier: 0, who: t => t !== 'K', rift: true,
+    react: ['IT NEVER EXISTED', 'butterfly effect', 'TIME PARADOX', 'he changed the timeline'],
+    targets: (st, at, s) => {
+      const R = st.rift; if (!R || !R.past) return [];
+      const [r, c] = rc(at), [rr, rcc] = rc(R.at); if (Math.max(Math.abs(r - rr), Math.abs(c - rcc)) > 1) return [];
+      const was = new Set(R.past.map(x => x[1]));
+      const out = []; for (let j = 0; j < N * N; j++) { const q = st.board[j]; if (q && q.s !== s && hittable(q) && was.has(q.id)) out.push(j); } return out;
+    },
+    apply: (st, s, at, tg, ev, out) => { const q = st.board[tg]; st.board[tg] = null; st.grave[q.s].push(q.t); ev.push({ type: 'erase', sq: tg, p: q }); out.limbo = { p: st.board[at], turns: 2, why: 'time' }; st.board[at] = null; return `jumps into the time rift, goes back 10 turns and erases the ${U[q.t].name} from history. It never existed`; } },
   { key: 'selfdestruct', name: 'Self-destruct', verb: 'self-destructs', tier: 5, who: t => t !== 'K',
     react: ['GOODBYE CRUEL WORLD', 'he chose violence', 'kaboom'],
     targets: () => [-1],
@@ -152,6 +162,7 @@ function specialsFor(G, at, side) {
     if (sp.tier > tier || !sp.who(p.t)) continue;
     if (sp.tier >= 5 && !G.finale) continue;
     if (sp.key === 'stealturn' && G.extra) continue;
+    if (sp.rift && !G.rift) continue;
     const opts = sp.targets(G, at, side).filter(tg => trySpecial(G, side, at, sp.key, tg));
     if (opts.length) res.push({ sp, opts });
   }

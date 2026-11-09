@@ -391,3 +391,8 @@ button.card:disabled { cursor: default; }
 .comm-who.barry { color: #8fd3ff; }
 .comm-text { flex: 1 1 200px; min-width: 0; }
 @media (prefers-reduced-motion: reduce) { .comm-live { animation: none; } }
+.sp-lvl { font: 400 13px/1 Anton, Impact, sans-serif; color: #fff; background: #b3322b; padding: 2px 6px; border-radius: 4px; letter-spacing: .05em; }
+.sp-xp { font: 15px var(--hand); color: var(--ink-soft); }
+.fame { grid-column: 1 / -1; margin: 0; padding-left: 0; list-style: none; font-size: 18px; }
+.fame li { padding: 6px 0; border-bottom: 1px dashed var(--ink-soft); }
+.fame-lvl { color: #b3322b; }

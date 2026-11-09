@@ -105,6 +105,18 @@
         <option value="unhinged">Unhinged (the board is full of stuff, lots of mutations)</option>
       </select>
     </label>
+    <label class="chaos-pick" for="mapQ">Map
+      <select id="mapQ">
+        <option value="classic">Classic: the plain 15×15 board</option>
+        <option value="river">The River: three narrow bridges across the middle</option>
+        <option value="islands">Drifting Islands: islands that float around and crash</option>
+        <option value="donut">The Donut: a giant hole in the middle</option>
+        <option value="hourglass">Hourglass: a narrow gap in the middle</option>
+        <option value="cheese">Swiss Cheese: holes everywhere</option>
+        <option value="volcano">Volcano: a crater that keeps spilling lava</option>
+        <option value="random">Surprise me</option>
+      </select>
+    </label>
     <div class="start-btns">
       <button class="btn primary" id="startAi" type="button">Play the computer</button>
       <button class="btn" id="startPvp" type="button">Two players, one device</button>
@@ -183,6 +195,8 @@
 <script src="talk.js"></script>
 <script src="replay.js"></script>
 <script src="boss.js"></script>
+<script src="maps.js"></script>
+<script src="levels.js"></script>
 <script src="netpeer.js"></script>
 <script src="netmqtt.js"></script>
 <script src="music.js"></script>

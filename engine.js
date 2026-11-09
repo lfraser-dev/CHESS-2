@@ -97,7 +97,7 @@ const ENV = { terr: new Array(N * N).fill(null), wrap: false, truce: false, km: 
 function setEnv(st) {
   ENV.terr = st.terr; ENV.wrap = st.fields.wrap > 0; ENV.truce = st.fields.truce > 0; ENV.km = st.fields.km > 0 || st.fields.allkn > 0; ENV.bp = st.fields.bp > 0; ENV.allkn = st.fields.allkn > 0;
 }
-const SOLID = new Set(['pit', 'fire', 'boss']);
+const SOLID = new Set(['pit', 'fire', 'boss', 'void']);
 const solid = t => !!t && SOLID.has(t.k);
 const blockedSq = i => solid(ENV.terr[i]);
 

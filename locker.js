@@ -51,7 +51,7 @@ const CATALOG = {
     { id: 'gm', name: 'Chess 2 Grandmaster', price: 150 },
   ],
 };
-const TABS = [['hat', 'Hats'], ['theme', 'Boards'], ['fx', 'Capture effects'], ['title', 'Titles']];
+const TABS = [['hat', 'Hats'], ['theme', 'Boards'], ['fx', 'Capture effects'], ['title', 'Titles'], ['fame', 'Hall of Fame']];
 const find = (kind, id) => CATALOG[kind].find(x => x.id === id) || CATALOG[kind][0];
 const DEFAULT = { bank: 30, owned: ['hat:none', 'theme:notebook', 'fx:ink', 'title:none'], eq: { hat: 'none', theme: 'notebook', fx: 'ink', title: 'none' }, games: 0, wins: 0 };
 
@@ -71,6 +71,16 @@ function buy(kind, id) {
   return { ok: true, bought: true };
 }
 function equip(kind, id) { if (!owns(kind, id)) return false; load().eq[kind] = id; save(); return true; }
+// Hall of Fame: your best named pieces ever (kept to the top 30 by XP)
+function fame(p, unit, ply, died) {
+  const pr = load(); pr.fame = pr.fame || [];
+  const key = p.nm + '|' + unit + '|' + (pr.games || 0);
+  const e = pr.fame.find(x => x.key === key);
+  const row = { key, name: p.nm, unit, xp: p.xp || 0, lvl: p.lvl || 0, died: !!died || (e && e.died), game: (pr.games || 0) + 1 };
+  if (e) Object.assign(e, row); else pr.fame.push(row);
+  pr.fame.sort((a, b) => b.xp - a.xp); pr.fame.length = Math.min(pr.fame.length, 30);
+  save();
+}
 function bank(n, won) { const p = load(); p.bank += Math.max(0, Math.round(n)); p.games++; if (won) p.wins++; save(); return p.bank; }
 // what other players see: just ids, so it's tiny to send online
 const look = () => { const e = load().eq; return { hat: e.hat, fx: e.fx, title: e.title }; };
@@ -161,5 +171,5 @@ function drawCaptureFx(c, style, x, y, cell, k, seed) {
   c.restore();
 }
 
-I.LOCKER = { CATALOG, TABS, find, load, save, owns, buy, equip, bank, look, titleText, drawHat, THEMES, theme, decorate, drawCaptureFx };
+I.LOCKER = { CATALOG, TABS, find, load, save, owns, buy, equip, bank, fame, look, titleText, drawHat, THEMES, theme, decorate, drawCaptureFx };
 })();

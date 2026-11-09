@@ -8,7 +8,7 @@ const I = window.INK;
 const { N, U, rc, other } = I;
 const rnd = n => Math.floor(Math.random() * n);
 const pick = a => a[rnd(a.length)];
-const empty = (G, i) => !G.board[i] && !(G.terr[i] && ['pit', 'fire', 'portal', 'boss'].includes(G.terr[i].k));
+const empty = (G, i) => !G.board[i] && !(G.terr[i] && ['pit', 'fire', 'portal', 'boss', 'void'].includes(G.terr[i].k));
 const DRAWABLE = ['N', 'B', 'R', 'chicken', 'duck', 'grandma', 'trooper', 'pogo', 'cow', 'gnome', 'toaster', 'ogre', 'werewolf', 'goose'];
 const AGE_UP = { P: 'N', N: 'B', B: 'R', R: 'Q' };
 

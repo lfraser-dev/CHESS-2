@@ -69,6 +69,39 @@ The host plays Paper (moves first) and picks how random the game is. The board i
 - **From GitHub (or any copy of the game):** both of you open the game with the internet on. It connects through a free public game server (MQTT over a secure websocket, the same kind of connection normal websites use; it tries HiveMQ, then EMQX, then Mosquitto's public servers). If none of those work it tries a direct connection with [PeerJS](https://peerjs.com). No accounts needed. The game codes are random, but the public servers aren't private, so don't put anything secret in your title. The easiest way to share one link is GitHub Pages: in the repo go to **Settings → Pages**, pick **Deploy from a branch**, choose `main` and `/ (root)`, then use the link it gives you. (GitHub Pages on a private repo needs a paid GitHub plan; on a free plan, make the repo public, or each download the repo and open `index.html`.) Some school or work networks block game servers; if it says it couldn't reach the online server, try a different wifi.
 - **On the Chess 2 page in Claude:** share it with your friend from the page's **Share** menu (invite their email; they need to be signed in to Claude), and you both open it. It uses Claude's own live connection.
 
+## Maps
+
+Pick a **Map** on the start screen (online, the host picks):
+
+| Map | What's different |
+| --- | --- |
+| Classic | The plain 15×15 board |
+| The River | A river across the middle with three narrow bridges |
+| Drifting Islands | Five islands in the sea that drift around every few turns and crash into each other, carrying their pieces |
+| The Donut | A giant hole in the middle |
+| Hourglass | The board pinches into a narrow gap in the middle |
+| Swiss Cheese | Holes everywhere |
+| Volcano | A crater in the middle that spills more lava every few turns |
+| Surprise me | A random one |
+
+Nothing can walk onto water, holes or lava, but knights and other jumpers leap over them and flying units fly across.
+
+## Levelling up
+
+Captures (and hitting bosses) give a piece XP:
+
+| XP | Level | What it gets |
+| --- | --- | --- |
+| 2 | **Veteran** | A name (like "Gerald the Pawn"), a headband and +1 armour |
+| 5 | **Legend** | A cape, a new way to move and +1 armour |
+| 9 | **Mythic** | A golden glow, it can fly over pieces, it grows a gun, and +1 armour |
+
+Stars under a piece show its level, and selecting it shows its XP. When a named hero dies it gets a memorial. Your best ones are kept in the **Hall of Fame** tab of the Locker.
+
+## Time rifts
+
+From ACT II, a **time rift** sometimes opens on the board for 8 turns. While it's open, a sepia board in the corner shows the game about 10 turns ago. Any piece next to the rift can **Travel back in time**: it jumps in and erases an enemy piece that was already on the board back then (it never existed), then comes back home 2 turns later.
+
 ## Boss fights
 
 At **THE FINALE** a random boss lands in the middle of the board. Each one takes up 2×2 squares, belongs to nobody, and has its own attacks:
@@ -160,6 +193,8 @@ Open **Units & cards** in the game for every card, a move diagram for every unit
 - `talk.js` – what the pieces say, and the speech bubbles
 - `replay.js` – the end-of-game highlights reel
 - `boss.js` – the finale bosses: their art, health and attacks
+- `maps.js` – the maps, drifting islands and lava
+- `levels.js` – XP, levels, names and their looks
 - `music.js` – the generated soundtrack
 - `locker.js` – the Locker: banked coins, cosmetics and their drawings
 - `commentary.js` – what Jim and Barry say, and their voices

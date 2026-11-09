@@ -27,6 +27,8 @@ const JIM = {
   mate: ['CHECKMATE! IT\'S ALL OVER! {A} WINS CHESS 2!', 'AND THAT IS CHECKMATE! WHAT. A. GAME!'],
   draw: ['It\'s a DRAW! Nobody wins! Everybody loses! Beautiful!'],
   friend: ['And here comes the reply from your friend!', 'Your friend has made their move, and WHAT a move!'],
+  levelup: ['{a} HAS LEVELLED UP! {a} IS NOW A {lvl}!', 'LOOK AT THAT! {a}, a {lvl}! What a career!', 'A STAR IS BORN! {a} becomes a {lvl}!'],
+  rip: ['NOOO! {v} HAS FALLEN!', 'And that\'s the end of {v}. What a servant to the board.', '{v} is gone! The crowd falls silent!'],
 };
 const BARRY = {
   start: ['I\'ve been doing this for thirty years, Jim. I\'ve never seen a chicken on a chessboard.', 'Should be a good one, Jim. Probably.'],
@@ -50,6 +52,8 @@ const BARRY = {
   mate: ['GG, as the young people say.', 'What a match. My heart can\'t take Chess 2.'],
   draw: ['Everybody gets a participation trophy.'],
   friend: ['Your friend\'s been practising, Jim.'],
+  levelup: ['I remember when {a} was just a nobody, Jim.', 'Give that piece a pay rise.', 'They grow up so fast.'],
+  rip: ['A moment\'s silence for {v}, please.', 'I had {v} on my fantasy team, Jim.', 'They\'ll be naming a square after {v}.'],
 };
 function fill(t, ctx) { return t.replace(/\{(\w+)\}/g, (m, k) => ctx[k] != null ? ctx[k] : m); }
 function line(ev, ctx = {}, barry = false) { const pool = (barry ? BARRY : JIM)[ev]; return pool ? { who: barry ? 'BARRY' : 'JIM', text: fill(pick(pool), ctx) } : null; }
