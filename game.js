@@ -253,7 +253,8 @@ async function playMove(side, m) {
     if (chk) { const ks = I.kingSq(G.board, other(side)); if (ks >= 0) say(ks, 'check', { loud: true, delay: 600 }); }
     { const ctx = { A: team(side), V: team(other(side)), a: U[mover.t].name, v: cap ? U[cap.t].name : '' };
       if (got) { /* the item already got a comment */ }
-      else if (cap && !m.sw && !m.arm) { const blunder = G.lastMoved && G.lastMoved[other(side)] === cap.id && U[cap.t].val >= 3; comment(blunder ? 'blunder' : (U[cap.t].val >= 5 || cap.t === 'Q') ? 'bigcapture' : 'capture', ctx, { big: U[cap.t].val >= 5 || blunder }); }
+      else if (cap && !m.sw && !m.arm) { const blunder = G.lastMoved && G.lastMoved[other(side)] === cap.id && U[cap.t].val >= 3; const bigCap = U[cap.t].val >= 5 || cap.t === 'Q', clipKey = blunder ? null : (bigCap || Math.random() < .25) ? (rangedHit ? 'shot' : 'strike') : null;
+        comment(blunder ? 'blunder' : bigCap ? 'bigcapture' : 'capture', ctx, { big: bigCap || blunder || !!clipKey, clip: clipKey }); }
       else if (chk) comment('check', ctx, { big: true });
       else if (Math.random() < .22) comment('move', ctx, { barry: .25 });
       G.lastMoved = { ...(G.lastMoved || {}), [side]: mover.id }; }
@@ -281,8 +282,8 @@ async function playCard(side, idx, o) {
   I.setEnv(G);
   if (o && o.a >= 0) focusOn(o.a);
   markPre(); const hb = G.board.slice(), hi = G.items ? G.items.slice() : null;
-  if (sim) comment(key === 'nuke' ? 'nuke' : 'card', { A: team(side), card: card.name }, { big: key === 'nuke' || card.rarity === 'legendary' });
-  if (sim && key === 'nuke') { refresh(); await nukeCutscene(); shakeT = performance.now() + 1400; }
+  if (sim && key !== 'nuke') comment('card', { A: team(side), card: card.name }, { big: card.rarity === 'legendary', clip: card.rarity === 'legendary' ? 'incredible' : null });
+  if (sim && key === 'nuke') { refresh(); await nukeCutscene(); shakeT = performance.now() + 1400; comment('nuke', { A: team(side) }, { big: true, clip: 'incredible' }); }
   if (!sim) addLog(`${who(side)} played ${card.name}, but nothing happened.`, 'played');
   else {
     Object.assign(G, { board: sim.board, terr: sim.terr, fields: sim.fields, coins: sim.coins, hand: sim.hand, grave: sim.grave, extra: sim.extra });
@@ -424,7 +425,7 @@ async function finaleMeteor() {
   focusOn(hit.sq);
   markPre(); const hb = G.board.slice(), hi = G.items.slice();
   Object.assign(G, { board: hit.st.board, terr: hit.st.terr, grave: hit.st.grave });
-  if (hit.p) { comment('meteor', { v: U[hit.p.t].name }, { big: true }); say(hit.sq, 'dying', { p: hit.p, dead: true, delay: 300 }); clip(4 + (U[hit.p.t].val || 0) / 2, hb, hi, -1, hit.sq, `The sky: *drops a meteor on the ${U[hit.p.t].name}*`, 'UNLUCKY', 'METEOR', 'meteor'); }
+  if (hit.p) { comment('meteor', { v: U[hit.p.t].name }, { big: true, clip: U[hit.p.t].val >= 5 ? 'shot' : null }); say(hit.sq, 'dying', { p: hit.p, dead: true, delay: 300 }); clip(4 + (U[hit.p.t].val || 0) / 2, hb, hi, -1, hit.sq, `The sky: *drops a meteor on the ${U[hit.p.t].name}*`, 'UNLUCKY', 'METEOR', 'meteor'); }
   addFx({ kind: 'spell', key: 'meteor', sq: hit.sq, dur: 900 }); addFx({ kind: 'boom', sq: hit.sq, delay: 350, dur: 800 });
   if (hit.p) { const a = Math.random() * Math.PI * 2; addFx({ kind: 'fling', p: hit.p, sq: hit.sq, dir: [Math.cos(a), Math.sin(a) - .6], delay: 380, dur: 850, s: hit.p.id }); }
   setTimeout(() => snd('boom'), 350); shakeT = performance.now() + 900;
@@ -442,7 +443,7 @@ function startTurn() {
     if (I.inCheck(G.board, t)) { G.over = { winner: other(t), why: 'checkmate' }; addLog(`Checkmate! ${winText(other(t))}`, 'big');
       const lost = solo() && other(t) !== viewer(); snd(lost ? 'trombone' : 'win');
       const mateReact = lost ? 'it\'s so over' : M.pick(['GG EZ', 'WE\'RE SO BACK', 'absolute cinema']);
-      comment('mate', { A: team(other(t)) }, { big: true, barry: .9 });
+      comment('mate', { A: team(other(t)) }, { big: true, barry: .9, clip: 'goal' });
       meme(`${M.SIDE(other(t))}: *checkmates*`, { react: mateReact, big: true, sq: I.kingSq(G.board, t) });
       say(I.kingSq(G.board, t), 'lose', { loud: true, delay: 500, dur: 4000 });
       const wk = I.kingSq(G.board, other(t)); if (wk >= 0) say(wk, 'win', { delay: 1300, dur: 4000 });
@@ -545,7 +546,7 @@ async function bossAttack(side, sq) {
   const cap = `${M.SIDE(side)}: *${U[p.t].name} ${M.pick(['bonks', 'slaps', 'punches', 'pokes', 'roundhouse kicks', 'headbutts'])} ${bossName()}*`;
   meme(cap, { react: r.dead ? null : M.pick(['DAMAGE', 'it felt that', 'GET HIM', 'crit!!']), sq: near });
   say(sq, 'special', { delay: 100 });
-  if (!r.dead) comment('bosshit', { A: team(side), a: U[p.t].name, boss: bossName() });
+  if (!r.dead) comment('bosshit', { A: team(side), a: U[p.t].name, boss: bossName() }, { big: r.dmg >= 4, clip: r.dmg >= 4 ? (ranged ? 'shot' : 'strike') : null });
   addLog(`${poss(side)} ${U[p.t].name} hits ${bossName()} for ${r.dmg} (${G.boss.hp} health left).`, 'special');
   addRot(3);
   refresh(); await waitAnims();
@@ -562,7 +563,7 @@ async function bossDefeated(side, sq) {
   if (sq != null && G.board[sq] && G.board[sq].s === side) { const q = G.board[sq]; G.board[sq] = { ...q, ar: (q.ar || 0) + 2, mut: [...(q.mut || []), 'zoom'] }; addFx({ kind: 'spell', key: 'mutate', sq, delay: 500, dur: 1000 }); }
   for (const b of BO.squares(at)) addFx({ kind: 'confetti', sq: b, dur: 1800, s: b });
   meme(`${M.SIDE(side)}: *defeats ${bname}*`, { react: 'BOSS DEFEATED', big: true, sq: at });
-  comment('bossdead', { A: team(side), boss: bname }, { big: true, barry: .8 });
+  comment('bossdead', { A: team(side), boss: bname }, { big: true, barry: .8, clip: 'incredible' });
   const mvp = dmg.w === dmg.b ? 'a tie' : dmg.w > dmg.b ? who('w') : who('b');
   addLog(`${bname} IS DEFEATED! ${who(side)} landed the final blow: +15 coins, and the hero gets 2 armour and super speed. Damage dealt: ${who('w')} ${dmg.w}, ${who('b')} ${dmg.b} (MVP: ${mvp}).`, 'actlog');
   refresh(); await waitAnims(); await sleep(400);
@@ -603,16 +604,46 @@ const CM = I.COMM;
 let commMode = 'voice'; try { commMode = localStorage.getItem('chess2.comm') || 'voice'; } catch (e) { /* default */ }
 let commT = 0, commTyping = 0, barryT = 0;
 const team = s => G.mode === 'ai' ? (s === 'w' ? 'Paper' : 'the Baron') : (s === 'w' ? 'Paper' : 'Ink');
+// real commentator clips (assets/commentary): the big moments get an actual football commentator
+const CLIPS = {
+  incredible: { src: 'assets/commentary/incredible.mp3', text: 'THAT IS NOTHING BUT INCREDIBLE!' },
+  shot: { src: 'assets/commentary/amazing-shot.mp3', text: 'WHAT AN AMAZING SHOT!' },
+  strike: { src: 'assets/commentary/sweet-strike.mp3', text: 'OH, WHAT A SWEET STRIKE!' },
+  goal: { src: 'assets/commentary/goal.mp3', text: null },
+};
+const clipLast = {}; let clipAudio = null, clipPlaying = false;
+for (const k in CLIPS) { const a = new Audio(); a.preload = 'auto'; a.src = CLIPS[k].src; CLIPS[k].el = a; }
+function playClip(key) {
+  const cl = CLIPS[key]; if (!cl || commMode !== 'voice' || muted) return false;
+  const now = performance.now();
+  if (clipPlaying || (clipLast[key] && now - clipLast[key] < (key === 'goal' ? 0 : 25000))) return false;   // don't spam the same line
+  clipLast[key] = now;
+  const a = cl.el; try { a.currentTime = 0; } catch (e) { /* not loaded yet */ }
+  a.volume = .95; clipPlaying = true; CM.hush();
+  if (I.Music) I.Music.duck(true);
+  const done = () => { clipPlaying = false; if (I.Music && $('#cutscene').hidden) I.Music.duck(false); };
+  a.onended = done; a.onerror = done;
+  const pr = a.play(); if (pr && pr.catch) pr.catch(done);
+  return true;
+}
 function comment(ev, ctx = {}, o = {}) {
   if (commMode === 'off' || !G) return;
   const now = performance.now();
   if (!o.big && now - commT < 1800) return;            // don't talk over a big moment with small stuff
+  // a real clip for the biggest moments (the text box shows what he says)
+  if (o.clip && playClip(o.clip)) {
+    const t = CLIPS[o.clip].text, ln0 = CM.line(ev, ctx);
+    commT = now; showComment({ who: 'JIM', text: t || (ln0 ? ln0.text : 'GOOOOOAL!') }, false, true);
+    clearTimeout(barryT);
+    if (Math.random() < .5) barryT = setTimeout(() => { const b = CM.line(ev, ctx, true); if (b) { commT = performance.now(); showComment(b, false); } }, o.clip === 'goal' ? 9000 : 4600);
+    return;
+  }
   const ln = CM.line(ev, ctx); if (!ln) return;
   commT = now; showComment(ln, o.big);
   clearTimeout(barryT);
   if (Math.random() < (o.barry != null ? o.barry : .45)) barryT = setTimeout(() => { const b = CM.line(ev, ctx, true); if (b) { commT = performance.now(); showComment(b, false); } }, 2600 + ln.text.length * 25);
 }
-function showComment(ln, urgent) {
+function showComment(ln, urgent, silent) {
   const el = $('#comm'); if (!el) return;
   el.hidden = false;
   el.querySelector('.comm-who').textContent = ln.who + ':';
@@ -620,7 +651,7 @@ function showComment(ln, urgent) {
   const tx = el.querySelector('.comm-text'); let i = 0;
   clearInterval(commTyping);
   commTyping = setInterval(() => { i = Math.min(ln.text.length, i + 2); tx.textContent = ln.text.slice(0, i); if (i >= ln.text.length) clearInterval(commTyping); }, 18);
-  if (commMode === 'voice' && !muted) CM.speak(ln.who, ln.text, urgent);
+  if (commMode === 'voice' && !muted && !silent && !clipPlaying) CM.speak(ln.who, ln.text, urgent);
 }
 function renderCommBox() { const el = $('#comm'); if (el && commMode === 'off') el.hidden = true; }
 
@@ -667,7 +698,7 @@ async function doSpecial(side, at, key, tg) {
   markPre(); const spReact = M.pick(sp.react), hb = G.board.slice(), hi = G.items ? G.items.slice() : null;
   meme(`${M.SIDE(side)}: *${sp.verb}*`, { react: spReact, sq: tg >= 0 ? tg : at, big: true, sound: false });
   say(at, 'special', { loud: true });
-  comment('special', { A: team(side), a: name, verb: sp.verb }, { big: true });
+  comment('special', { A: team(side), a: name, verb: sp.verb }, { big: true, clip: Math.random() < .6 ? 'incredible' : null });
   addFx({ kind: 'flash', dur: 260, delay: 600 });
   snd(sp.tier >= 3 ? 'airhorn' : 'vboom');
   await sleep(650);
@@ -1664,7 +1695,7 @@ async function applyRemote(pr) {
     if (before) animateDiff(before);
     // replay their captions one after another
     (data.caps || []).forEach((c, i) => setTimeout(() => { meme(c.text, { react: c.react, sq: c.sq, big: c.big, remote: true }); }, i * 1300));
-    if (!fresh && G.me && Math.random() < .5) setTimeout(() => comment(G.over ? 'mate' : 'friend', { A: team(data.by) }, { big: !!G.over }), 900);
+    if (!fresh && G.me && (G.over || Math.random() < .5)) setTimeout(() => comment(G.over ? 'mate' : 'friend', { A: team(data.by) }, { big: !!G.over, clip: G.over ? 'goal' : null }), 900);
     const last = (data.caps || [])[data.caps.length - 1];
     if (before && last) clip((last.big ? 5 : 2) + (last.react ? 1 : 0), before, beforeItems, -1, last.sq >= 0 ? last.sq : (G.last ? G.last.t : 112), last.text, last.react, 'FRIEND');
     if (G.last) focusOn(G.last.t);
@@ -1990,7 +2021,7 @@ $('#startUnits').addEventListener('click', openGuide);
 $('#unitsClose').addEventListener('click', () => { $('#unitsOverlay').hidden = true; });
 $('#btnNew').addEventListener('click', () => { if (G && G.mode === 'online' && NET.room && !G.over && !confirmLeave()) return; openStart(); });
 function confirmLeave() { toast('You\'re in an online game. Pick a mode on the start screen to leave it.'); return true; }
-$('#btnMute').addEventListener('click', () => { muted = !muted; if (muted) CM.hush(); $('#btnMute').textContent = muted ? 'Sound off' : 'Sound on'; $('#btnMute').setAttribute('aria-pressed', String(!muted)); if (I.Music) I.Music.setOn(musicOn && !muted); });
+$('#btnMute').addEventListener('click', () => { muted = !muted; if (muted) { CM.hush(); for (const k in CLIPS) try { CLIPS[k].el.pause(); } catch (e) { /* ignore */ } } $('#btnMute').textContent = muted ? 'Sound off' : 'Sound on'; $('#btnMute').setAttribute('aria-pressed', String(!muted)); if (I.Music) I.Music.setOn(musicOn && !muted); });
 { const cq = $('#commQ'); cq.value = commMode; cq.addEventListener('change', () => { commMode = cq.value; try { localStorage.setItem('chess2.comm', commMode); } catch (e) { /* not saved */ } if (commMode !== 'voice') CM.hush(); renderCommBox(); if (commMode !== 'off') comment('start', {}, { big: true, barry: 0 }); }); }
 $('#btnMusicOn').addEventListener('click', () => { unlockAudio(); musicOn = !musicOn; try { localStorage.setItem('chess2.music', musicOn ? 'on' : 'off'); } catch (e) { /* not saved */ } renderMusicBtn(); if (I.Music) I.Music.setOn(musicOn && !muted); });
 renderMusicBtn();

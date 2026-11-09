@@ -95,7 +95,7 @@ Cosmetics never change the rules. Online, your friend sees your hats, capture ef
 
 ## Commentators
 
-**JIM** (excited play-by-play) and **BARRY** (deadpan) commentate live in the box above the board: big captures, blunders, checks, special moves, items, cards, nukes, meteors, bosses, new acts and the ending. They talk out loud using your browser's built-in voices. Change it with **Commentary** at the top: Voice + text, Text only, or Off.
+**JIM** (excited play-by-play) and **BARRY** (deadpan) commentate live in the box above the board: big captures, blunders, checks, special moves, items, cards, nukes, meteors, bosses, new acts and the ending. For the biggest moments Jim uses real football-commentator clips from `assets/commentary/` ("That is nothing but incredible!" for special moves, nukes and beating a boss; "What an amazing shot!" for shooters and meteors; "Oh, what a sweet strike!" for big captures; a full goal celebration for checkmate). Everything else is spoken with your browser's built-in voices, and the music dips while a clip plays. Change it with **Commentary** at the top: Voice + text, Text only, or Off.
 
 ## Music and sound
 
